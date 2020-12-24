@@ -1,25 +1,26 @@
 import { app, BrowserWindow } from "electron";
 import * as path from "path";
 import * as url from "url";
+import PoweredUP, { Consts } from "node-poweredup";
+import { Dog } from "./dog";
 
 let mainWindow: Electron.BrowserWindow;
+let dog: Dog = new Dog();
+let poweredUP: PoweredUP = new PoweredUP();
 
 function createWindow() {
-  // Create the browser window.
   mainWindow = new BrowserWindow({
     height: 600,
     width: 800,
     webPreferences: { nodeIntegration: true },
   });
 
-  // and load the index.html of the app.
   mainWindow.loadURL(url.format({
       pathname: path.join(__dirname, "../index.html"),
       protocol: "file:",
       slashes: true,
   }));
 
-  // Open the DevTools.
   mainWindow.webContents.openDevTools();
 
   // Emitted when the window is closed.
@@ -53,28 +54,8 @@ app.on("activate", () => {
   }
 });
 
-// In this file you can include the rest of your app"s specific main process
-// code. You can also put them in separate files and require them here.
-import PoweredUP, { Consts } from "node-poweredup"
-var poweredUP: PoweredUP = new PoweredUP();
-console.log("Looking for Hubs...");
-poweredUP.scan();
-
-
-poweredUP.on("discover", async (hub) => {
-    await hub.connect();
-    console.log(`Connected to ${hub.name}`);
-    hub.on("disconnect", () => {
-        console.log(`Hub ${hub.name} disconnected`);
-    })
-    hub.on("attach", (device) => {
-       console.log(`Device attached to hub ${hub.name} port ${device.portName} (Device ID: ${device.type})`);
-    });
-    hub.on("detach", (device) => {
-        console.log(`Device detached from hub ${hub.name} port ${device.portName}`);
-    });
-    hub.on("button", ({ event }) => {
-                    console.log(hub);
-    });
+poweredUP.on("discover", (hub) => {
+  dog.addHub(hub);
 });
-
+poweredUP.scan();
+console.log("Looking for Hubs...");

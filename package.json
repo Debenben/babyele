@@ -2,7 +2,7 @@
   "name": "babyele",
   "version": "0.1.0",
   "description": "program to control lego walker",
-  "main": "index.js",
+  "main": "./app/main.js",
   "scripts": {
     "build": "tsc",
     "start": "electron --no-sandbox ./app/main.js",
