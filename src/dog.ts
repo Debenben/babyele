@@ -1,4 +1,5 @@
-import { Hub, HubLED, Consts } from "node-poweredup"; 
+import { Hub, HubLED, Consts } from "node-poweredup";
+import { BrowserWindow } from "electron";
 import { Leg } from "./leg";
 
 export enum Modes {
@@ -9,19 +10,34 @@ export enum Modes {
 }
 
 export class Dog {
-  mode : Modes = Modes.WAITING
-  hubFront : Hub
-  hubBack : Hub
-  ledFront : HubLED
-  ledBack : HubLED
+  mainWindow: BrowserWindow
+  mode: Modes = Modes.WAITING
+  hubFront: Hub
+  hubBack: Hub
+  ledFront: HubLED
+  ledBack: HubLED
   legFrontLeft: Leg 
   legFrontRight: Leg 
   legBackLeft: Leg 
   legBackRight: Leg
 
+  constructor(mainWindow) {
+    this.mainWindow = mainWindow;
+  }
+
   async addHub(hub) {
     await hub.connect();
     console.log(`Connected to ${hub.name}`);
+    if(hub.name === "BeneLego2") {
+      this.hubBack = hub;
+      this.ledBack = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
+      this.mainWindow.webContents.send('backHub', hub.name);
+    }
+    if(hub.name === "BeneLego3") {
+      this.hubFront = hub;
+      this.ledFront = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
+      this.mainWindow.webContents.send('frontHub', hub.name);
+    }
   }
 }
 
@@ -109,14 +125,6 @@ poweredUP.on("discover", async (hub) => {
 	}
     });
 
-    if(hub.name === "BeneLego2") {
-	hubBack = hub;
-        ledBack = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
-    }
-    if(hub.name === "BeneLego3") {
-	hubFront = hub;
-        ledFront = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
-    }
     init();
 });
 

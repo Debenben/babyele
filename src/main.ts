@@ -5,7 +5,7 @@ import PoweredUP, { Consts } from "node-poweredup";
 import { Dog } from "./dog";
 
 let mainWindow: Electron.BrowserWindow;
-let dog: Dog = new Dog();
+let dog: Dog;
 let poweredUP: PoweredUP = new PoweredUP();
 
 function createWindow() {
@@ -22,7 +22,7 @@ function createWindow() {
   }));
 
   mainWindow.webContents.openDevTools();
-  mainWindow.webContents.send('test', 'ping');
+  dog = new Dog(mainWindow);
 
   // Emitted when the window is closed.
   mainWindow.on("closed", () => {
@@ -61,8 +61,7 @@ app.on("activate", () => {
 
 poweredUP.on("discover", (hub) => {
   dog.addHub(hub);
-  //ipcMain.send('asynchronous-message', hub.name);
-  mainWindow.webContents.send('test', hub.name);
+  mainWindow.webContents.send('frontHub', hub.name);
 });
 poweredUP.scan();
 console.log("Looking for Hubs...");
