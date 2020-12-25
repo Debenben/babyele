@@ -12,7 +12,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     height: 600,
     width: 800,
-    webPreferences: { nodeIntegration: true },
+    webPreferences: { nodeIntegration: true, contextIsolation: false },
   });
 
   mainWindow.loadURL(url.format({
@@ -55,13 +55,9 @@ app.on("activate", () => {
   }
 });
 
-//const { ipcMain } = require('electron');
-//ipcMain.send('asynchronous-message', 'ping');
-
 
 poweredUP.on("discover", (hub) => {
   dog.addHub(hub);
-  mainWindow.webContents.send('frontHub', hub.name);
 });
 poweredUP.scan();
 console.log("Looking for Hubs...");
