@@ -15,7 +15,7 @@ export default class Renderer {
         this._scene = scene;
 
         // This creates and positions a free camera (non-mesh)
-        const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+        const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(7, 7, -10), scene);
 
         // This targets the camera to scene origin
         camera.setTarget(BABYLON.Vector3.Zero());
@@ -29,14 +29,18 @@ export default class Renderer {
         // Default intensity is 1. Let's dim the light a small amount
         light.intensity = 0.7;
 
-        // Our built-in 'sphere' shape. Params: name, subdivs, size, scene
-        const sphere = BABYLON.Mesh.CreateSphere("sphere1", 16, 2, scene);
-
-        // Move the sphere upward 1/2 its height
-        sphere.position.y = 1;
+	const frontHub = BABYLON.MeshBuilder.CreateBox("frontHub", {width:3, height:1.2, depth:2});
+        frontHub.position.y = 4;
+        frontHub.position.x = 2;
+	const backHub = BABYLON.MeshBuilder.CreateBox("backHub", {width:3, height:1.2, depth:2});
+        backHub.position.y = 4;
+        backHub.position.x = -2;
 
         // Our built-in 'ground' shape. Params: name, width, depth, subdivs, scene
-        const ground = BABYLON.Mesh.CreateGround("ground1", 6, 6, 2, scene);
+	const ground = BABYLON.Mesh.CreateGround("ground1", 10, 10, 2, scene);
+	const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+	groundMat.diffuseColor = new BABYLON.Color3(0.1,0.4,0.1);
+	ground.material = groundMat;
     }
 
     initialize(canvas: HTMLCanvasElement) {
@@ -56,3 +60,8 @@ export default class Renderer {
 const renderer = new Renderer();
 renderer.initialize(document.getElementById('render-canvas') as HTMLCanvasElement);
 
+const { ipcRenderer } = require('electron');
+ipcRenderer.on('test', (event, arg) => {
+    console.log("got message");
+    console.log(arg);
+});

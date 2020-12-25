@@ -22,6 +22,7 @@ function createWindow() {
   }));
 
   mainWindow.webContents.openDevTools();
+  mainWindow.webContents.send('test', 'ping');
 
   // Emitted when the window is closed.
   mainWindow.on("closed", () => {
@@ -54,8 +55,14 @@ app.on("activate", () => {
   }
 });
 
+//const { ipcMain } = require('electron');
+//ipcMain.send('asynchronous-message', 'ping');
+
+
 poweredUP.on("discover", (hub) => {
   dog.addHub(hub);
+  //ipcMain.send('asynchronous-message', hub.name);
+  mainWindow.webContents.send('test', hub.name);
 });
 poweredUP.scan();
 console.log("Looking for Hubs...");
