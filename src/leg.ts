@@ -29,6 +29,17 @@ export class Leg {
     });
     this.mainWindow.webContents.send('legRotation', this.legName+"Top", 0.5*Math.PI*this.topMotorAngle/this.topMotorRange);
     this.mainWindow.webContents.send('legRotation', this.legName+"Bottom", 0.5*Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
+    const { ipcMain } = require('electron');
+    ipcMain.on(legName+"Top", (event,arg1,arg2) => {
+      if(arg1=="setPower") {
+        topMotor.setPower(arg2);
+      }
+    });
+    ipcMain.on(legName+"Bottom", (event,arg1,arg2) => {
+      if(arg1=="setPower") {
+        bottomMotor.setPower(arg2);
+      }
+    });
   }
   getHeight() {
     const topAngle = 0.5*Math.PI*this.topMotorAngle/this.topMotorRange
@@ -42,6 +53,7 @@ export class Leg {
   }
 
   setPosition(height, xPos) {
+    console.log("leg " + this.legName + " setting position to " + height + " and " + xPos);
     const h = height
     const p = xPos
     const t = this.topLength
@@ -59,6 +71,7 @@ export class Leg {
 
     const destTopMotorAngle = 2*topAngle*this.topMotorRange/Math.PI
     const destBottomMotorAngle = 2*bottomAngle*this.bottomMotorRange/Math.PI
+    console.log("dest top motor angle is " + destTopMotorAngle + " and " + destBottomMotorAngle);
     const diffTopMotorAngle = destTopMotorAngle - this.topMotorAngle
     const diffBottomMotorAngle = destBottomMotorAngle - this.bottomMotorAngle
     const topMotorSpeed = 100*diffTopMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle))
@@ -66,8 +79,8 @@ export class Leg {
 
     this.topMotorAngle = destTopMotorAngle;
     this.bottomMotorAngle = destBottomMotorAngle;
+    this.mainWindow.webContents.send('legRotation', this.legName+"Top", 0.5*Math.PI*this.topMotorAngle/this.topMotorRange);
+    this.mainWindow.webContents.send('legRotation', this.legName+"Bottom", 0.5*Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
     //return Promise.all([ this.topMotor.rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.bottomMotor.rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ])
-    this.mainWindow.webContents.send('legPosition', this.legName+"Top", destTopMotorAngle);
-    this.mainWindow.webContents.send('legPosition', this.legName+"Bottom", destBottomMotorAngle);
   }
 }

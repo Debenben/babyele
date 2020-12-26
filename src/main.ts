@@ -55,8 +55,12 @@ app.on("activate", () => {
   }
 });
 
+const { ipcMain } = require('electron');
+ipcMain.on('setMode', (event, arg) => {
+  dog.setMode(arg);
+});
 
-poweredUP.on("discover", (hub) => {
+poweredUP.on('discover', (hub) => {
   dog.addHub(hub);
 });
 poweredUP.scan();
