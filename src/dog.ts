@@ -14,9 +14,19 @@ export class Dog {
   legFrontRight: Leg 
   legBackLeft: Leg 
   legBackRight: Leg
+  color: number = 0
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
+    setInterval(() => {
+      if(this.ledFront) {
+        this.ledFront.setColor(this.mode*(this.color%2));
+      }
+      if(this.ledBack) {
+        this.ledBack.setColor(this.mode*(this.color%2));
+      }
+      this.color++;
+    }, 1000);
   }
 
   async addHub(hub) {
@@ -35,13 +45,14 @@ export class Dog {
       this.mode = Modes.WAITING;
     });
     hub.on("button", ({ event }) => {
-      if(this.mode == Modes.STANDING) {
-        this.setMode(Modes.READY);
+      if(event === 2) {
+        if(this.mode == Modes.STANDING) {
+          this.setMode(Modes.READY);
+        }
+        else {
+          this.setMode(Modes.STANDING);
+	}
       }
-      else {
-        this.setMode(Modes.STANDING);
-      }
-      console.log(hub);
     });
     if(hub.name === "BeneLego2") {
       this.hubBack = hub;
@@ -76,8 +87,8 @@ export class Dog {
       if(count === 8) {
         this.legFrontRight = new Leg("legFrontRight", this.mainWindow, motorFrontA, -6500, motorFrontC, 5500);
 	this.legFrontLeft = new Leg("legFrontLeft", this.mainWindow, motorFrontB, 6500, motorFrontD, -5500);
-	this.legBackRight = new Leg("legBackRight", this.mainWindow, motorBackB, -6500, motorBackD, 9000);
-	this.legBackLeft = new Leg("legBackLeft", this.mainWindow, motorBackA, 6500, motorBackC, -9000);
+	this.legBackRight = new Leg("legBackRight", this.mainWindow, motorBackB, -6500, motorBackD, 9500);
+	this.legBackLeft = new Leg("legBackLeft", this.mainWindow, motorBackA, 6500, motorBackC, -9500);
 
         this.mode = Modes.STANDING;
         console.log("Good to go");
@@ -89,6 +100,7 @@ export class Dog {
   }
 
   async setMode(mode: Modes) {
+    console.log("setting mode to " + mode);
     switch(mode) {
       case Modes.STANDING:
         this.getStanding();
@@ -104,26 +116,17 @@ export class Dog {
   async getReady() {
     console.log('getting ready');
     await Promise.all([ this.legFrontRight.setPosition(375,0), this.legFrontLeft.setPosition(375,0), this.legBackRight.setPosition(375,0), this.legBackLeft.setPosition(375,0) ]);
-    //await Promise.all([ this.legFrontRight.setPosition(360,0), this.legFrontLeft.setPosition(360,0), this.legBackRight.setPosition(360,0), this.legBackLeft.setPosition(360,0) ]);
-    //await Promise.all([ legFrontRight.setPosition(0,384.999), legFrontLeft.setPosition(0,384.999), legBackRight.setPosition(0,-384.999), legBackLeft.setPosition(0,-384.999) ]);
+    console.log('after await');
+    await Promise.all([ this.legFrontRight.setPosition(360,0), this.legFrontLeft.setPosition(360,0), this.legBackRight.setPosition(360,0), this.legBackLeft.setPosition(360,0) ]);
+    console.log('setting mode to ready');
     this.mode = Modes.READY;
+  }
+  async getStretching() {
+    await Promise.all([ this.legFrontRight.setPosition(0,384.999), this.legFrontLeft.setPosition(0,384.999), this.legBackRight.setPosition(0,-384.999), this.legBackLeft.setPosition(0,-384.999) ]);
+    this.mode = Modes.STRETCHING;
   }
   async getStanding() {
     await Promise.all([ this.legFrontRight.setPosition(385,0), this.legFrontLeft.setPosition(385,0), this.legBackRight.setPosition(385,0), this.legBackLeft.setPosition(385,0) ]);
     this.mode = Modes.STANDING;
   }
 }
-
-
-/*
-let color = 1;
-setInterval(() => {
-    if(ledFront) {
-	ledFront.setColor(color%2 + mode);
-    }
-    if(ledBack) {
-	ledBack.setColor((color+1)%2 + mode);
-    }
-    color++;
-}, 1000);
-*/

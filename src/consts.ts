@@ -1,8 +1,12 @@
 export enum Modes {
-  WAITING = 0,
-  STANDING = 1,
-  READY = 2,
-  WALKING = 3
+  WAITING = 1,
+  STANDING = 2,
+  READY = 3,
+  STRETCHING = 4,
+  FORWARD0 = 10,
+  FORWARD1 = 11,
+  FORWARD2 = 12,
+  FORWARD3 = 13
 }
 
 

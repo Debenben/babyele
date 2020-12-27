@@ -55,16 +55,23 @@ export default class Renderer {
   setLegRotation(meshName: string, rotation: number) {
     const mesh = this.scene.getMeshByName(meshName);
     mesh.rotation.z = rotation;
-    mesh.material = this.greenMaterial;
   }
 
   setState(meshName: string, state: string) {
     const mesh = this.scene.getMeshByName(meshName);
-    if(state == "select") {
-      mesh.material = this.redMaterial;
-    }
-    else {
-      mesh.material = this.greenMaterial;
+    switch(state) {
+      case "select":
+        mesh.material = this.redMaterial;
+        mesh.isPickable = true;
+        break;
+      case "offline":
+        mesh.material = this.greyMaterial;
+	mesh.isPickable = false;
+	break;
+      case "online":
+      default:
+        mesh.material = this.greenMaterial;
+        mesh.isPickable = true;
     }
   }
 
@@ -87,12 +94,16 @@ const selectItem = (event, pickResult) => {
     if(renderer.label) {
       renderer.advancedTexture.removeControl(renderer.label);
       renderer.setState(renderer.label.name, "normal");
+      if(renderer.label.name == pickResult.pickedMesh.name) {
+        renderer.label = null;
+        return;
+      }
     }
     renderer.setState(pickResult.pickedMesh.name, "select");
     renderer.label = new Rectangle(pickResult.pickedMesh.name);
     renderer.label.height = "100px";
     renderer.label.width = "300px";
-    renderer.label.background = "black";
+    renderer.label.background = "red";
     renderer.label.alpha = 0.8;
     renderer.label.cornerRadius = 10;
     renderer.label.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
@@ -100,8 +111,8 @@ const selectItem = (event, pickResult) => {
     renderer.advancedTexture.addControl(renderer.label);
     const text = new TextBlock();
     text.text = pickResult.pickedMesh.name;
-    text.color = "white";
-    text.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    text.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    text.top = "10%";
     renderer.label.addControl(text);
     const slider = new Slider();
     slider.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
@@ -135,7 +146,7 @@ const buildHub = (scene: BABYLON.Scene, meshName: string) => {
   const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:2.5, height:1.2, depth:2}, scene);
   hub.material = renderer.greyMaterial;
   hub.position.y = 4;
-  hub.isPickable = true;
+  hub.isPickable = false;
   return hub;
 }
 
@@ -143,13 +154,13 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   const topLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Top", {width:0.7, height:1.85, depth:0.4}, scene);
   topLeg.setPivotPoint(new BABYLON.Vector3(0,0.925,0));
   topLeg.material = renderer.greyMaterial;
-  topLeg.isPickable = true;
+  topLeg.isPickable = false;
   const bottomLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Bottom", {width:0.6, height:2.0, depth:0.3}, scene);
   bottomLeg.setPivotPoint(new BABYLON.Vector3(0,1.0,0));
   bottomLeg.parent = topLeg;
   bottomLeg.position.y = -1.85;
   bottomLeg.material = renderer.greyMaterial;
-  bottomLeg.isPickable = true;
+  bottomLeg.isPickable = false;
   topLeg.position.y = 3;
   return topLeg;
 }
@@ -162,6 +173,5 @@ ipcRenderer.on('setState', (event, arg1, arg2) => {
   renderer.setState(arg1, arg2);
 });
 ipcRenderer.on('legRotation', (event, arg1, arg2) => {
-  console.log('legRotation arg is ' + arg1 + ' and ' + arg2);
   renderer.setLegRotation(arg1, arg2);
 });

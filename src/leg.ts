@@ -40,6 +40,8 @@ export class Leg {
         bottomMotor.setPower(arg2);
       }
     });
+    this.mainWindow.webContents.send("setState", this.legName+"Top", "online");
+    this.mainWindow.webContents.send("setState", this.legName+"Bottom", "online");
   }
   getHeight() {
     const topAngle = 0.5*Math.PI*this.topMotorAngle/this.topMotorRange
@@ -52,8 +54,7 @@ export class Leg {
     return this.topLength*Math.sin(topAngle) + this.bottomLength*Math.sin(bottomAngle)
   }
 
-  setPosition(height, xPos) {
-    console.log("leg " + this.legName + " setting position to " + height + " and " + xPos);
+  async setPosition(height, xPos) {
     const h = height
     const p = xPos
     const t = this.topLength
@@ -71,7 +72,6 @@ export class Leg {
 
     const destTopMotorAngle = 2*topAngle*this.topMotorRange/Math.PI
     const destBottomMotorAngle = 2*bottomAngle*this.bottomMotorRange/Math.PI
-    console.log("dest top motor angle is " + destTopMotorAngle + " and " + destBottomMotorAngle);
     const diffTopMotorAngle = destTopMotorAngle - this.topMotorAngle
     const diffBottomMotorAngle = destBottomMotorAngle - this.bottomMotorAngle
     const topMotorSpeed = 100*diffTopMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle))
@@ -81,6 +81,6 @@ export class Leg {
     this.bottomMotorAngle = destBottomMotorAngle;
     this.mainWindow.webContents.send('legRotation', this.legName+"Top", 0.5*Math.PI*this.topMotorAngle/this.topMotorRange);
     this.mainWindow.webContents.send('legRotation', this.legName+"Bottom", 0.5*Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
-    //return Promise.all([ this.topMotor.rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.bottomMotor.rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ])
+    return Promise.all([ this.topMotor.rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.bottomMotor.rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ])
   }
 }
