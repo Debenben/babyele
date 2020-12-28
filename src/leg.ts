@@ -17,7 +17,7 @@ export class Leg {
   bottomLength: number = 200
 
   constructor(legName, mainWindow, topMotor, topMotorRange, bottomMotor, bottomMotorRange) {
-  //motorRange = motor rotation in degree needed for pi/2 forward rotation of segment
+  //motorRange = motor rotation in degree needed for pi forward rotation of segment
     this.legName = legName;
     this.mainWindow = mainWindow;
     this.topMotor = topMotor;
@@ -28,7 +28,17 @@ export class Leg {
     [topMotor, bottomMotor].forEach(async (motor) => {
       motor.resetZero();
       motor.setBrakingStyle(Consts.BrakingStyle.HOLD);
+      motor.setAccelerationTime(10);
+      motor.setDecelerationTime(10);
       motor.gotoAngle(0);
+    });
+    topMotor.on('rotate', ({degrees}) => {
+      this.topMotorAngle = degrees;
+      this.mainWindow.webContents.send('legRotation', this.legName+"Top", Math.PI*this.topMotorAngle/this.topMotorRange); 
+    });
+    bottomMotor.on('rotate', ({degrees}) => {
+      this.bottomMotorAngle = degrees;
+      this.mainWindow.webContents.send('legRotation', this.legName+"Bottom", Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
     });
     const { ipcMain } = require('electron');
     ipcMain.on(legName+"Top", (event, arg1, arg2) => {
@@ -56,20 +66,19 @@ export class Leg {
   }
 
   motorLoop() {
-    console.log("isMoving is " + this.isMoving);
     if(this.isMoving || (this.topMotorAngle == this.destTopMotorAngle && this.bottomMotorAngle == this.destBottomMotorAngle)) {
+      console.log("rejected, isMoving is " + this.isMoving);
       return;
     }
+    console.log("accepted, isMoving is " + this.isMoving);
     this.isMoving = true;
     const diffTopMotorAngle = this.destTopMotorAngle - this.topMotorAngle;
     const diffBottomMotorAngle = this.destBottomMotorAngle - this.bottomMotorAngle;
     const topMotorSpeed = 100*diffTopMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle))
     const bottomMotorSpeed = 100*diffBottomMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle))
     return Promise.all([ this.topMotor.rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.bottomMotor.rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ]).then( (resolve) => {
-      console.log("promise is kept !!!");
+      console.log("promise is kept !!!" + diffTopMotorAngle + " and " + diffBottomMotorAngle);
       this.isMoving = false;
-      this.mainWindow.webContents.send('legRotation', this.legName+"Top", 0.5*Math.PI*this.topMotorAngle/this.topMotorRange);
-      this.mainWindow.webContents.send('legRotation', this.legName+"Bottom", 0.5*Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
       this.motorLoop();
     }, (reject) => {
       console.log("promise rejected !!!");
@@ -78,24 +87,24 @@ export class Leg {
   }
 
   setTopRotation(angle: number) {
-    this.destTopMotorAngle = 2*angle*this.topMotorRange/Math.PI;
+    this.destTopMotorAngle = angle*this.topMotorRange/Math.PI;
     this.motorLoop();
   }
 
   setBottomRotation(angle: number) {
-    this.destBottomMotorAngle = 2*angle*this.bottomMotorRange/Math.PI
+    this.destBottomMotorAngle = angle*this.bottomMotorRange/Math.PI
     this.motorLoop();
   }
 
   getHeight() {
-    const topAngle = 0.5*Math.PI*this.topMotorAngle/this.topMotorRange
-    const bottomAngle = 0.5*Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle
+    const topAngle = Math.PI*this.topMotorAngle/this.topMotorRange
+    const bottomAngle = Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle
     return this.topLength*Math.cos(topAngle) + this.bottomLength*Math.cos(bottomAngle)
   }
 
   getXPos() {
-    const topAngle = 0.5*Math.PI*this.topMotorAngle/this.topMotorRange
-    const bottomAngle = 0.5*Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle
+    const topAngle = Math.PI*this.topMotorAngle/this.topMotorRange
+    const bottomAngle = Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle
     return this.topLength*Math.sin(topAngle) + this.bottomLength*Math.sin(bottomAngle)
   }
 
@@ -115,8 +124,8 @@ export class Leg {
     }
     const bottomAngle = Math.asin((p-t*Math.sin(topAngle))/b) - topAngle
 
-    this.destTopMotorAngle = 2*topAngle*this.topMotorRange/Math.PI;
-    this.destBottomMotorAngle = 2*bottomAngle*this.bottomMotorRange/Math.PI;
+    this.destTopMotorAngle = topAngle*this.topMotorRange/Math.PI;
+    this.destBottomMotorAngle = bottomAngle*this.bottomMotorRange/Math.PI;
     this.motorLoop();
   }
 }

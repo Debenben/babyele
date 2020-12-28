@@ -101,10 +101,10 @@ export class Dog {
         }
       })
       if(count === 8) {
-        this.legFrontRight = new Leg("legFrontRight", this.mainWindow, motorFrontA, -6500, motorFrontC, 5500);
-	this.legFrontLeft = new Leg("legFrontLeft", this.mainWindow, motorFrontB, 6500, motorFrontD, -5500);
-	this.legBackRight = new Leg("legBackRight", this.mainWindow, motorBackB, -6500, motorBackD, 9500);
-	this.legBackLeft = new Leg("legBackLeft", this.mainWindow, motorBackA, 6500, motorBackC, -9500);
+        this.legFrontRight = new Leg("legFrontRight", this.mainWindow, motorFrontA, -7415, motorFrontC, 8064);
+	this.legFrontLeft = new Leg("legFrontLeft", this.mainWindow, motorFrontB, 7415, motorFrontD, -8064);
+	this.legBackRight = new Leg("legBackRight", this.mainWindow, motorBackB, -7415, motorBackD, 13593);
+	this.legBackLeft = new Leg("legBackLeft", this.mainWindow, motorBackA, 7415, motorBackC, -13593);
 
         this.mode = Modes.STANDING;
         console.log("Good to go");
