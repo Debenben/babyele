@@ -35,21 +35,39 @@ export default class Renderer {
 
     const frontHub = buildHub(scene, "frontHub");
     frontHub.position.x = 1.5;
+    frontHub.setPivotPoint(new BABYLON.Vector3(-1.5,0,0));
     const backHub = buildHub(scene, "backHub");
     backHub.position.x = -1.5;
+    backHub.setPivotPoint(new BABYLON.Vector3(1.5,0,0));
 
     const legFrontLeft = buildLeg(scene, "legFrontLeft");
-    legFrontLeft.position.x = 2.2;
+    legFrontLeft.position.x = 0.7;
     legFrontLeft.position.z = 1.2;
+    legFrontLeft.parent = frontHub;
     const legFrontRight = buildLeg(scene, "legFrontRight");
-    legFrontRight.position.x = 2.2;
+    legFrontRight.position.x = 0.7;
     legFrontRight.position.z = -1.2;
+    legFrontRight.parent = frontHub;
     const legBackLeft = buildLeg(scene, "legBackLeft");
-    legBackLeft.position.x = -2.2;
+    legBackLeft.position.x = -0.7;
     legBackLeft.position.z = 1.2;
+    legBackLeft.parent = backHub;
     const legBackRight = buildLeg(scene, "legBackRight");
-    legBackRight.position.x = -2.2;
+    legBackRight.position.x = -0.7;
     legBackRight.position.z = -1.2;
+    legBackRight.parent = backHub;
+  }
+
+  setHubTilt(meshName: string, tilt) {
+    const mesh = this.scene.getMeshByName(meshName);
+    mesh.rotation.z = tilt.z;
+    mesh.rotation.y = tilt.y;
+    mesh.rotation.x = tilt.x;
+  }
+
+  getLegRotation(meshName: string) {
+    const mesh = this.scene.getMeshByName(meshName);
+    return mesh.rotation.z;
   }
 
   setLegRotation(meshName: string, rotation: number) {
@@ -99,43 +117,72 @@ const selectItem = (event, pickResult) => {
         return;
       }
     }
+    renderer.label = buildInfoBox(pickResult.pickedMesh.name);
     renderer.setState(pickResult.pickedMesh.name, "select");
-    renderer.label = new Rectangle(pickResult.pickedMesh.name);
-    renderer.label.height = "100px";
-    renderer.label.width = "300px";
-    renderer.label.background = "red";
-    renderer.label.alpha = 0.8;
-    renderer.label.cornerRadius = 10;
-    renderer.label.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    renderer.label.top = "2%";
     renderer.advancedTexture.addControl(renderer.label);
-    const text = new TextBlock();
-    text.text = pickResult.pickedMesh.name;
-    text.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    text.top = "10%";
-    renderer.label.addControl(text);
-    const slider = new Slider();
-    slider.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-    slider.paddingBottom = "10%";
-    slider.height = "30px";
-    slider.width = "250px";
-    slider.minimum = -100;
-    slider.maximum = 100;
-    slider.value = 0;
-    slider.onValueChangedObservable.add((value) => {
-      const { ipcRenderer } = require('electron');
-      ipcRenderer.send(pickResult.pickedMesh.name, "setPower", value);
-    });
-    slider.onPointerUpObservable.add(() => {
-      slider.value = 0;
-    });
-    renderer.label.addControl(slider);
   }
+}
+
+const buildInfoBox = (name: string) => {
+  const label = new Rectangle(name);
+  label.height = "100px";
+  label.width = "300px";
+  label.background = "red";
+  label.alpha = 0.8;
+  label.cornerRadius = 10;
+  label.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  label.top = "2%";
+  label.addControl(buildHeading(name));
+  label.addControl(buildAngleSlider(name));
+  label.addControl(buildCorrectionSlider(name));
+  return label;
+}
+
+const buildHeading = (content: string) => {
+  const text = new TextBlock();
+  text.text = content;
+  text.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  text.top = "10%";
+  return text;
+}
+
+const buildAngleSlider = (meshName: string) => {
+  const slider = new Slider();
+  slider.paddingBottom = "10%";
+  slider.height = "30px";
+  slider.width = "250px";
+  slider.minimum = -Math.PI;
+  slider.maximum = Math.PI;
+  slider.value = renderer.getLegRotation(meshName);
+  slider.onValueChangedObservable.add((value) => {
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.send(meshName, "setRotation", value);
+  });
+  return slider;
+}
+
+const buildCorrectionSlider = (meshName: string) => {
+  const slider = new Slider();
+  slider.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+  slider.paddingBottom = "10%";
+  slider.height = "30px";
+  slider.width = "250px";
+  slider.minimum = -100;
+  slider.maximum = 100;
+  slider.value = 0;
+  slider.onValueChangedObservable.add((value) => {
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.send(meshName, "setPower", value);
+  });
+  slider.onPointerUpObservable.add(() => {
+    slider.value = 0;
+  });
+  return slider;
 }
 
 const buildGround = (scene: BABYLON.Scene) => {
   const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-  groundMat.diffuseColor = new BABYLON.Color3(0.1,0.4,0.1);
+  groundMat.diffuseColor = new BABYLON.Color3(0.1,0.3,0.1);
   const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:10,height:10}, scene);
   ground.material = groundMat;
   ground.isPickable = false;
@@ -145,8 +192,8 @@ const buildGround = (scene: BABYLON.Scene) => {
 const buildHub = (scene: BABYLON.Scene, meshName: string) => {
   const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:2.5, height:1.2, depth:2}, scene);
   hub.material = renderer.greyMaterial;
-  hub.position.y = 4;
   hub.isPickable = false;
+  hub.position.y = 3.85;
   return hub;
 }
 
@@ -161,7 +208,7 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   bottomLeg.position.y = -1.85;
   bottomLeg.material = renderer.greyMaterial;
   bottomLeg.isPickable = false;
-  topLeg.position.y = 3;
+  topLeg.position.y = -1.0;
   return topLeg;
 }
 
@@ -174,4 +221,7 @@ ipcRenderer.on('setState', (event, arg1, arg2) => {
 });
 ipcRenderer.on('legRotation', (event, arg1, arg2) => {
   renderer.setLegRotation(arg1, arg2);
+});
+ipcRenderer.on('tilt', (event, arg1, arg2) => {
+  renderer.setHubTilt(arg1, arg2);
 });

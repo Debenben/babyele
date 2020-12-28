@@ -32,10 +32,6 @@ export class Dog {
   async addHub(hub) {
     await hub.connect();
     console.log(`Connected to ${hub.name}`);
-    hub.on("disconnect", () => {
-      console.log(`Hub ${hub.name} disconnected`);
-      this.mode = Modes.WAITING;
-    })
     hub.on("attach", (device) => {
       console.log(`Device attached to hub ${hub.name} port ${device.portName} (Device ID: ${device.type})`);
       this.init();
@@ -57,12 +53,32 @@ export class Dog {
     if(hub.name === "BeneLego2") {
       this.hubBack = hub;
       this.ledBack = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
-      this.mainWindow.webContents.send('setState', 'backHub', hub.name);
+      this.mainWindow.webContents.send('setState', 'backHub', 'online');
+      hub.on('disconnect', () => {
+	this.mode = Modes.WAITING;
+        this.mainWindow.webContents.send('setState', 'backHub', 'offline');
+      });
+      hub.on('tilt', (device, tilt) => {
+        const x = Math.PI*tilt.x/180;
+	const y = Math.PI*tilt.z/180;
+	const z = Math.PI*tilt.y/180;
+	this.mainWindow.webContents.send('tilt', 'backHub', { x, y, z });
+      });
     }
     if(hub.name === "BeneLego3") {
       this.hubFront = hub;
       this.ledFront = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
-      this.mainWindow.webContents.send('setState', 'frontHub', hub.name);
+      this.mainWindow.webContents.send('setState', 'frontHub', 'online');
+      hub.on("disconnect", () => {
+	this.mode = Modes.WAITING;
+        this.mainWindow.webContents.send('setState', 'frontHub', 'offline');
+      });
+      hub.on('tilt', (device, tilt) => {
+        const x = -Math.PI*tilt.x/180;
+	const y = Math.PI*tilt.z/180;
+        const z = -Math.PI*tilt.y/180;
+	this.mainWindow.webContents.send('tilt', 'frontHub', { x, y, z });
+      });
     }
     this.init();
   }
@@ -116,8 +132,6 @@ export class Dog {
   async getReady() {
     console.log('getting ready');
     await Promise.all([ this.legFrontRight.setPosition(375,0), this.legFrontLeft.setPosition(375,0), this.legBackRight.setPosition(375,0), this.legBackLeft.setPosition(375,0) ]);
-    console.log('after await');
-    await Promise.all([ this.legFrontRight.setPosition(360,0), this.legFrontLeft.setPosition(360,0), this.legBackRight.setPosition(360,0), this.legBackLeft.setPosition(360,0) ]);
     console.log('setting mode to ready');
     this.mode = Modes.READY;
   }
