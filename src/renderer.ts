@@ -1,5 +1,5 @@
 import * as BABYLON from 'babylonjs';
-import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock } from "babylonjs-gui";
+import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel } from "babylonjs-gui";
 import { Modes } from './consts';
 
 export default class Renderer {
@@ -7,7 +7,7 @@ export default class Renderer {
   engine: BABYLON.Engine;
   scene: BABYLON.Scene;
   advancedTexture: AdvancedDynamicTexture;
-  label: Rectangle;
+  label: StackPanel;
   greenMaterial: BABYLON.StandardMaterial;
   greyMaterial: BABYLON.StandardMaterial;
   redMaterial: BABYLON.StandardMaterial;
@@ -104,6 +104,8 @@ export default class Renderer {
     window.addEventListener('resize', function () {
       engine.resize();
     });
+
+    this.advancedTexture.addControl(buildModeButton(Modes.OFFLINE));
   }
 }
 
@@ -124,49 +126,58 @@ const selectItem = (event, pickResult) => {
 }
 
 const buildInfoBox = (name: string) => {
-  const label = new Rectangle(name);
-  label.height = "100px";
-  label.width = "300px";
-  label.background = "red";
-  label.alpha = 0.8;
-  label.cornerRadius = 10;
-  label.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  label.top = "2%";
-  label.addControl(buildHeading(name));
-  label.addControl(buildAngleSlider(name));
-  label.addControl(buildCorrectionSlider(name));
-  return label;
+  const box = new StackPanel(name);
+  box.width = "300px";
+  box.height = "120px";
+  box.background = "red";
+  box.alpha = 0.7;
+  box.paddingLeft = 10; 
+  box.paddingRight = 10; 
+  box.paddingTop = 10; 
+  box.paddingBottom = 10; 
+  box.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  box.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+  box.addControl(buildHeading(name));
+  if(!name.endsWith("Hub")) {
+    box.addControl(buildAngleSlider(name));
+    box.addControl(buildCorrectionSlider(name));
+  }
+  return box;
 }
 
 const buildHeading = (content: string) => {
-  const text = new TextBlock();
-  text.text = content;
-  text.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  text.top = "10%";
-  return text;
+  const heading = new TextBlock();
+  heading.text = content;
+  heading.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  heading.height = "30px";
+  heading.width = "260px";
+  heading.fontSize = 20;
+  return heading;
 }
 
 const buildAngleSlider = (meshName: string) => {
   const slider = new Slider();
-  slider.paddingBottom = "10%";
   slider.height = "30px";
-  slider.width = "250px";
+  slider.width = "260px";
+  slider.paddingTop = "5px";
   slider.minimum = -Math.PI;
   slider.maximum = Math.PI;
   slider.value = renderer.getLegRotation(meshName);
   slider.onValueChangedObservable.add((value) => {
+    //header
+  });
+  slider.onPointerUpObservable.add(() => {
     const { ipcRenderer } = require('electron');
-    ipcRenderer.send(meshName, "setRotation", value);
+    ipcRenderer.send(meshName, "setRotation", slider.value);
   });
   return slider;
 }
 
 const buildCorrectionSlider = (meshName: string) => {
   const slider = new Slider();
-  slider.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-  slider.paddingBottom = "10%";
   slider.height = "30px";
-  slider.width = "250px";
+  slider.width = "260px";
+  slider.paddingTop = "5px";
   slider.minimum = -100;
   slider.maximum = 100;
   slider.value = 0;
@@ -178,6 +189,19 @@ const buildCorrectionSlider = (meshName: string) => {
     slider.value = 0;
   });
   return slider;
+}
+
+const buildModeButton = (mode: Modes) => {
+  const button = Button.CreateSimpleButton("modeButton", Modes[mode]);
+  button.width = "90px";
+  button.height = "40px";
+  button.background = "red";
+  button.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+  button.onPointerClickObservable.add(() => {
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.send("requestMode", mode);
+  });
+  return button; 
 }
 
 const buildGround = (scene: BABYLON.Scene) => {

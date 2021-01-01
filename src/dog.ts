@@ -43,10 +43,10 @@ export class Dog {
     hub.on("button", ({ event }) => {
       if(event === 2) {
         if(this.mode == Modes.STANDING) {
-          this.setMode(Modes.READY);
+          this.requestMode(Modes.READY);
         }
         else {
-          this.setMode(Modes.STANDING);
+          this.requestMode(Modes.STANDING);
 	}
       }
     });
@@ -55,7 +55,7 @@ export class Dog {
       this.ledBack = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
       this.mainWindow.webContents.send('setState', 'backHub', 'online');
       hub.on('disconnect', () => {
-	this.mode = Modes.WAITING;
+	this.mode = Modes.OFFLINE;
         this.mainWindow.webContents.send('setState', 'backHub', 'offline');
       });
       hub.on('tilt', (device, tilt) => {
@@ -70,7 +70,7 @@ export class Dog {
       this.ledFront = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
       this.mainWindow.webContents.send('setState', 'frontHub', 'online');
       hub.on("disconnect", () => {
-	this.mode = Modes.WAITING;
+	this.mode = Modes.OFFLINE;
         this.mainWindow.webContents.send('setState', 'frontHub', 'offline');
       });
       hub.on('tilt', (device, tilt) => {
@@ -85,6 +85,7 @@ export class Dog {
 
   async init() {
     if(this.hubFront && this.hubBack) {
+      this.mode = Modes.WAITING;
       let motorFrontA = this.hubFront.getDeviceAtPort("A");
       let motorFrontB = this.hubFront.getDeviceAtPort("B");
       let motorFrontC = this.hubFront.getDeviceAtPort("C");
@@ -110,29 +111,38 @@ export class Dog {
         console.log("Good to go");
       }
       else {
-        console.log(`Only ${count} motors attached`);
+	console.log(`Only ${count} motors attached`);
       }
     }
   }
 
-  async setMode(mode: Modes) {
-    console.log("setting mode to " + mode);
-    switch(mode) {
+  async requestMode(destMode: Modes) {
+    if(this.mode === Modes.OFFLINE) {
+      console.log("Cannot switch from mode " + this.mode + " to " + destMode);
+      return;
+    }
+    if(destMode === Modes.OFFLINE) {
+      this.shutdown();
+      return;
+    }
+    if(this.mode === Modes.WAITING) {
+      console.log("Cannot switch from mode " + this.mode + " to " + destMode);
+      return;
+    }
+    switch(destMode) {
       case Modes.STANDING:
         this.getStanding();
         break;
       case Modes.READY:
         this.getReady();
-        break;
+	break;
       default:
-        console.log("Cannot switch from mode " + this.mode + " to " + mode);
+        console.log("Cannot switch from mode " + this.mode + " to " + destMode);
     }
   }
 
   async getReady() {
-    console.log('getting ready');
     await Promise.all([ this.legFrontRight.setPosition(375,0), this.legFrontLeft.setPosition(375,0), this.legBackRight.setPosition(375,0), this.legBackLeft.setPosition(375,0) ]);
-    console.log('setting mode to ready');
     this.mode = Modes.READY;
   }
   async getStretching() {
@@ -142,5 +152,10 @@ export class Dog {
   async getStanding() {
     await Promise.all([ this.legFrontRight.setPosition(385,0), this.legFrontLeft.setPosition(385,0), this.legBackRight.setPosition(385,0), this.legBackLeft.setPosition(385,0) ]);
     this.mode = Modes.STANDING;
+  }
+  async shutdown() {
+    this.hubFront.shutdown();
+    this.hubBack.shutdown();
+    this.mode = Modes.OFFLINE;
   }
 }

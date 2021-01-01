@@ -6,7 +6,6 @@ export class Leg {
   mainWindow: BrowserWindow
   topMotor: AbsoluteMotor
   bottomMotor: AbsoluteMotor
-  isMoving: boolean = false;
   topMotorAngle: number = 0.0
   destTopMotorAngle: number = 0.0
   bottomMotorAngle: number = 0.0
@@ -66,24 +65,14 @@ export class Leg {
   }
 
   motorLoop() {
-    if(this.isMoving || (this.topMotorAngle == this.destTopMotorAngle && this.bottomMotorAngle == this.destBottomMotorAngle)) {
-      console.log("rejected, isMoving is " + this.isMoving);
+    if(this.topMotorAngle == this.destTopMotorAngle && this.bottomMotorAngle == this.destBottomMotorAngle) {
       return;
     }
-    console.log("accepted, isMoving is " + this.isMoving);
-    this.isMoving = true;
     const diffTopMotorAngle = this.destTopMotorAngle - this.topMotorAngle;
     const diffBottomMotorAngle = this.destBottomMotorAngle - this.bottomMotorAngle;
     const topMotorSpeed = 100*diffTopMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle))
     const bottomMotorSpeed = 100*diffBottomMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle))
-    return Promise.all([ this.topMotor.rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.bottomMotor.rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ]).then( (resolve) => {
-      console.log("promise is kept !!!" + diffTopMotorAngle + " and " + diffBottomMotorAngle);
-      this.isMoving = false;
-      this.motorLoop();
-    }, (reject) => {
-      console.log("promise rejected !!!");
-      this.isMoving = false;
-    });
+    return Promise.all([ this.topMotor.rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.bottomMotor.rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ])  
   }
 
   setTopRotation(angle: number) {

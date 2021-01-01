@@ -1,4 +1,5 @@
 export enum Modes {
+  OFFLINE = 0,
   WAITING = 1,
   STANDING = 2,
   READY = 3,

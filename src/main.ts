@@ -56,8 +56,8 @@ app.on("activate", () => {
 });
 
 const { ipcMain } = require('electron');
-ipcMain.on('setMode', (event, arg) => {
-  dog.setMode(arg);
+ipcMain.on('requestMode', (event, arg) => {
+  dog.requestMode(arg);
 });
 
 poweredUP.on('discover', (hub) => {
