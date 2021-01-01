@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import * as path from "path";
 import * as url from "url";
 import PoweredUP, { Consts } from "node-poweredup";
@@ -55,7 +55,6 @@ app.on("activate", () => {
   }
 });
 
-const { ipcMain } = require('electron');
 ipcMain.on('requestMode', (event, arg) => {
   dog.requestMode(arg);
 });

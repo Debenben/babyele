@@ -1,5 +1,6 @@
 import * as BABYLON from 'babylonjs';
 import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel } from "babylonjs-gui";
+import { ipcRenderer } from 'electron';
 import { Modes } from './consts';
 
 export default class Renderer {
@@ -181,7 +182,6 @@ const buildAngleSlider = (meshName: string) => {
     //header
   });
   slider.onPointerUpObservable.add(() => {
-    const { ipcRenderer } = require('electron');
     ipcRenderer.send(meshName, "requestRotation", slider.value);
   });
   return slider;
@@ -196,7 +196,6 @@ const buildCorrectionSlider = (meshName: string) => {
   slider.maximum = 100;
   slider.value = 0;
   slider.onValueChangedObservable.add((value) => {
-    const { ipcRenderer } = require('electron');
     ipcRenderer.send(meshName, "requestPower", value);
   });
   slider.onPointerUpObservable.add(() => {
@@ -206,7 +205,7 @@ const buildCorrectionSlider = (meshName: string) => {
 }
 
 const buildModeDisplayButton = () => {
-  const button = Button.CreateSimpleButton("modeDisplayButton", "openSelection");
+  const button = Button.CreateSimpleButton("modeDisplayButton", String(Modes[Modes.OFFLINE]));
   button.width = "250px";
   button.height = "30px";
   button.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
@@ -215,6 +214,9 @@ const buildModeDisplayButton = () => {
     if(renderer.modeSelection) {
       renderer.modeSelection.isVisible = !renderer.modeSelection.isVisible;
     }
+  });
+  ipcRenderer.on('notifyMode', (event, arg) => {
+    button.textBlock.text = String(Modes[arg]);
   });
   return button;
 }
@@ -236,7 +238,6 @@ const buildModeButton = (mode: number) => {
   button.height = "30px";
   button.background = "grey";
   button.onPointerClickObservable.add(() => {
-    const { ipcRenderer } = require('electron');
     ipcRenderer.send("requestMode", mode); 
     renderer.modeSelection.isVisible = false;
   });
@@ -278,7 +279,6 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
 const renderer = new Renderer();
 renderer.initialize(document.getElementById('render-canvas') as HTMLCanvasElement);
 
-const { ipcRenderer } = require('electron');
 ipcRenderer.on('notifyState', (event, arg1, arg2) => {
   renderer.setState(arg1, arg2);
 });

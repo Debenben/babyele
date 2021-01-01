@@ -1,5 +1,5 @@
 import { AbsoluteMotor, Consts } from "node-poweredup"
-import { BrowserWindow } from "electron";
+import { BrowserWindow, ipcMain } from "electron";
 
 export class Leg {
   legName: string
@@ -15,53 +15,70 @@ export class Leg {
   topLength: number = 185
   bottomLength: number = 200
 
-  constructor(legName, mainWindow, topMotor, topMotorRange, bottomMotor, bottomMotorRange) {
+  constructor(legName, mainWindow, topMotorRange, bottomMotorRange) {
   //motorRange = motor rotation in degree needed for pi forward rotation of segment
     this.legName = legName;
     this.mainWindow = mainWindow;
-    this.topMotor = topMotor;
     this.topMotorRange = topMotorRange;
-    this.bottomMotor = bottomMotor;
     this.bottomMotorRange = bottomMotorRange;
+  }
 
-    [topMotor, bottomMotor].forEach(async (motor) => {
-      motor.resetZero();
-      motor.setBrakingStyle(Consts.BrakingStyle.HOLD);
+  addBottomMotor(motor) {
+    this.bottomMotor = motor;
+    if(motor) {
+      motor.setBrakingStyle(Consts.BrakingStyle.BRAKE);
       motor.setAccelerationTime(10);
       motor.setDecelerationTime(10);
-      motor.gotoAngle(0);
-    });
-    topMotor.on('rotate', ({degrees}) => {
-      this.topMotorAngle = degrees;
-      this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Top", Math.PI*this.topMotorAngle/this.topMotorRange); 
-    });
-    bottomMotor.on('rotate', ({degrees}) => {
-      this.bottomMotorAngle = degrees;
-      this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Bottom", Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
-    });
-    const { ipcMain } = require('electron');
-    ipcMain.on(legName+"Top", (event, arg1, arg2) => {
-      switch(arg1) {
-	case "requestPower":
-          topMotor.setPower(arg2);
-          break;
-	case "requestRotation":
-          this.requestTopRotation(arg2);
-          break;
-      } 
-    });
-    ipcMain.on(legName+"Bottom", (event, arg1, arg2) => {
-      switch(arg1) {
-        case "requestPower":
-          bottomMotor.setPower(arg2);
-          break;
-        case "requestRotation":
-          this.requestBottomRotation(arg2);
-          break;
-      }
-    });
-    this.mainWindow.webContents.send("notifyState", this.legName+"Top", "online");
-    this.mainWindow.webContents.send("notifyState", this.legName+"Bottom", "online");
+      ipcMain.on(this.legName+"Bottom", (event, arg1, arg2) => {
+        switch(arg1) {
+          case "requestPower":
+            motor.setPower(arg2);
+            break;
+          case "requestRotation":
+            this.requestBottomRotation(arg2);
+            break;
+        }
+      });
+      motor.on('rotate', ({degrees}) => {
+        this.bottomMotorAngle = degrees;
+        this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Bottom", Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
+      });
+      this.mainWindow.webContents.send("notifyState", this.legName+"Bottom", "online");
+      return true;
+    }
+    else {
+      this.mainWindow.webContents.send("notifyState", this.legName+"Bottom", "offline");
+      return false;
+    }
+  }
+
+  addTopMotor(motor) {
+    this.topMotor = motor;
+    if(motor) {
+      motor.setBrakingStyle(Consts.BrakingStyle.BRAKE);
+      motor.setAccelerationTime(10);
+      motor.setDecelerationTime(10);
+      ipcMain.on(this.legName+"Top", (event, arg1, arg2) => {
+        switch(arg1) {
+          case "requestPower":
+            motor.setPower(arg2);
+            break;
+          case "requestRotation":
+            this.requestTopRotation(arg2);
+            break;
+        }
+      });
+      motor.on('rotate', ({degrees}) => {
+        this.topMotorAngle = degrees;
+        this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Top", Math.PI*this.topMotorAngle/this.topMotorRange);
+      });
+      this.mainWindow.webContents.send("notifyState", this.legName+"Top", "online");
+      return true;
+    }
+    else {
+      this.mainWindow.webContents.send("notifyState", this.legName+"Top", "offline");
+      return false;
+    }
   }
 
   motorLoop() {
@@ -115,6 +132,6 @@ export class Leg {
 
     this.destTopMotorAngle = topAngle*this.topMotorRange/Math.PI;
     this.destBottomMotorAngle = bottomAngle*this.bottomMotorRange/Math.PI;
-    this.motorLoop();
+    await this.motorLoop();
   }
 }
