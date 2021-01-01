@@ -7,7 +7,9 @@ export default class Renderer {
   engine: BABYLON.Engine;
   scene: BABYLON.Scene;
   advancedTexture: AdvancedDynamicTexture;
-  label: StackPanel;
+  infobox: StackPanel;
+  modeSelection: StackPanel;
+  modeDisplayButton: Button;
   greenMaterial: BABYLON.StandardMaterial;
   greyMaterial: BABYLON.StandardMaterial;
   redMaterial: BABYLON.StandardMaterial;
@@ -77,17 +79,30 @@ export default class Renderer {
 
   setState(meshName: string, state: string) {
     const mesh = this.scene.getMeshByName(meshName);
+    if(!mesh) {
+      console.log(meshName + " not found");
+    }
     switch(state) {
       case "select":
         mesh.material = this.redMaterial;
         mesh.isPickable = true;
+        this.infobox = buildInfoBox(meshName);
+        this.advancedTexture.addControl(this.infobox);
         break;
       case "offline":
+	if(this.infobox && this.infobox.name === meshName) {
+	  this.advancedTexture.removeControl(this.infobox);
+          this.infobox = null;
+        }
         mesh.material = this.greyMaterial;
 	mesh.isPickable = false;
 	break;
       case "online":
       default:
+	if(this.infobox && this.infobox.name === meshName) {
+	  this.advancedTexture.removeControl(this.infobox);
+          this.infobox = null;
+        }
         mesh.material = this.greenMaterial;
         mesh.isPickable = true;
     }
@@ -104,24 +119,23 @@ export default class Renderer {
     window.addEventListener('resize', function () {
       engine.resize();
     });
-
-    this.advancedTexture.addControl(buildModeButton(Modes.OFFLINE));
+    this.modeSelection = buildModeSelection();
+    this.advancedTexture.addControl(this.modeSelection);
+    this.modeDisplayButton = buildModeDisplayButton();
+    this.advancedTexture.addControl(this.modeDisplayButton);
   }
 }
 
 const selectItem = (event, pickResult) => {
   if(pickResult.hit) {
-    if(renderer.label) {
-      renderer.advancedTexture.removeControl(renderer.label);
-      renderer.setState(renderer.label.name, "normal");
-      if(renderer.label.name == pickResult.pickedMesh.name) {
-        renderer.label = null;
+    if(renderer.infobox) {
+      if(pickResult.pickedMesh.name === renderer.infobox.name) {
+	renderer.setState(renderer.infobox.name, "online");
         return;
       }
+      renderer.setState(renderer.infobox.name, "online");
     }
-    renderer.label = buildInfoBox(pickResult.pickedMesh.name);
     renderer.setState(pickResult.pickedMesh.name, "select");
-    renderer.advancedTexture.addControl(renderer.label);
   }
 }
 
@@ -168,7 +182,7 @@ const buildAngleSlider = (meshName: string) => {
   });
   slider.onPointerUpObservable.add(() => {
     const { ipcRenderer } = require('electron');
-    ipcRenderer.send(meshName, "setRotation", slider.value);
+    ipcRenderer.send(meshName, "requestRotation", slider.value);
   });
   return slider;
 }
@@ -183,7 +197,7 @@ const buildCorrectionSlider = (meshName: string) => {
   slider.value = 0;
   slider.onValueChangedObservable.add((value) => {
     const { ipcRenderer } = require('electron');
-    ipcRenderer.send(meshName, "setPower", value);
+    ipcRenderer.send(meshName, "requestPower", value);
   });
   slider.onPointerUpObservable.add(() => {
     slider.value = 0;
@@ -191,15 +205,40 @@ const buildCorrectionSlider = (meshName: string) => {
   return slider;
 }
 
-const buildModeButton = (mode: Modes) => {
-  const button = Button.CreateSimpleButton("modeButton", Modes[mode]);
-  button.width = "90px";
-  button.height = "40px";
-  button.background = "red";
+const buildModeDisplayButton = () => {
+  const button = Button.CreateSimpleButton("modeDisplayButton", "openSelection");
+  button.width = "250px";
+  button.height = "30px";
   button.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+  button.background = "grey";
+  button.onPointerClickObservable.add(() => {
+    if(renderer.modeSelection) {
+      renderer.modeSelection.isVisible = !renderer.modeSelection.isVisible;
+    }
+  });
+  return button;
+}
+
+const buildModeSelection = () => {
+  const panel = new StackPanel("modeSelection");
+  for (var val in Object.values(Modes)) {
+    if(Modes[Number(val)]) {
+      panel.addControl(buildModeButton(Number(val)));
+    }
+  }
+  panel.isVisible = false;
+  return panel;
+}
+
+const buildModeButton = (mode: number) => {
+  const button = Button.CreateSimpleButton("modeButton", String(Modes[mode]));
+  button.width = "180px";
+  button.height = "30px";
+  button.background = "grey";
   button.onPointerClickObservable.add(() => {
     const { ipcRenderer } = require('electron');
-    ipcRenderer.send("requestMode", mode);
+    ipcRenderer.send("requestMode", mode); 
+    renderer.modeSelection.isVisible = false;
   });
   return button; 
 }
@@ -240,12 +279,12 @@ const renderer = new Renderer();
 renderer.initialize(document.getElementById('render-canvas') as HTMLCanvasElement);
 
 const { ipcRenderer } = require('electron');
-ipcRenderer.on('setState', (event, arg1, arg2) => {
+ipcRenderer.on('notifyState', (event, arg1, arg2) => {
   renderer.setState(arg1, arg2);
 });
-ipcRenderer.on('legRotation', (event, arg1, arg2) => {
+ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
   renderer.setLegRotation(arg1, arg2);
 });
-ipcRenderer.on('tilt', (event, arg1, arg2) => {
+ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
   renderer.setHubTilt(arg1, arg2);
 });

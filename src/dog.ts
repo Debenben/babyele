@@ -5,7 +5,7 @@ import { Modes } from "./consts";
 
 export class Dog {
   mainWindow: BrowserWindow
-  mode: Modes = Modes.WAITING
+  mode: Modes = Modes.OFFLINE
   hubFront: TechnicMediumHub
   hubBack: TechnicMediumHub
   ledFront: HubLED
@@ -53,31 +53,31 @@ export class Dog {
     if(hub.name === "BeneLego2") {
       this.hubBack = hub;
       this.ledBack = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
-      this.mainWindow.webContents.send('setState', 'backHub', 'online');
+      this.mainWindow.webContents.send('notifyState', 'backHub', 'online');
       hub.on('disconnect', () => {
 	this.mode = Modes.OFFLINE;
-        this.mainWindow.webContents.send('setState', 'backHub', 'offline');
+        this.mainWindow.webContents.send('notifyState', 'backHub', 'offline');
       });
       hub.on('tilt', (device, tilt) => {
         const x = Math.PI*tilt.x/180;
 	const y = Math.PI*tilt.z/180;
 	const z = Math.PI*tilt.y/180;
-	this.mainWindow.webContents.send('tilt', 'backHub', { x, y, z });
+	this.mainWindow.webContents.send('notifyTilt', 'backHub', { x, y, z });
       });
     }
     if(hub.name === "BeneLego3") {
       this.hubFront = hub;
       this.ledFront = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
-      this.mainWindow.webContents.send('setState', 'frontHub', 'online');
+      this.mainWindow.webContents.send('notifyState', 'frontHub', 'online');
       hub.on("disconnect", () => {
 	this.mode = Modes.OFFLINE;
-        this.mainWindow.webContents.send('setState', 'frontHub', 'offline');
+        this.mainWindow.webContents.send('notifyState', 'frontHub', 'offline');
       });
       hub.on('tilt', (device, tilt) => {
         const x = -Math.PI*tilt.x/180;
 	const y = Math.PI*tilt.z/180;
         const z = -Math.PI*tilt.y/180;
-	this.mainWindow.webContents.send('tilt', 'frontHub', { x, y, z });
+	this.mainWindow.webContents.send('notifyTilt', 'frontHub', { x, y, z });
       });
     }
     this.init();
@@ -118,7 +118,7 @@ export class Dog {
 
   async requestMode(destMode: Modes) {
     if(this.mode === Modes.OFFLINE) {
-      console.log("Cannot switch from mode " + this.mode + " to " + destMode);
+      console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
       return;
     }
     if(destMode === Modes.OFFLINE) {
@@ -126,7 +126,7 @@ export class Dog {
       return;
     }
     if(this.mode === Modes.WAITING) {
-      console.log("Cannot switch from mode " + this.mode + " to " + destMode);
+      console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
       return;
     }
     switch(destMode) {
@@ -137,7 +137,7 @@ export class Dog {
         this.getReady();
 	break;
       default:
-        console.log("Cannot switch from mode " + this.mode + " to " + destMode);
+        console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
     }
   }
 
@@ -154,8 +154,12 @@ export class Dog {
     this.mode = Modes.STANDING;
   }
   async shutdown() {
-    this.hubFront.shutdown();
-    this.hubBack.shutdown();
+    if(this.hubFront) {
+      this.hubFront.shutdown();
+    }
+    if(this.hubBack) {
+      this.hubBack.shutdown();
+    }
     this.mode = Modes.OFFLINE;
   }
 }

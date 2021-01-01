@@ -33,35 +33,35 @@ export class Leg {
     });
     topMotor.on('rotate', ({degrees}) => {
       this.topMotorAngle = degrees;
-      this.mainWindow.webContents.send('legRotation', this.legName+"Top", Math.PI*this.topMotorAngle/this.topMotorRange); 
+      this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Top", Math.PI*this.topMotorAngle/this.topMotorRange); 
     });
     bottomMotor.on('rotate', ({degrees}) => {
       this.bottomMotorAngle = degrees;
-      this.mainWindow.webContents.send('legRotation', this.legName+"Bottom", Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
+      this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Bottom", Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
     });
     const { ipcMain } = require('electron');
     ipcMain.on(legName+"Top", (event, arg1, arg2) => {
       switch(arg1) {
-	case "setPower":
+	case "requestPower":
           topMotor.setPower(arg2);
           break;
-	case "setRotation":
-          this.setTopRotation(arg2);
+	case "requestRotation":
+          this.requestTopRotation(arg2);
           break;
       } 
     });
     ipcMain.on(legName+"Bottom", (event, arg1, arg2) => {
       switch(arg1) {
-        case "setPower":
+        case "requestPower":
           bottomMotor.setPower(arg2);
           break;
-        case "setRotation":
-          this.setBottomRotation(arg2);
+        case "requestRotation":
+          this.requestBottomRotation(arg2);
           break;
       }
     });
-    this.mainWindow.webContents.send("setState", this.legName+"Top", "online");
-    this.mainWindow.webContents.send("setState", this.legName+"Bottom", "online");
+    this.mainWindow.webContents.send("notifyState", this.legName+"Top", "online");
+    this.mainWindow.webContents.send("notifyState", this.legName+"Bottom", "online");
   }
 
   motorLoop() {
@@ -75,12 +75,12 @@ export class Leg {
     return Promise.all([ this.topMotor.rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.bottomMotor.rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ])  
   }
 
-  setTopRotation(angle: number) {
+  requestTopRotation(angle: number) {
     this.destTopMotorAngle = angle*this.topMotorRange/Math.PI;
     this.motorLoop();
   }
 
-  setBottomRotation(angle: number) {
+  requestBottomRotation(angle: number) {
     this.destBottomMotorAngle = angle*this.bottomMotorRange/Math.PI
     this.motorLoop();
   }
