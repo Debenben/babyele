@@ -1,7 +1,7 @@
 import { TechnicMediumHub, HubLED, Consts } from "node-poweredup";
 import { BrowserWindow } from "electron";
 import { Leg } from "./leg";
-import { Modes } from "./consts";
+import { Modes } from "./param";
 
 export class Dog {
   mainWindow: BrowserWindow
@@ -43,7 +43,7 @@ export class Dog {
       this.init();
     });
     hub.on("button", ({ event }) => {
-      if(event === 2) {
+      if(event === Consts.ButtonState.PRESSED) {
         if(this.mode == Modes.STANDING) {
           this.requestMode(Modes.READY);
         }
@@ -57,6 +57,7 @@ export class Dog {
       this.ledBack = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
       hub.on('disconnect', () => {
         this.hubBack = null;
+        this.ledBack = null;
         this.init();
       });
       hub.on('tilt', (device, tilt) => {
@@ -71,6 +72,7 @@ export class Dog {
       this.ledFront = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
       hub.on("disconnect", () => {
         this.hubFront = null;
+        this.ledFront = null;
         this.init();
       });
       hub.on('tilt', (device, tilt) => {

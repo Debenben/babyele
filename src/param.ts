@@ -10,4 +10,7 @@ export enum Modes {
   FORWARD3 = 13
 }
 
-
+export const LEG_LENGTH_TOP = 185.0;
+export const LEG_LENGTH_BOTTOM = 200.0;
+export const LEG_SEPARATION_WIDTH = 180.0;
+export const LEG_SEPARATION_LENGTH = 288.0;

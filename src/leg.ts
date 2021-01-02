@@ -1,19 +1,18 @@
-import { AbsoluteMotor, Consts } from "node-poweredup"
+import { AbsoluteMotor, Consts } from "node-poweredup";
 import { BrowserWindow, ipcMain } from "electron";
+import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM } from "./param";
 
 export class Leg {
   legName: string
   mainWindow: BrowserWindow
   topMotor: AbsoluteMotor
   bottomMotor: AbsoluteMotor
+  topMotorRange: number
+  bottomMotorRange: number
   topMotorAngle: number = 0.0
   destTopMotorAngle: number = 0.0
   bottomMotorAngle: number = 0.0
   destBottomMotorAngle: number = 0.0
-  topMotorRange: number
-  bottomMotorRange: number
-  topLength: number = 185
-  bottomLength: number = 200
 
   constructor(legName, mainWindow, topMotorRange, bottomMotorRange) {
   //motorRange = motor rotation in degree needed for pi forward rotation of segment
@@ -105,20 +104,20 @@ export class Leg {
   getHeight() {
     const topAngle = Math.PI*this.topMotorAngle/this.topMotorRange
     const bottomAngle = Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle
-    return this.topLength*Math.cos(topAngle) + this.bottomLength*Math.cos(bottomAngle)
+    return LEG_LENGTH_TOP*Math.cos(topAngle) + LEG_LENGTH_BOTTOM*Math.cos(bottomAngle)
   }
 
   getXPos() {
     const topAngle = Math.PI*this.topMotorAngle/this.topMotorRange
     const bottomAngle = Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle
-    return this.topLength*Math.sin(topAngle) + this.bottomLength*Math.sin(bottomAngle)
+    return LEG_LENGTH_TOP*Math.sin(topAngle) + LEG_LENGTH_BOTTOM*Math.sin(bottomAngle)
   }
 
   async setPosition(height, xPos) {
     const h = height
     const p = xPos
-    const t = this.topLength
-    const b = this.bottomLength
+    const t = LEG_LENGTH_TOP
+    const b = LEG_LENGTH_BOTTOM
     const root = Math.sqrt(0.0 - b**4*p**2*t**2 + 2*b**2*h**2*p**2*t**2 + 2*b**2*p**4*t**2 + 2*b**2*p**2*t**4 - h**4*p**2*t**2 - 2*h**2*p**4*t**2 + 2*h**2*p**2*t**4 - p**6*t**2 + 2*p**4*t**4 - p**2*t**6) + h**3*t + h*p**2*t + h*t**3
     let cosval = (0.0 - b**2*h*t - root)/(2*(h**2*t**2 + p**2*t**2))
     if(cosval < -1.0) {

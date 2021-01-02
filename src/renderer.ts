@@ -1,7 +1,8 @@
 import * as BABYLON from 'babylonjs';
 import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Modes } from './consts';
+import { Modes } from './param';
+import * as Param from './param';
 
 export default class Renderer {
   canvas: HTMLCanvasElement;
@@ -22,7 +23,7 @@ export default class Renderer {
     scene.onPointerDown = selectItem;
     this.scene = scene;
 
-    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/2.5, 12, new BABYLON.Vector3(0,3,0), scene);
+    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/2.5, 900, new BABYLON.Vector3(0,250,0), scene);
     camera.attachControl(canvas, true);
     const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
     light.intensity = 0.7;
@@ -37,27 +38,27 @@ export default class Renderer {
     this.redMaterial.diffuseColor = new BABYLON.Color3(1,0,0);
 
     const frontHub = buildHub(scene, "frontHub");
-    frontHub.position.x = 1.5;
-    frontHub.setPivotPoint(new BABYLON.Vector3(-1.5,0,0));
+    frontHub.position.x = 100;
+    frontHub.setPivotPoint(frontHub.position.negate());
     const backHub = buildHub(scene, "backHub");
-    backHub.position.x = -1.5;
-    backHub.setPivotPoint(new BABYLON.Vector3(1.5,0,0));
+    backHub.position.x = -100;
+    backHub.setPivotPoint(backHub.position.negate());
 
     const legFrontLeft = buildLeg(scene, "legFrontLeft");
-    legFrontLeft.position.x = 0.7;
-    legFrontLeft.position.z = 1.2;
+    legFrontLeft.position.x = Param.LEG_SEPARATION_LENGTH/2 - frontHub.position.x;
+    legFrontLeft.position.z = Param.LEG_SEPARATION_WIDTH/2;
     legFrontLeft.parent = frontHub;
     const legFrontRight = buildLeg(scene, "legFrontRight");
-    legFrontRight.position.x = 0.7;
-    legFrontRight.position.z = -1.2;
+    legFrontRight.position.x = Param.LEG_SEPARATION_LENGTH/2 - frontHub.position.x;
+    legFrontRight.position.z = -Param.LEG_SEPARATION_WIDTH/2;
     legFrontRight.parent = frontHub;
     const legBackLeft = buildLeg(scene, "legBackLeft");
-    legBackLeft.position.x = -0.7;
-    legBackLeft.position.z = 1.2;
+    legBackLeft.position.x = -Param.LEG_SEPARATION_LENGTH/2 - backHub.position.x;
+    legBackLeft.position.z = Param.LEG_SEPARATION_WIDTH/2;
     legBackLeft.parent = backHub;
     const legBackRight = buildLeg(scene, "legBackRight");
-    legBackRight.position.x = -0.7;
-    legBackRight.position.z = -1.2;
+    legBackRight.position.x = -Param.LEG_SEPARATION_LENGTH/2 - backHub.position.x;
+    legBackRight.position.z = -Param.LEG_SEPARATION_WIDTH/2;
     legBackRight.parent = backHub;
   }
 
@@ -247,32 +248,32 @@ const buildModeButton = (mode: number) => {
 const buildGround = (scene: BABYLON.Scene) => {
   const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
   groundMat.diffuseColor = new BABYLON.Color3(0.1,0.3,0.1);
-  const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:10,height:10}, scene);
+  const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:1000,height:1000}, scene);
   ground.material = groundMat;
   ground.isPickable = false;
   return ground;
 }
 
 const buildHub = (scene: BABYLON.Scene, meshName: string) => {
-  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:2.5, height:1.2, depth:2}, scene);
+  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:200, height:100, depth:160}, scene);
   hub.material = renderer.greyMaterial;
   hub.isPickable = false;
-  hub.position.y = 3.85;
+  hub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
   return hub;
 }
 
 const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
-  const topLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Top", {width:0.7, height:1.85, depth:0.4}, scene);
-  topLeg.setPivotPoint(new BABYLON.Vector3(0,0.925,0));
+  const topLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Top", {width:70, height:Param.LEG_LENGTH_TOP, depth:40}, scene);
+  topLeg.setPivotPoint(new BABYLON.Vector3(0,Param.LEG_LENGTH_TOP/2,0));
   topLeg.material = renderer.greyMaterial;
   topLeg.isPickable = false;
-  const bottomLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Bottom", {width:0.6, height:2.0, depth:0.3}, scene);
-  bottomLeg.setPivotPoint(new BABYLON.Vector3(0,1.0,0));
+  const bottomLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Bottom", {width:60, height:Param.LEG_LENGTH_BOTTOM, depth:30}, scene);
+  bottomLeg.setPivotPoint(new BABYLON.Vector3(0,Param.LEG_LENGTH_BOTTOM/2,0));
   bottomLeg.parent = topLeg;
-  bottomLeg.position.y = -1.85;
+  bottomLeg.position.y = -Param.LEG_LENGTH_TOP;
   bottomLeg.material = renderer.greyMaterial;
   bottomLeg.isPickable = false;
-  topLeg.position.y = -1.0;
+  topLeg.position.y = -Param.LEG_LENGTH_BOTTOM/2;
   return topLeg;
 }
 
