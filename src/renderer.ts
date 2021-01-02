@@ -25,17 +25,20 @@ export default class Renderer {
 
     const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/2.5, 900, new BABYLON.Vector3(0,250,0), scene);
     camera.attachControl(canvas, true);
-    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
-    light.intensity = 0.7;
-    const ground = buildGround(scene);
-    this.advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
+    const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(1000, -2000, 1000), scene);
+    dirLight.intensity = 0.2;
+    const hemLight = new BABYLON.HemisphericLight("hemLight", new BABYLON.Vector3(0, 1, 0), scene);
+    hemLight.intensity = 0.5;
 
     this.greyMaterial = new BABYLON.StandardMaterial("greyMat", scene);
     this.greyMaterial.diffuseColor = new BABYLON.Color3(0.2,0.2,0.2);
+    this.greyMaterial.specularColor = new BABYLON.Color3(0,0,0);
     this.greenMaterial = new BABYLON.StandardMaterial("greenMat", scene);
     this.greenMaterial.diffuseColor = new BABYLON.Color3(0,1,0);
+    this.greenMaterial.specularColor = new BABYLON.Color3(0.1,0.4,0.1);
     this.redMaterial = new BABYLON.StandardMaterial("redMat", scene);
     this.redMaterial.diffuseColor = new BABYLON.Color3(1,0,0);
+    this.redMaterial.specularColor = new BABYLON.Color3(0.4,0.1,0.1);
 
     const frontHub = buildHub(scene, "frontHub");
     frontHub.position.x = 100;
@@ -60,6 +63,26 @@ export default class Renderer {
     legBackRight.position.x = -Param.LEG_SEPARATION_LENGTH/2 - backHub.position.x;
     legBackRight.position.z = -Param.LEG_SEPARATION_WIDTH/2;
     legBackRight.parent = backHub;
+
+    const ground = buildGround(scene);
+    frontHub.parent = ground;
+    backHub.parent = ground;
+    const shadowCaster = new BABYLON.ShadowGenerator(1024, dirLight);
+    shadowCaster.addShadowCaster(frontHub);
+    shadowCaster.addShadowCaster(backHub);
+    shadowCaster.usePoissonSampling = true;
+    shadowCaster.blurScale = 5;
+    scene.registerBeforeRender(() => {
+      if(!this.infobox) {
+        ground.rotation.y += 0.002;
+      }
+    });
+
+    this.advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
+    this.modeSelection = buildModeSelection();
+    this.advancedTexture.addControl(this.modeSelection);
+    this.modeDisplayButton = buildModeDisplayButton();
+    this.advancedTexture.addControl(this.modeDisplayButton);
   }
 
   setHubTilt(meshName: string, tilt) {
@@ -121,10 +144,6 @@ export default class Renderer {
     window.addEventListener('resize', function () {
       engine.resize();
     });
-    this.modeSelection = buildModeSelection();
-    this.advancedTexture.addControl(this.modeSelection);
-    this.modeDisplayButton = buildModeDisplayButton();
-    this.advancedTexture.addControl(this.modeDisplayButton);
   }
 }
 
@@ -248,8 +267,10 @@ const buildModeButton = (mode: number) => {
 const buildGround = (scene: BABYLON.Scene) => {
   const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
   groundMat.diffuseColor = new BABYLON.Color3(0.1,0.3,0.1);
+  groundMat.specularColor = new BABYLON.Color3(0,0.1,0);
   const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:1000,height:1000}, scene);
   ground.material = groundMat;
+  ground.receiveShadows = true;
   ground.isPickable = false;
   return ground;
 }
@@ -267,12 +288,14 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   topLeg.setPivotPoint(new BABYLON.Vector3(0,Param.LEG_LENGTH_TOP/2,0));
   topLeg.material = renderer.greyMaterial;
   topLeg.isPickable = false;
+  topLeg.receiveShadows = true;
   const bottomLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Bottom", {width:60, height:Param.LEG_LENGTH_BOTTOM, depth:30}, scene);
   bottomLeg.setPivotPoint(new BABYLON.Vector3(0,Param.LEG_LENGTH_BOTTOM/2,0));
   bottomLeg.parent = topLeg;
   bottomLeg.position.y = -Param.LEG_LENGTH_TOP;
   bottomLeg.material = renderer.greyMaterial;
   bottomLeg.isPickable = false;
+  bottomLeg.receiveShadows = true;
   topLeg.position.y = -Param.LEG_LENGTH_BOTTOM/2;
   return topLeg;
 }

@@ -3,6 +3,7 @@ import * as path from "path";
 import * as url from "url";
 import PoweredUP, { Consts } from "node-poweredup";
 import { Dog } from "./dog";
+import { Modes } from "./param"
 
 let mainWindow: Electron.BrowserWindow;
 let dog: Dog;
@@ -29,7 +30,12 @@ function createWindow() {
     // Dereference the window object, usually you would store windows
     // in an array if your app supports multi windows, this is the time
     // when you should delete the corresponding element.
-    mainWindow = null;
+    if(dog) {
+      dog.requestMode(Modes.OFFLINE).then(() => {dog = null;}).then(() => {mainWindow = null;});
+    }
+    else {
+      mainWindow = null;
+    }
   });
 }
 

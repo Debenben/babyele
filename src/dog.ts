@@ -1,7 +1,7 @@
 import { TechnicMediumHub, HubLED, Consts } from "node-poweredup";
 import { BrowserWindow } from "electron";
 import { Leg } from "./leg";
-import { Modes } from "./param";
+import { Modes, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM } from "./param";
 
 export class Dog {
   mainWindow: BrowserWindow
@@ -15,9 +15,15 @@ export class Dog {
   legBackLeft: Leg
   legBackRight: Leg
   color: number = 0
+  stepWidth: number = 58 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
+  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (1.5*this.stepWidth)**2);
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
+    this.legFrontLeft = new Leg("legFrontLeft", this.mainWindow, 7415, -8064);
+    this.legFrontRight = new Leg("legFrontRight", this.mainWindow, -7415, 8064);
+    this.legBackLeft = new Leg("legBackLeft", this.mainWindow, 7415, -13593);
+    this.legBackRight = new Leg("legBackRight", this.mainWindow, -7415, 13593);
     setInterval(() => {
       if(this.ledFront) {
         this.ledFront.setColor(this.mode*(this.color%2));
@@ -27,11 +33,7 @@ export class Dog {
       }
       this.color++;
     }, 1000);
-    this.legFrontLeft = new Leg("legFrontLeft", this.mainWindow, 7415, -8064);
-    this.legFrontRight = new Leg("legFrontRight", this.mainWindow, -7415, 8064);
-    this.legBackLeft = new Leg("legBackLeft", this.mainWindow, 7415, -13593);
-    this.legBackRight = new Leg("legBackRight", this.mainWindow, -7415, 13593);
-  }
+ }
 
   async addHub(hub) {
     await hub.connect();
@@ -130,12 +132,11 @@ export class Dog {
   }
 
   async requestMode(destMode: Modes) {
+    if(destMode === Modes.OFFLINE) {
+      return this.shutdown();
+    }
     if(this.mode === Modes.OFFLINE) {
       console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
-      return;
-    }
-    if(destMode === Modes.OFFLINE) {
-      this.shutdown();
       return;
     }
     if(this.mode === Modes.WAITING) {
@@ -144,18 +145,20 @@ export class Dog {
     }
     switch(destMode) {
       case Modes.STANDING:
-        this.getStanding();
-        break;
+        return this.getStanding();
       case Modes.READY:
-        this.getReady();
-	break;
+        return this.getReady();
       default:
         console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
     }
   }
 
   async getReady() {
-    await Promise.all([ this.legFrontRight.setPosition(375,0), this.legFrontLeft.setPosition(375,0), this.legBackRight.setPosition(375,0), this.legBackLeft.setPosition(375,0) ]);
+    await Promise.all([ this.legFrontRight.setPosition(this.stepHeight,0), this.legFrontLeft.setPosition(this.stepHeight,0), this.legBackRight.setPosition(this.stepHeight,0), this.legBackLeft.setPosition(this.stepHeight,0) ]);
+    await Promise.all([ this.legFrontRight.setPosition(360,0), this.legBackRight.setPosition(360,0) ]);
+    await this.legBackLeft.setPosition(340,0);
+    await this.legBackLeft.setPosition(340,-1.5*this.stepWidth);
+    await this.legBackLeft.setPosition(this.stepHeight,-1.5*this.stepWidth);
     this.mode = Modes.READY;
     this.mainWindow.webContents.send('notifyMode', this.mode);
   }
@@ -165,16 +168,24 @@ export class Dog {
     this.mainWindow.webContents.send('notifyMode', this.mode);
   }
   async getStanding() {
+    if(this.mode === Modes.READY) {
+      await this.legBackLeft.setPosition(340,-1.5*this.stepWidth);
+      await this.legBackLeft.setPosition(340,0);
+      await this.legBackLeft.setPosition(this.stepHeight,0);
+      await Promise.all([ this.legFrontRight.setPosition(this.stepHeight,0), this.legFrontLeft.setPosition(this.stepHeight,0), this.legBackRight.setPosition(this.stepHeight,0), this.legBackLeft.setPosition(this.stepHeight,0) ]);
+    }
     await Promise.all([ this.legFrontRight.setPosition(385,0), this.legFrontLeft.setPosition(385,0), this.legBackRight.setPosition(385,0), this.legBackLeft.setPosition(385,0) ]);
     this.mode = Modes.STANDING;
     this.mainWindow.webContents.send('notifyMode', this.mode);
   }
   async shutdown() {
-    if(this.hubFront) {
-      this.hubFront.shutdown();
+    let promiseFront, promiseBack;
+    if(this.hubFront) { 
+      promiseFront = this.hubFront.shutdown();
     }
-    if(this.hubBack) {
-      this.hubBack.shutdown();
+    if(this.hubBack) { 
+      promiseBack = this.hubBack.shutdown();
     }
+    return Promise.all( [ promiseFront, promiseBack ]);
   }
 }

@@ -32,6 +32,9 @@ export class Leg {
         switch(arg1) {
           case "requestPower":
             motor.setPower(arg2);
+            if(arg2 === 0) {
+              this.destBottomMotorAngle = this.bottomMotorAngle;
+            }
             break;
           case "requestRotation":
             this.requestBottomRotation(arg2);
@@ -61,6 +64,9 @@ export class Leg {
         switch(arg1) {
           case "requestPower":
             motor.setPower(arg2);
+            if(arg2 === 0) {
+              this.destTopMotorAngle = this.topMotorAngle;
+            }
             break;
           case "requestRotation":
             this.requestTopRotation(arg2);
@@ -86,51 +92,52 @@ export class Leg {
     }
     const diffTopMotorAngle = this.destTopMotorAngle - this.topMotorAngle;
     const diffBottomMotorAngle = this.destBottomMotorAngle - this.bottomMotorAngle;
-    const topMotorSpeed = 100*diffTopMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle))
-    const bottomMotorSpeed = 100*diffBottomMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle))
-    return Promise.all([ this.topMotor.rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.bottomMotor.rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ])  
+    const topMotorSpeed = 100*diffTopMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle));
+    const bottomMotorSpeed = 100*diffBottomMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle));
+    //this.topMotorAngle = this.destTopMotorAngle;
+    //this.bottomMotorAngle = this.destBottomMotorAngle;
+    //this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Top", Math.PI*this.topMotorAngle/this.topMotorRange);
+    //this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Bottom", Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
+    return Promise.all([ this.topMotor.rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.bottomMotor.rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ]);
   }
 
   requestTopRotation(angle: number) {
     this.destTopMotorAngle = angle*this.topMotorRange/Math.PI;
-    this.motorLoop();
+    return this.motorLoop();
   }
 
   requestBottomRotation(angle: number) {
-    this.destBottomMotorAngle = angle*this.bottomMotorRange/Math.PI
-    this.motorLoop();
+    this.destBottomMotorAngle = angle*this.bottomMotorRange/Math.PI;
+    return this.motorLoop();
   }
 
   getHeight() {
-    const topAngle = Math.PI*this.topMotorAngle/this.topMotorRange
-    const bottomAngle = Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle
-    return LEG_LENGTH_TOP*Math.cos(topAngle) + LEG_LENGTH_BOTTOM*Math.cos(bottomAngle)
+    const topAngle = Math.PI*this.topMotorAngle/this.topMotorRange;
+    const bottomAngle = Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle;
+    return LEG_LENGTH_TOP*Math.cos(topAngle) + LEG_LENGTH_BOTTOM*Math.cos(bottomAngle);
   }
 
   getXPos() {
-    const topAngle = Math.PI*this.topMotorAngle/this.topMotorRange
-    const bottomAngle = Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle
-    return LEG_LENGTH_TOP*Math.sin(topAngle) + LEG_LENGTH_BOTTOM*Math.sin(bottomAngle)
+    const topAngle = Math.PI*this.topMotorAngle/this.topMotorRange;
+    const bottomAngle = Math.PI*this.bottomMotorAngle/this.bottomMotorRange - topAngle;
+    return LEG_LENGTH_TOP*Math.sin(topAngle) + LEG_LENGTH_BOTTOM*Math.sin(bottomAngle);
   }
 
-  async setPosition(height, xPos) {
-    const h = height
-    const p = xPos
-    const t = LEG_LENGTH_TOP
-    const b = LEG_LENGTH_BOTTOM
-    const root = Math.sqrt(0.0 - b**4*p**2*t**2 + 2*b**2*h**2*p**2*t**2 + 2*b**2*p**4*t**2 + 2*b**2*p**2*t**4 - h**4*p**2*t**2 - 2*h**2*p**4*t**2 + 2*h**2*p**2*t**4 - p**6*t**2 + 2*p**4*t**4 - p**2*t**6) + h**3*t + h*p**2*t + h*t**3
-    let cosval = (0.0 - b**2*h*t - root)/(2*(h**2*t**2 + p**2*t**2))
-    if(cosval < -1.0) {
-      cosval = (0.0 - b**2*h*t + root)/(2*(h**2*t**2 + p**2*t**2))
+  setPosition(h, x) {
+    const l = Math.sqrt(h**2 + x**2);
+    const phi = Math.atan2(x, h);
+    const t = LEG_LENGTH_TOP;
+    const b = LEG_LENGTH_BOTTOM;
+    let cosval = (l**2 + t**2 - b**2)/(2*l*t);
+    if(cosval > 1.0) {
+      cosval = 1.0;
     }
-    let topAngle = Math.acos(cosval)
-    if((p-t*Math.sin(topAngle))/b < -1.0) {
-      topAngle = -topAngle
-    }
-    const bottomAngle = Math.asin((p-t*Math.sin(topAngle))/b) - topAngle
+    const alpha = Math.acos(cosval);
+    const destTopAngle = phi + alpha;
+    const destBottomAngle = Math.acos((t/b)*Math.cos(Math.PI/2 - alpha)) - alpha - Math.PI/2;
 
-    this.destTopMotorAngle = topAngle*this.topMotorRange/Math.PI;
-    this.destBottomMotorAngle = bottomAngle*this.bottomMotorRange/Math.PI;
-    await this.motorLoop();
+    this.destTopMotorAngle = destTopAngle*this.topMotorRange/Math.PI;
+    this.destBottomMotorAngle = destBottomAngle*this.bottomMotorRange/Math.PI;
+    return this.motorLoop();
   }
 }
