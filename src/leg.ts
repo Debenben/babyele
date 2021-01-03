@@ -92,8 +92,8 @@ export class Leg {
     }
     const diffTopMotorAngle = this.destTopMotorAngle - this.topMotorAngle;
     const diffBottomMotorAngle = this.destBottomMotorAngle - this.bottomMotorAngle;
-    const topMotorSpeed = 100*diffTopMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle));
-    const bottomMotorSpeed = 100*diffBottomMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle));
+    const topMotorSpeed = 10 + 90*diffTopMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle));
+    const bottomMotorSpeed = 10 + 90*diffBottomMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle));
     //this.topMotorAngle = this.destTopMotorAngle;
     //this.bottomMotorAngle = this.destBottomMotorAngle;
     //this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Top", Math.PI*this.topMotorAngle/this.topMotorRange);

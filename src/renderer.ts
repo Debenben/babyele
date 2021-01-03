@@ -276,7 +276,7 @@ const buildGround = (scene: BABYLON.Scene) => {
 }
 
 const buildHub = (scene: BABYLON.Scene, meshName: string) => {
-  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:200, height:100, depth:160}, scene);
+  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:200, height:100, depth:190}, scene);
   hub.material = renderer.greyMaterial;
   hub.isPickable = false;
   hub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;

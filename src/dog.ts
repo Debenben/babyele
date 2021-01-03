@@ -17,6 +17,8 @@ export class Dog {
   color: number = 0
   stepWidth: number = 58 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
   stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (1.5*this.stepWidth)**2);
+  stepLow: number = 360
+  stepUp: number = 345
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -33,7 +35,7 @@ export class Dog {
       }
       this.color++;
     }, 1000);
- }
+  }
 
   async addHub(hub) {
     await hub.connect();
@@ -87,7 +89,7 @@ export class Dog {
     this.init();
   }
 
-  async init() {
+  init() {
     if(this.hubFront && this.hubBack) {
       this.mode = Modes.WAITING;
     }
@@ -127,13 +129,13 @@ export class Dog {
       this.legBackLeft.addBottomMotor(null);
     }
     if(res) {
-      this.getStanding();
+      getStanding(this);
     }
   }
 
   async requestMode(destMode: Modes) {
     if(destMode === Modes.OFFLINE) {
-      return this.shutdown();
+      return shutdown(this);
     }
     if(this.mode === Modes.OFFLINE) {
       console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
@@ -145,47 +147,88 @@ export class Dog {
     }
     switch(destMode) {
       case Modes.STANDING:
-        return this.getStanding();
+        return getStanding(this);
       case Modes.READY:
-        return this.getReady();
+        return getReady(this);
       default:
         console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
     }
   }
-
-  async getReady() {
-    await Promise.all([ this.legFrontRight.setPosition(this.stepHeight,0), this.legFrontLeft.setPosition(this.stepHeight,0), this.legBackRight.setPosition(this.stepHeight,0), this.legBackLeft.setPosition(this.stepHeight,0) ]);
-    await Promise.all([ this.legFrontRight.setPosition(360,0), this.legBackRight.setPosition(360,0) ]);
-    await this.legBackLeft.setPosition(340,0);
-    await this.legBackLeft.setPosition(340,-1.5*this.stepWidth);
-    await this.legBackLeft.setPosition(this.stepHeight,-1.5*this.stepWidth);
-    this.mode = Modes.READY;
-    this.mainWindow.webContents.send('notifyMode', this.mode);
-  }
-  async getStretching() {
-    await Promise.all([ this.legFrontRight.setPosition(0,384.999), this.legFrontLeft.setPosition(0,384.999), this.legBackRight.setPosition(0,-384.999), this.legBackLeft.setPosition(0,-384.999) ]);
-    this.mode = Modes.STRETCHING;
-    this.mainWindow.webContents.send('notifyMode', this.mode);
-  }
-  async getStanding() {
-    if(this.mode === Modes.READY) {
-      await this.legBackLeft.setPosition(340,-1.5*this.stepWidth);
-      await this.legBackLeft.setPosition(340,0);
-      await this.legBackLeft.setPosition(this.stepHeight,0);
-      await Promise.all([ this.legFrontRight.setPosition(this.stepHeight,0), this.legFrontLeft.setPosition(this.stepHeight,0), this.legBackRight.setPosition(this.stepHeight,0), this.legBackLeft.setPosition(this.stepHeight,0) ]);
-    }
-    await Promise.all([ this.legFrontRight.setPosition(385,0), this.legFrontLeft.setPosition(385,0), this.legBackRight.setPosition(385,0), this.legBackLeft.setPosition(385,0) ]);
-    this.mode = Modes.STANDING;
-    this.mainWindow.webContents.send('notifyMode', this.mode);
-  }
-  async shutdown() {
-    let promiseFront, promiseBack;
-    if(this.hubFront) { 
-      promiseFront = this.hubFront.shutdown();
-    }
-    if(this.hubBack) { 
-      promiseBack = this.hubBack.shutdown();
-    }
-    return Promise.all( [ promiseFront, promiseBack ]);
-  }
 }
+
+const getReady = async (dog: Dog) => {
+  const w = dog.stepWidth;
+  const h = dog.stepHeight;
+  const l = dog.stepLow;
+  const u = dog.stepUp;
+  const fr = dog.legFrontRight.setPosition.bind(dog.legFrontRight);
+  const fl = dog.legFrontLeft.setPosition.bind(dog.legFrontLeft);
+  const br = dog.legBackRight.setPosition.bind(dog.legBackRight);
+  const bl = dog.legBackLeft.setPosition.bind(dog.legBackLeft);
+  if(dog.mode === Modes.STANDING) {
+    await Promise.all([ fr(h,0), fl(h,0), br(h,0), bl(h,0) ]);
+    await Promise.all([ fr(l,0), br(l,0) ]);
+    await bl(u,0);
+    await bl(u,-1.5*w);
+    await bl(h,-1.5*w);
+    await Promise.all([ fr(l,0.5*w), fl(h,0.5*w), br(l,0.5*w), bl(h,-w) ]);
+    await Promise.all([ fr(l,1.5*w), fl(h,1.5*w), br(l,1.5*w), bl(h,0) ]);
+    await fl(u,1.5*w);
+    await fl(u,w);
+    await fl(h,w);
+    await Promise.all([ fr(h,0), fl(l,-0.5*w), br(h,0), bl(l,-1.5*w) ]);
+    await br(u,0);
+    await br(u,0.5*w);
+    await br(h,0.5*w);
+    await fr(u,0);
+    await fr(u,1.5*w);
+    await fr(h,1.5*w);
+  }
+  await Promise.all([ fr(h,1.5*w), fl(h,-0.5*w), br(h,0.5*w), bl(h,-1.5*w) ]);
+  dog.mode = Modes.READY;
+  return dog.mainWindow.webContents.send('notifyMode', dog.mode);
+}
+const getStanding = async (dog: Dog) => {
+  const w = dog.stepWidth;
+  const h = dog.stepHeight;
+  const l = dog.stepLow;
+  const u = dog.stepUp;
+  const fr = dog.legFrontRight.setPosition.bind(dog.legFrontRight);
+  const fl = dog.legFrontLeft.setPosition.bind(dog.legFrontLeft);
+  const br = dog.legBackRight.setPosition.bind(dog.legBackRight);
+  const bl = dog.legBackLeft.setPosition.bind(dog.legBackLeft);
+  if(dog.mode === Modes.READY) {
+    await Promise.all([ fr(h,1.5*w), fl(l,-0.5*w), br(h,0.5*w), bl(l,-1.5*w) ]);
+    await fr(u,1.5*w);
+    await fr(u,0);
+    await fr(h,0);
+    await br(u,0.5*w);
+    await br(u,0);
+    await br(h,0);
+    await Promise.all([ fr(l,1.5*w), fl(h,w), br(l,1.5*w), bl(h,0) ]);
+    await fl(u, w);
+    await fl(u, 1.5*w);
+    await fl(h, 1.5*w);
+    await Promise.all([ fr(l,0.5*w), fl(h,0.5*w), br(l,0.5*w), bl(h,-w) ]);
+    await Promise.all([ fr(l,0), fl(h,0), br(l,0), bl(h,-1.5*w) ]);
+    await bl(u,-1.5*w);
+    await bl(u,0);
+    await bl(h,0);
+    await Promise.all([ fr(h,0), fl(h,0), br(h,0), bl(h,0) ]);
+  }
+  await Promise.all([ fr(385,0), fl(385,0), br(385,0), bl(385,0) ]);
+  dog.mode = Modes.STANDING;
+  return dog.mainWindow.webContents.send('notifyMode', dog.mode);
+}
+
+const shutdown = async (dog: Dog) => {
+  let promiseFront, promiseBack;
+  if(dog.hubFront) { 
+    promiseFront = dog.hubFront.shutdown();
+  }
+  if(dog.hubBack) { 
+    promiseBack = dog.hubBack.shutdown();
+  }
+  return Promise.all( [ promiseFront, promiseBack ]);
+}
+
