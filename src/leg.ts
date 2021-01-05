@@ -13,6 +13,7 @@ export class Leg {
   destTopMotorAngle: number = 0.0
   bottomMotorAngle: number = 0.0
   destBottomMotorAngle: number = 0.0
+  bendForward: boolean = true
 
   constructor(legName, mainWindow, topMotorRange, bottomMotorRange) {
   //motorRange = motor rotation in degree needed for pi forward rotation of segment
@@ -37,8 +38,11 @@ export class Leg {
             }
             break;
           case "requestRotation":
-            this.requestBottomRotation(arg2);
-            break;
+            return this.requestBottomRotation(arg2);
+          case "requestReset":
+            this.topMotorAngle = 0;
+            this.destTopMotorAngle = 0;
+            return motor.resetZero();
         }
       });
       motor.on('rotate', ({degrees}) => {
@@ -69,8 +73,11 @@ export class Leg {
             }
             break;
           case "requestRotation":
-            this.requestTopRotation(arg2);
-            break;
+            return this.requestTopRotation(arg2);
+          case "requestReset":
+            this.topMotorAngle = 0;
+            this.destTopMotorAngle = 0;
+            return motor.resetZero();
         }
       });
       motor.on('rotate', ({degrees}) => {
@@ -133,8 +140,12 @@ export class Leg {
       cosval = 1.0;
     }
     const alpha = Math.acos(cosval);
-    const destTopAngle = phi + alpha;
-    const destBottomAngle = Math.acos((t/b)*Math.cos(Math.PI/2 - alpha)) - alpha - Math.PI/2;
+    let destTopAngle = phi + alpha;
+    let destBottomAngle = Math.acos((t/b)*Math.cos(Math.PI/2 - alpha)) - alpha - Math.PI/2;
+    if(this.bendForward) {
+      destTopAngle = phi - alpha;
+      destBottomAngle *= -1;
+    }
 
     this.destTopMotorAngle = destTopAngle*this.topMotorRange/Math.PI;
     this.destBottomMotorAngle = destBottomAngle*this.bottomMotorRange/Math.PI;

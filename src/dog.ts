@@ -1,5 +1,5 @@
 import { TechnicMediumHub, HubLED, Consts } from "node-poweredup";
-import { BrowserWindow } from "electron";
+import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { Modes, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM } from "./param";
 
@@ -17,7 +17,7 @@ export class Dog {
   color: number = 0
   stepWidth: number = 58 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
   stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (1.5*this.stepWidth)**2);
-  stepLow: number = 360
+  stepLow: number = 365
   stepUp: number = 345
 
   constructor(mainWindow: BrowserWindow) {
@@ -28,10 +28,10 @@ export class Dog {
     this.legBackRight = new Leg("legBackRight", this.mainWindow, -7415, 13593);
     setInterval(() => {
       if(this.ledFront) {
-        this.ledFront.setColor(this.mode*(this.color%2));
+        this.ledFront.setColor((this.mode+8)*(this.color%2));
       }
       if(this.ledBack) {
-        this.ledBack.setColor(this.mode*(this.color%2));
+        this.ledBack.setColor((this.mode+8)*(this.color%2));
       }
       this.color++;
     }, 1000);
@@ -68,7 +68,17 @@ export class Dog {
         const x = Math.PI*tilt.x/180;
 	const y = Math.PI*tilt.z/180;
 	const z = Math.PI*tilt.y/180;
-	this.mainWindow.webContents.send('notifyTilt', 'backHub', { x, y, z });
+	return this.mainWindow.webContents.send('notifyTilt', 'backHub', { x, y, z });
+      });
+      hub.on("batteryLevel", (level) => {
+        return this.mainWindow.webContents.send('notifyBattery', 'backHub', Number(level.batteryLevel));
+      });
+      hub.on("rssi", (rssi) => {
+        return this.mainWindow.webContents.send('notifyRssi', 'backHub', Number(rssi.rssi));
+      });
+      ipcMain.on("getHubProperties", () => {
+        this.mainWindow.webContents.send('notifyBattery', 'backHub', hub.batteryLevel);
+        this.mainWindow.webContents.send('notifyRssi', 'backHub', hub.rssi);
       });
     }
     if(hub.name === "BeneLego3") {
@@ -83,7 +93,17 @@ export class Dog {
         const x = -Math.PI*tilt.x/180;
 	const y = Math.PI*tilt.z/180;
         const z = -Math.PI*tilt.y/180;
-	this.mainWindow.webContents.send('notifyTilt', 'frontHub', { x, y, z });
+	return this.mainWindow.webContents.send('notifyTilt', 'frontHub', { x, y, z });
+      });
+      hub.on("batteryLevel", (level) => {
+        return this.mainWindow.webContents.send('notifyBattery', 'frontHub', Number(level.batteryLevel));
+      });
+      hub.on("rssi", (rssi) => {
+        return this.mainWindow.webContents.send('notifyRssi', 'frontHub', Number(rssi.rssi));
+      });
+      ipcMain.on("getHubProperties", () => {
+        this.mainWindow.webContents.send('notifyBattery', 'frontHub', hub.batteryLevel);
+        this.mainWindow.webContents.send('notifyRssi', 'frontHub', hub.rssi);
       });
     }
     this.init();

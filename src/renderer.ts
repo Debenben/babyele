@@ -205,7 +205,7 @@ const unpreviewItem = (event) => {
 const buildInfoBox = (name: string, preview: boolean) => {
   const box = new StackPanel(name);
   box.width = "300px";
-  box.height = "120px";
+  box.height = "220px";
   box.alpha = 0.7;
   box.paddingLeft = 10; 
   box.paddingRight = 10; 
@@ -220,8 +220,16 @@ const buildInfoBox = (name: string, preview: boolean) => {
   else {
     box.background = "red";
   }
-  if(!name.endsWith("Hub")) {
+  if(name.endsWith("Hub")) {
+    ipcRenderer.send("getHubProperties");
+    box.addControl(buildBatteryText(name));
+    box.addControl(buildRssiText(name));
+  }
+  else {
+    box.addControl(buildText("angle:"));
     box.addControl(buildAngleSlider(name));
+    box.addControl(buildResetButton(name));
+    box.addControl(buildText("power:"));
     box.addControl(buildCorrectionSlider(name));
   }
   return box;
@@ -231,17 +239,54 @@ const buildHeading = (content: string) => {
   const heading = new TextBlock();
   heading.text = content;
   heading.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  heading.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   heading.height = "30px";
   heading.width = "260px";
   heading.fontSize = 20;
   return heading;
 }
 
+const buildText = (content: string) => {
+  const block = new TextBlock();
+  block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+  block.text = content;
+  block.height = "30px";
+  block.width = "260px";
+  return block;
+}
+
+const buildBatteryText = (meshName: string) => {
+  const block = new TextBlock();
+  block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+  block.text = "battery: --";
+  block.height = "30px";
+  block.width = "260px";
+  ipcRenderer.on("notifyBattery", (event, arg1, arg2) => {
+    if(arg1===meshName) {
+      block.text = "battery: " + String(arg2);
+    }
+  });
+  return block;
+}
+
+const buildRssiText = (meshName: string) => {
+  const block = new TextBlock();
+  block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+  block.text = "rssi: --";
+  block.height = "30px";
+  block.width = "260px";
+  ipcRenderer.on("notifyRssi", (event, arg1, arg2) => {
+    if(arg1===meshName) {
+      block.text = "rssi: " + String(arg2);
+    }
+  });
+  return block;
+}
+
 const buildAngleSlider = (meshName: string) => {
   const slider = new Slider();
   slider.height = "30px";
   slider.width = "260px";
-  slider.paddingTop = "5px";
   slider.minimum = -Math.PI;
   slider.maximum = Math.PI;
   slider.value = renderer.getLegRotation(meshName);
@@ -254,11 +299,23 @@ const buildAngleSlider = (meshName: string) => {
   return slider;
 }
 
+const buildResetButton = (meshName: string) => {
+  const button = Button.CreateSimpleButton("resetButton", "reset angle");
+  button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+  button.paddingTop = "5px";
+  button.paddingRight = "5px";
+  button.width = "120px";
+  button.height = "30px";
+  button.onPointerClickObservable.add(() => {
+    ipcRenderer.send(meshName, "requestReset");
+  });
+  return button;
+}
+
 const buildCorrectionSlider = (meshName: string) => {
   const slider = new Slider();
   slider.height = "30px";
   slider.width = "260px";
-  slider.paddingTop = "5px";
   slider.minimum = -100;
   slider.maximum = 100;
   slider.value = 0;
