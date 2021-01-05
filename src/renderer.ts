@@ -8,6 +8,7 @@ export default class Renderer {
   canvas: HTMLCanvasElement;
   engine: BABYLON.Engine;
   scene: BABYLON.Scene;
+  actionManager: BABYLON.ActionManager;
   advancedTexture: AdvancedDynamicTexture;
   infobox: StackPanel;
   modeSelection: StackPanel;
@@ -20,8 +21,19 @@ export default class Renderer {
     this.canvas = canvas;
     this.engine = engine;
     const scene = new BABYLON.Scene(engine);
-    scene.onPointerDown = selectItem;
+    scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+    scene.fogDensity = 0.0002;
     this.scene = scene;
+    const glow = new BABYLON.GlowLayer("glow", scene);
+    glow.intensity = 0.5;
+    const background = buildBackground(scene, engine);
+    const ground = buildGround(scene);
+    scene.registerBeforeRender(() => {
+      if(!this.infobox) {
+        ground.rotation.y += 0.001;
+      }
+    });
+    this.actionManager = new BABYLON.ActionManager(scene);
 
     const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/2.5, 900, new BABYLON.Vector3(0,250,0), scene);
     camera.attachControl(canvas, true);
@@ -31,19 +43,23 @@ export default class Renderer {
     hemLight.intensity = 0.5;
 
     this.greyMaterial = new BABYLON.StandardMaterial("greyMat", scene);
-    this.greyMaterial.diffuseColor = new BABYLON.Color3(0.2,0.2,0.2);
-    this.greyMaterial.specularColor = new BABYLON.Color3(0,0,0);
+    this.greyMaterial.diffuseColor = new BABYLON.Color3(0.5,0.5,0.5);
+    this.greyMaterial.specularColor = new BABYLON.Color3(0.2,0.2,0.2);
     this.greenMaterial = new BABYLON.StandardMaterial("greenMat", scene);
     this.greenMaterial.diffuseColor = new BABYLON.Color3(0,1,0);
     this.greenMaterial.specularColor = new BABYLON.Color3(0.1,0.4,0.1);
+    this.greenMaterial.emissiveColor = new BABYLON.Color3(0,0.05,0);
     this.redMaterial = new BABYLON.StandardMaterial("redMat", scene);
     this.redMaterial.diffuseColor = new BABYLON.Color3(1,0,0);
     this.redMaterial.specularColor = new BABYLON.Color3(0.4,0.1,0.1);
+    this.redMaterial.emissiveColor = new BABYLON.Color3(0.05,0,0);
 
     const frontHub = buildHub(scene, "frontHub");
+    frontHub.parent = ground;
     frontHub.position.x = 100;
     frontHub.setPivotPoint(frontHub.position.negate());
     const backHub = buildHub(scene, "backHub");
+    backHub.parent = ground;
     backHub.position.x = -100;
     backHub.setPivotPoint(backHub.position.negate());
 
@@ -64,25 +80,20 @@ export default class Renderer {
     legBackRight.position.z = -Param.LEG_SEPARATION_WIDTH/2;
     legBackRight.parent = backHub;
 
-    const ground = buildGround(scene);
-    frontHub.parent = ground;
-    backHub.parent = ground;
     const shadowCaster = new BABYLON.ShadowGenerator(1024, dirLight);
     shadowCaster.addShadowCaster(frontHub);
     shadowCaster.addShadowCaster(backHub);
     shadowCaster.usePoissonSampling = true;
     shadowCaster.blurScale = 5;
-    scene.registerBeforeRender(() => {
-      if(!this.infobox) {
-        ground.rotation.y += 0.002;
-      }
-    });
 
     this.advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
     this.modeSelection = buildModeSelection();
     this.advancedTexture.addControl(this.modeSelection);
     this.modeDisplayButton = buildModeDisplayButton();
     this.advancedTexture.addControl(this.modeDisplayButton);
+    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, selectItem));
+    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, previewItem));
+    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, unpreviewItem));
   }
 
   setHubTilt(meshName: string, tilt) {
@@ -109,9 +120,13 @@ export default class Renderer {
     }
     switch(state) {
       case "select":
+        if(this.infobox) {
+          this.advancedTexture.removeControl(this.infobox);
+          this.infobox = null;
+        }
         mesh.material = this.redMaterial;
         mesh.isPickable = true;
-        this.infobox = buildInfoBox(meshName);
+        this.infobox = buildInfoBox(meshName, false);
         this.advancedTexture.addControl(this.infobox);
         break;
       case "offline":
@@ -121,7 +136,17 @@ export default class Renderer {
         }
         mesh.material = this.greyMaterial;
 	mesh.isPickable = false;
-	break;
+        break;
+      case "preview":
+        if(this.infobox) {
+          this.advancedTexture.removeControl(this.infobox);
+          this.infobox = null;
+        }
+        mesh.material = this.greenMaterial;
+        mesh.isPickable = true;
+        this.infobox = buildInfoBox(meshName, true);
+        this.advancedTexture.addControl(this.infobox);
+        break;
       case "online":
       default:
 	if(this.infobox && this.infobox.name === meshName) {
@@ -147,24 +172,40 @@ export default class Renderer {
   }
 }
 
-const selectItem = (event, pickResult) => {
-  if(pickResult.hit) {
-    if(renderer.infobox) {
-      if(pickResult.pickedMesh.name === renderer.infobox.name) {
-	renderer.setState(renderer.infobox.name, "online");
-        return;
-      }
-      renderer.setState(renderer.infobox.name, "online");
+const selectItem = (event) => {
+  if(renderer.infobox) {
+    if(event.meshUnderPointer.name === renderer.infobox.name && renderer.infobox.background === "red") {
+      renderer.setState(renderer.infobox.name, "preview");
+      return;
     }
-    renderer.setState(pickResult.pickedMesh.name, "select");
+    renderer.setState(renderer.infobox.name, "online");
+  }
+  renderer.setState(event.meshUnderPointer.name, "select");
+}
+
+const previewItem = (event) => {
+  if(renderer.infobox) {
+    if(renderer.infobox.background === "red") {
+      return;
+    }
+    renderer.setState(renderer.infobox.name, "online");
+  }
+  renderer.setState(event.meshUnderPointer.name, "preview");
+}
+
+const unpreviewItem = (event) => {
+  if(renderer.infobox) {
+    if(renderer.infobox.background === "red") {
+      return;
+    }
+    renderer.setState(renderer.infobox.name, "online");
   }
 }
 
-const buildInfoBox = (name: string) => {
+const buildInfoBox = (name: string, preview: boolean) => {
   const box = new StackPanel(name);
   box.width = "300px";
   box.height = "120px";
-  box.background = "red";
   box.alpha = 0.7;
   box.paddingLeft = 10; 
   box.paddingRight = 10; 
@@ -173,6 +214,12 @@ const buildInfoBox = (name: string) => {
   box.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
   box.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   box.addControl(buildHeading(name));
+  if(preview) {
+    box.background = "green";
+  }
+  else {
+    box.background = "red";
+  }
   if(!name.endsWith("Hub")) {
     box.addControl(buildAngleSlider(name));
     box.addControl(buildCorrectionSlider(name));
@@ -248,6 +295,8 @@ const buildModeSelection = () => {
       panel.addControl(buildModeButton(Number(val)));
     }
   }
+  panel.zIndex = 10;
+  panel.isPointerBlocker = true;
   panel.isVisible = false;
   return panel;
 }
@@ -264,11 +313,33 @@ const buildModeButton = (mode: number) => {
   return button; 
 }
 
+const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
+  var rtt = new BABYLON.RenderTargetTexture("", 200, scene)
+  var background = new BABYLON.Layer("back", null, scene);
+  background.isBackground = true;
+  background.texture = rtt;
+  var renderImage = new BABYLON.EffectWrapper({
+    engine: engine,
+    fragmentShader: `
+      varying vec2 vUV;
+      void main(void) {
+        gl_FragColor = vec4(0.1*vUV.x, 0.1*vUV.y, 0.2*vUV.y, 1.0);
+      }
+    `
+  });
+  renderImage.effect.executeWhenCompiled(() => {
+    var effectRenderer = new BABYLON.EffectRenderer(engine);
+    effectRenderer.render(renderImage, rtt);
+  });
+  return background;
+}
+
 const buildGround = (scene: BABYLON.Scene) => {
   const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-  groundMat.diffuseColor = new BABYLON.Color3(0.1,0.3,0.1);
-  groundMat.specularColor = new BABYLON.Color3(0,0.1,0);
-  const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:1000,height:1000}, scene);
+  groundMat.diffuseColor = new BABYLON.Color3(0.1,0.2,0.2);
+  groundMat.specularColor = new BABYLON.Color3(0,0.0,0.1);
+  groundMat.alpha = 0.7;
+  const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:800,height:800}, scene);
   ground.material = groundMat;
   ground.receiveShadows = true;
   ground.isPickable = false;
@@ -277,9 +348,10 @@ const buildGround = (scene: BABYLON.Scene) => {
 
 const buildHub = (scene: BABYLON.Scene, meshName: string) => {
   const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:200, height:100, depth:190}, scene);
+  hub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
   hub.material = renderer.greyMaterial;
   hub.isPickable = false;
-  hub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
+  hub.actionManager = renderer.actionManager;
   return hub;
 }
 
@@ -289,6 +361,7 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   topLeg.material = renderer.greyMaterial;
   topLeg.isPickable = false;
   topLeg.receiveShadows = true;
+  topLeg.actionManager = renderer.actionManager;
   const bottomLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Bottom", {width:60, height:Param.LEG_LENGTH_BOTTOM, depth:30}, scene);
   bottomLeg.setPivotPoint(new BABYLON.Vector3(0,Param.LEG_LENGTH_BOTTOM/2,0));
   bottomLeg.parent = topLeg;
@@ -296,6 +369,7 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   bottomLeg.material = renderer.greyMaterial;
   bottomLeg.isPickable = false;
   bottomLeg.receiveShadows = true;
+  bottomLeg.actionManager = renderer.actionManager;
   topLeg.position.y = -Param.LEG_LENGTH_BOTTOM/2;
   return topLeg;
 }
