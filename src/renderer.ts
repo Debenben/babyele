@@ -98,9 +98,9 @@ export default class Renderer {
 
   setHubTilt(meshName: string, tilt) {
     const mesh = this.scene.getMeshByName(meshName);
-    mesh.rotation.z = tilt.z;
-    mesh.rotation.y = tilt.y;
-    mesh.rotation.x = tilt.x;
+    mesh.rotation.z = Math.PI*tilt.z/180;
+    mesh.rotation.y = Math.PI*tilt.y/180;
+    mesh.rotation.x = Math.PI*tilt.x/180;
   }
 
   getLegRotation(meshName: string) {
@@ -224,6 +224,7 @@ const buildInfoBox = (name: string, preview: boolean) => {
     ipcRenderer.send("getHubProperties");
     box.addControl(buildBatteryText(name));
     box.addControl(buildRssiText(name));
+    box.addControl(buildTiltText(name));
   }
   else {
     box.addControl(buildText("angle:"));
@@ -278,6 +279,20 @@ const buildRssiText = (meshName: string) => {
   ipcRenderer.on("notifyRssi", (event, arg1, arg2) => {
     if(arg1===meshName) {
       block.text = "rssi: " + String(arg2);
+    }
+  });
+  return block;
+}
+
+const buildTiltText = (meshName: string) => {
+  const block = new TextBlock();
+  block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+  block.text = "tilt: --";
+  block.height = "30px";
+  block.width = "260px";
+  ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
+    if(arg1===meshName) {
+      block.text = "tilt: " + arg2.x + " " + arg2.y + " " + arg2.z;
     }
   });
   return block;

@@ -1,7 +1,7 @@
 import { TechnicMediumHub, HubLED, Consts } from "node-poweredup";
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
-import { Modes, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM } from "./param";
+import { Modes, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
 
 export class Dog {
   mainWindow: BrowserWindow
@@ -15,10 +15,10 @@ export class Dog {
   legBackLeft: Leg
   legBackRight: Leg
   color: number = 0
-  stepWidth: number = 58 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
-  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (1.5*this.stepWidth)**2);
-  stepLow: number = 365
-  stepUp: number = 345
+  stepWidth: number = 50 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
+  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (1.5*this.stepWidth)**2) // max radius for (pos0) and (pos3)
+  stepLow: number = this.stepHeight - 0.15*LEG_SEPARATION_WIDTH**2/this.stepHeight // CM moves 0.15*width from center to side
+  stepUp: number = this.stepLow - 15
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -35,6 +35,16 @@ export class Dog {
       }
       this.color++;
     }, 1000);
+    ipcMain.on("getHubProperties", () => {
+      if(this.hubFront) {
+        this.mainWindow.webContents.send('notifyBattery', 'frontHub', this.hubFront.batteryLevel);
+        this.mainWindow.webContents.send('notifyRssi', 'frontHub', this.hubFront.rssi);
+      }
+      if(this.hubBack) {
+        this.mainWindow.webContents.send('notifyBattery', 'backHub', this.hubBack.batteryLevel);
+        this.mainWindow.webContents.send('notifyRssi', 'backHub', this.hubBack.rssi);
+      }
+    });
   }
 
   async addHub(hub) {
@@ -65,9 +75,9 @@ export class Dog {
         this.init();
       });
       hub.on('tilt', (device, tilt) => {
-        const x = Math.PI*tilt.x/180;
-	const y = Math.PI*tilt.z/180;
-	const z = Math.PI*tilt.y/180;
+        const x = tilt.x;
+	const y = tilt.z;
+	const z = tilt.y;
 	return this.mainWindow.webContents.send('notifyTilt', 'backHub', { x, y, z });
       });
       hub.on("batteryLevel", (level) => {
@@ -75,10 +85,6 @@ export class Dog {
       });
       hub.on("rssi", (rssi) => {
         return this.mainWindow.webContents.send('notifyRssi', 'backHub', Number(rssi.rssi));
-      });
-      ipcMain.on("getHubProperties", () => {
-        this.mainWindow.webContents.send('notifyBattery', 'backHub', hub.batteryLevel);
-        this.mainWindow.webContents.send('notifyRssi', 'backHub', hub.rssi);
       });
     }
     if(hub.name === "BeneLego3") {
@@ -90,9 +96,9 @@ export class Dog {
         this.init();
       });
       hub.on('tilt', (device, tilt) => {
-        const x = -Math.PI*tilt.x/180;
-	const y = Math.PI*tilt.z/180;
-        const z = -Math.PI*tilt.y/180;
+        const x = -tilt.x;
+	const y = tilt.z;
+        const z = -tilt.y;
 	return this.mainWindow.webContents.send('notifyTilt', 'frontHub', { x, y, z });
       });
       hub.on("batteryLevel", (level) => {
@@ -100,10 +106,6 @@ export class Dog {
       });
       hub.on("rssi", (rssi) => {
         return this.mainWindow.webContents.send('notifyRssi', 'frontHub', Number(rssi.rssi));
-      });
-      ipcMain.on("getHubProperties", () => {
-        this.mainWindow.webContents.send('notifyBattery', 'frontHub', hub.batteryLevel);
-        this.mainWindow.webContents.send('notifyRssi', 'frontHub', hub.rssi);
       });
     }
     this.init();
@@ -174,69 +176,71 @@ export class Dog {
         console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
     }
   }
+
+  async move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
+    const bl = this.legBackLeft.setPosition.bind(this.legBackLeft);
+    const fl = this.legFrontLeft.setPosition.bind(this.legFrontLeft);
+    const fr = this.legFrontRight.setPosition.bind(this.legFrontRight);
+    const br = this.legBackRight.setPosition.bind(this.legBackRight);
+    return Promise.all([ bl(backLeftHeight, backLeftXPos*this.stepWidth), fl(frontLeftHeight, frontLeftXPos*this.stepWidth), fr(frontRightHeight, frontRightXPos*this.stepWidth), br(backRightHeight, backRightXPos*this.stepWidth) ]);
+  }
 }
 
 const getReady = async (dog: Dog) => {
-  const w = dog.stepWidth;
+  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
   const h = dog.stepHeight;
   const l = dog.stepLow;
   const u = dog.stepUp;
-  const fr = dog.legFrontRight.setPosition.bind(dog.legFrontRight);
-  const fl = dog.legFrontLeft.setPosition.bind(dog.legFrontLeft);
-  const br = dog.legBackRight.setPosition.bind(dog.legBackRight);
-  const bl = dog.legBackLeft.setPosition.bind(dog.legBackLeft);
   if(dog.mode === Modes.STANDING) {
-    await Promise.all([ fr(h,0), fl(h,0), br(h,0), bl(h,0) ]);
-    await Promise.all([ fr(l,0), br(l,0) ]);
-    await bl(u,0);
-    await bl(u,-1.5*w);
-    await bl(h,-1.5*w);
-    await Promise.all([ fr(l,0.5*w), fl(h,0.5*w), br(l,0.5*w), bl(h,-w) ]);
-    await Promise.all([ fr(l,1.5*w), fl(h,1.5*w), br(l,1.5*w), bl(h,0) ]);
-    await fl(u,1.5*w);
-    await fl(u,w);
-    await fl(h,w);
-    await Promise.all([ fr(h,0), fl(l,-0.5*w), br(h,0), bl(l,-1.5*w) ]);
-    await br(u,0);
-    await br(u,0.5*w);
-    await br(h,0.5*w);
-    await fr(u,0);
-    await fr(u,1.5*w);
-    await fr(h,1.5*w);
+    await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
+    await dog.move( h,   0,   h,   0,       h,   0,   h,   0 );//1
+    await dog.move( h,  -1,   h,  -1,       h,  -1,   h,  -1 );//2
+    await dog.move( h,  -1,   h,  -1,       l,  -1,   l,  -1 );//3
+    await dog.move( u,  -1,   h,  -1,       l,  -1,   l,  -1 );//4
+    await dog.move( u,-1.5,   h,  -1,       l,  -1,   l,  -1 );//5
+    await dog.move( l,-1.5,   h,   0,       l,   0,   l,   0 );//6
+    await dog.move( h,-1.5,   h,   0,       l,   0,   l,   0 );//7
+    await dog.move( h,-1.5,   u,   0,       l,   0,   l,   0 );//8
+    await dog.move( h,-1.5,   u,-0.5,       l,   0,   l,   0 );//9
+    await dog.move( l,-1.5,   l,-0.5,       l,   0,   l,   0 );//10
+    await dog.move( l,-1.5,   l,-0.5,       h,   0,   h,   0 );//11
+    await dog.move( l,-1.5,   l,-0.5,       h,   0,   u,   0 );//12
+    await dog.move( l,-1.5,   l,-0.5,       h,   0,   u, 0.5 );//13
+    await dog.move( l,-1.5,   l,-0.5,       h,   0,   h, 0.5 );//14
+    await dog.move( l,-1.5,   l,-0.5,       u,   0,   h, 0.5 );//15
+    await dog.move( l,-1.5,   l,-0.5,       u, 1.5,   h, 0.5 );//16
+    await dog.move( l,-1.5,   l,-0.5,       h, 1.5,   h, 0.5 );//17
   }
-  await Promise.all([ fr(h,1.5*w), fl(h,-0.5*w), br(h,0.5*w), bl(h,-1.5*w) ]);
+  await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//18
   dog.mode = Modes.READY;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
 const getStanding = async (dog: Dog) => {
-  const w = dog.stepWidth;
+  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
   const h = dog.stepHeight;
   const l = dog.stepLow;
   const u = dog.stepUp;
-  const fr = dog.legFrontRight.setPosition.bind(dog.legFrontRight);
-  const fl = dog.legFrontLeft.setPosition.bind(dog.legFrontLeft);
-  const br = dog.legBackRight.setPosition.bind(dog.legBackRight);
-  const bl = dog.legBackLeft.setPosition.bind(dog.legBackLeft);
   if(dog.mode === Modes.READY) {
-    await Promise.all([ fr(h,1.5*w), fl(l,-0.5*w), br(h,0.5*w), bl(l,-1.5*w) ]);
-    await fr(u,1.5*w);
-    await fr(u,0);
-    await fr(h,0);
-    await br(u,0.5*w);
-    await br(u,0);
-    await br(h,0);
-    await Promise.all([ fr(l,1.5*w), fl(h,w), br(l,1.5*w), bl(h,0) ]);
-    await fl(u, w);
-    await fl(u, 1.5*w);
-    await fl(h, 1.5*w);
-    await Promise.all([ fr(l,0.5*w), fl(h,0.5*w), br(l,0.5*w), bl(h,-w) ]);
-    await Promise.all([ fr(l,0), fl(h,0), br(l,0), bl(h,-1.5*w) ]);
-    await bl(u,-1.5*w);
-    await bl(u,0);
-    await bl(h,0);
-    await Promise.all([ fr(h,0), fl(h,0), br(h,0), bl(h,0) ]);
+    await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//18
+    await dog.move( l,-1.5,   l,-0.5,       h, 1.5,   h, 0.5 );//17
+    await dog.move( l,-1.5,   l,-0.5,       u, 1.5,   h, 0.5 );//16
+    await dog.move( l,-1.5,   l,-0.5,       u,   0,   h, 0.5 );//15
+    await dog.move( l,-1.5,   l,-0.5,       h,   0,   h, 0.5 );//14
+    await dog.move( l,-1.5,   l,-0.5,       h,   0,   u, 0.5 );//13
+    await dog.move( l,-1.5,   l,-0.5,       h,   0,   u,   0 );//12
+    await dog.move( l,-1.5,   l,-0.5,       h,   0,   h,   0 );//11
+    await dog.move( l,-1.5,   l,-0.5,       l,   0,   l,   0 );//10
+    await dog.move( h,-1.5,   u,-0.5,       l,   0,   l,   0 );//9
+    await dog.move( h,-1.5,   u,   0,       l,   0,   l,   0 );//8
+    await dog.move( h,-1.5,   h,   0,       l,   0,   l,   0 );//7
+    await dog.move( l,-1.5,   h,   0,       l,   0,   l,   0 );//6
+    await dog.move( u,-1.5,   h,  -1,       l,  -1,   l,  -1 );//5
+    await dog.move( u,  -1,   h,  -1,       l,  -1,   l,  -1 );//4
+    await dog.move( h,  -1,   h,  -1,       l,  -1,   l,  -1 );//3
+    await dog.move( h,  -1,   h,  -1,       h,  -1,   h,  -1 );//2
+    await dog.move( h,   0,   h,   0,       h,   0,   h,   0 );//1
   }
-  await Promise.all([ fr(385,0), fl(385,0), br(385,0), bl(385,0) ]);
+  await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
   dog.mode = Modes.STANDING;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
