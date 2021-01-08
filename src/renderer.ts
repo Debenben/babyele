@@ -207,11 +207,13 @@ const buildInfoBox = (name: string, preview: boolean) => {
   box.width = "300px";
   box.height = "220px";
   box.alpha = 0.7;
+  box.isPointerBlocker = true;
+  box.shadowBlur = 15;
   box.paddingLeft = 10; 
   box.paddingRight = 10; 
   box.paddingTop = 10; 
   box.paddingBottom = 10; 
-  box.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  box.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
   box.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   box.addControl(buildHeading(name));
   if(preview) {
@@ -346,8 +348,9 @@ const buildCorrectionSlider = (meshName: string) => {
 const buildModeDisplayButton = () => {
   const button = Button.CreateSimpleButton("modeDisplayButton", String(Modes[Modes.OFFLINE]));
   button.width = "250px";
-  button.height = "30px";
-  button.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+  button.paddingTop = "5px"
+  button.height = "35px";
+  button.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
   button.background = "grey";
   button.onPointerClickObservable.add(() => {
     if(renderer.modeSelection) {
@@ -376,11 +379,24 @@ const buildModeSelection = () => {
 const buildModeButton = (mode: number) => {
   const button = Button.CreateSimpleButton("modeButton", String(Modes[mode]));
   button.width = "180px";
-  button.height = "30px";
+  button.paddingTop = "5px"
+  button.height = "35px";
   button.background = "grey";
+  button.color = "darkgrey";
+  button.isEnabled = false;
   button.onPointerClickObservable.add(() => {
     ipcRenderer.send("requestMode", mode); 
     renderer.modeSelection.isVisible = false;
+  });
+  ipcRenderer.on('notifyMode', (event, arg) => {
+    if(Param.allowSwitch(arg, mode)) {
+      button.color = "black";
+      button.isEnabled = true;
+    }
+    else {
+      button.color = "darkgrey";
+      button.isEnabled = false;
+    }
   });
   return button; 
 }

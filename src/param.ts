@@ -18,13 +18,10 @@ export const allowSwitch = (fromMode: Modes, toMode: Modes) => {
     case Modes.STANDING:
       return [ Modes.OFFLINE, Modes.STANDING, Modes.READY0, Modes.FORWARD ].includes(toMode);
     case Modes.READY0:
-      return [ Modes.OFFLINE, Modes.STANDING, Modes.READY1, Modes.FORWARD ].includes(toMode);
+      return [ Modes.OFFLINE, Modes.STANDING, Modes.READY0, Modes.READY1, Modes.READY2, Modes.READY3, Modes.FORWARD ].includes(toMode);
     case Modes.READY1:
-      return [ Modes.OFFLINE, Modes.READY2, Modes.FORWARD ].includes(toMode);
     case Modes.READY2:
-      return [ Modes.OFFLINE, Modes.READY3, Modes.FORWARD ].includes(toMode);
     case Modes.READY3:
-      return [ Modes.OFFLINE, Modes.READY0, Modes.FORWARD ].includes(toMode);
     case Modes.FORWARD:
       return [ Modes.OFFLINE, Modes.READY0, Modes.READY1, Modes.READY2, Modes.READY3, Modes.FORWARD ].includes(toMode);
     default:
