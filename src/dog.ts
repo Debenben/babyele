@@ -1,11 +1,12 @@
 import { TechnicMediumHub, HubLED, Consts } from "node-poweredup";
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
-import { Modes, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
+import { Modes, allowSwitch, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
 
 export class Dog {
   mainWindow: BrowserWindow
   mode: Modes = Modes.OFFLINE
+  modeQueue: Modes [] = []
   hubFront: TechnicMediumHub
   hubBack: TechnicMediumHub
   ledFront: HubLED
@@ -18,7 +19,7 @@ export class Dog {
   stepWidth: number = 50 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
   stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (1.5*this.stepWidth)**2) // max radius for (pos0) and (pos3)
   stepLow: number = this.stepHeight - 0.15*LEG_SEPARATION_WIDTH**2/this.stepHeight // CM moves 0.15*width from center to side
-  stepUp: number = this.stepLow - 15
+  stepUp: number = this.stepLow - 10
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -28,10 +29,10 @@ export class Dog {
     this.legBackRight = new Leg("legBackRight", this.mainWindow, -7415, 13593);
     setInterval(() => {
       if(this.ledFront) {
-        this.ledFront.setColor((this.mode+8)*(this.color%2));
+        this.ledFront.setColor(((this.mode+7)%10+1)*(this.color%2));
       }
       if(this.ledBack) {
-        this.ledBack.setColor((this.mode+8)*(this.color%2));
+        this.ledBack.setColor(((this.mode+7)%10+1)*(this.color%2));
       }
       this.color++;
     }, 1000);
@@ -59,7 +60,7 @@ export class Dog {
     hub.on("button", ({ event }) => {
       if(event === Consts.ButtonState.PRESSED) {
         if(this.mode == Modes.STANDING) {
-          this.requestMode(Modes.READY);
+          this.requestMode(Modes.READY0);
         }
         else {
           this.requestMode(Modes.STANDING);
@@ -156,25 +157,49 @@ export class Dog {
   }
 
   async requestMode(destMode: Modes) {
-    if(destMode === Modes.OFFLINE) {
-      return shutdown(this);
+    if(this.modeQueue.length && allowSwitch(this.modeQueue[this.modeQueue.length], destMode)) {
+      return this.modeQueue.push(destMode);
     }
-    if(this.mode === Modes.OFFLINE) {
-      console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
+    else if(allowSwitch(this.mode, destMode)) {
+      this.modeQueue.push(destMode);
+      this.modeLoop();
+      return Promise.resolve();
+    }
+    else {
+      console.log("Cannot switch to " + Modes[destMode]);
       return;
     }
-    if(this.mode === Modes.WAITING) {
-      console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
-      return;
+  }
+
+  async modeLoop() {
+    while(this.modeQueue.length) {
+      let dest = this.modeQueue[0];
+      if(this.mode === dest) {
+        this.modeQueue.shift();
+        continue;
+      }
+      if(dest === Modes.FORWARD && this.modeQueue.length > 1) {
+        this.modeQueue.shift();
+        continue;
+      }
+      if(dest === Modes.OFFLINE) {
+        return shutdown(this);
+      }
+      if(dest === Modes.STANDING) {
+        await getStanding(this);
+        continue;
+      }
+      if(this.mode === Modes.STANDING && dest === Modes.READY0) {
+        await getReady(this);
+        continue;
+      }
+      if(this.mode === Modes.STANDING && dest === Modes.FORWARD) {
+        await getReady(this);
+        continue
+      }
+      await forward(this);
     }
-    switch(destMode) {
-      case Modes.STANDING:
-        return getStanding(this);
-      case Modes.READY:
-        return getReady(this);
-      default:
-        console.log("Cannot switch from mode " + Modes[this.mode] + " to " + Modes[destMode]);
-    }
+    return Promise.resolve();
   }
 
   async move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
@@ -211,8 +236,8 @@ const getReady = async (dog: Dog) => {
     await dog.move( l,-1.5,   l,-0.5,       u, 1.5,   h, 0.5 );//16
     await dog.move( l,-1.5,   l,-0.5,       h, 1.5,   h, 0.5 );//17
   }
-  await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//18
-  dog.mode = Modes.READY;
+  await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
+  dog.mode = Modes.READY0;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
 const getStanding = async (dog: Dog) => {
@@ -220,8 +245,8 @@ const getStanding = async (dog: Dog) => {
   const h = dog.stepHeight;
   const l = dog.stepLow;
   const u = dog.stepUp;
-  if(dog.mode === Modes.READY) {
-    await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//18
+  if(dog.mode === Modes.READY0) {
+    await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
     await dog.move( l,-1.5,   l,-0.5,       h, 1.5,   h, 0.5 );//17
     await dog.move( l,-1.5,   l,-0.5,       u, 1.5,   h, 0.5 );//16
     await dog.move( l,-1.5,   l,-0.5,       u,   0,   h, 0.5 );//15
@@ -245,6 +270,45 @@ const getStanding = async (dog: Dog) => {
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
 
+const forward = async (dog: Dog) => {
+  const h = dog.stepHeight;
+  const l = dog.stepLow;
+  const u = dog.stepUp;
+  if(dog.mode === Modes.READY0) {
+    await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
+    await dog.move( h,-1.5,   h,  -1,       l,   1,   l,   0 );//21
+    await dog.move( u,-1.5,   h,-1.5,       l, 0.5,   l,-0.5 );//22
+    await dog.move( u, 1.5,   h,-1.5,       l, 0.5,   l,-0.5 );//23
+    await dog.move( h, 1.5,   h,-1.5,       l, 0.5,   l,-0.5 );//24
+    dog.mode += 1;
+  }
+  else if(dog.mode === Modes.READY1) {
+    await dog.move( h, 1.5,   h,-1.5,       l, 0.5,   l,-0.5 );//24
+    await dog.move( h,   1,   h,-1.5,       l,   0,   l,  -1 );//31
+    await dog.move( h, 0.5,   u,-1.5,       l,   0,   l,-1.5 );//32
+    await dog.move( h, 0.5,   u, 1.5,       l,-0.5,   l,-1.5 );//33
+    await dog.move( h, 0.5,   h, 1.5,       h,-0.5,   h,-1.5 );//34
+    dog.mode += 1;
+  }
+  else if(dog.mode === Modes.READY2) {
+    await dog.move( h, 0.5,   h, 1.5,       h,-0.5,   h,-1.5 );//34
+    await dog.move( l,   0,   l,   1,       h,  -1,   h,-1.5 );//41
+    await dog.move( l,-0.5,   l, 0.5,       h,-1.5,   u,-1.5 );//42
+    await dog.move( l,-0.5,   l, 0.5,       h,-1.5,   u, 1.5 );//43
+    await dog.move( l,-0.5,   l, 0.5,       h,-1.5,   h, 1.5 );//44
+    dog.mode += 1;
+  }
+  else if(dog.mode === Modes.READY3) {
+    await dog.move( l,-0.5,   l, 0.5,       h,-1.5,   h, 1.5 );//44
+    await dog.move( l,  -1,   l,   0,       h,-1.5,   h,   1 );//51
+    await dog.move( l,-1.5,   l,-0.5,       u,-1.5,   h, 0.5 );//52
+    await dog.move( l,-1.5,   l,-0.5,       u, 1.5,   h, 0.5 );//53
+    await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
+    dog.mode -= 3;
+  }
+  return dog.mainWindow.webContents.send('notifyMode', dog.mode);
+}
+
 const shutdown = async (dog: Dog) => {
   let promiseFront, promiseBack;
   if(dog.hubFront) { 
@@ -255,4 +319,3 @@ const shutdown = async (dog: Dog) => {
   }
   return Promise.all( [ promiseFront, promiseBack ]);
 }
-

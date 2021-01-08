@@ -1,14 +1,37 @@
 export enum Modes {
-  OFFLINE = 0,
-  WAITING = 1,
-  STANDING = 2,
-  READY = 3,
-  STRETCHING = 4,
-  FORWARD0 = 10,
-  FORWARD1 = 11,
-  FORWARD2 = 12,
-  FORWARD3 = 13
+  OFFLINE    =  0,
+  WAITING    =  1,
+  STANDING   =  2,
+  FORWARD    =  3,
+  READY0     = 10,
+  READY1     = 11,
+  READY2     = 12,
+  READY3     = 13,
 }
+
+export const allowSwitch = (fromMode: Modes, toMode: Modes) => {
+  switch(fromMode) {
+    case Modes.OFFLINE:
+      return [ Modes.OFFLINE ].includes(toMode);
+    case Modes.WAITING:
+      return [ Modes.OFFLINE, Modes.WAITING ].includes(toMode);
+    case Modes.STANDING:
+      return [ Modes.OFFLINE, Modes.STANDING, Modes.READY0, Modes.FORWARD ].includes(toMode);
+    case Modes.READY0:
+      return [ Modes.OFFLINE, Modes.STANDING, Modes.READY1, Modes.FORWARD ].includes(toMode);
+    case Modes.READY1:
+      return [ Modes.OFFLINE, Modes.READY2, Modes.FORWARD ].includes(toMode);
+    case Modes.READY2:
+      return [ Modes.OFFLINE, Modes.READY3, Modes.FORWARD ].includes(toMode);
+    case Modes.READY3:
+      return [ Modes.OFFLINE, Modes.READY0, Modes.FORWARD ].includes(toMode);
+    case Modes.FORWARD:
+      return [ Modes.OFFLINE, Modes.READY0, Modes.READY1, Modes.READY2, Modes.READY3, Modes.FORWARD ].includes(toMode);
+    default:
+      return false;
+  }
+}
+
 
 export const LEG_LENGTH_TOP = 185.0;
 export const LEG_LENGTH_BOTTOM = 200.0;

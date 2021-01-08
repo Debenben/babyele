@@ -65,8 +65,8 @@ export class Leg {
     this.topMotor = motor;
     if(motor) {
       motor.setBrakingStyle(Consts.BrakingStyle.BRAKE);
-      motor.setAccelerationTime(10);
-      motor.setDecelerationTime(10);
+      motor.setAccelerationTime(100);
+      motor.setDecelerationTime(100);
       ipcMain.on(this.legName+"Top", (event, arg1, arg2) => {
         switch(arg1) {
           case "requestPower":
