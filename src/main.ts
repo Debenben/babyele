@@ -30,12 +30,7 @@ function createWindow() {
     // Dereference the window object, usually you would store windows
     // in an array if your app supports multi windows, this is the time
     // when you should delete the corresponding element.
-    if(dog) {
-      dog.requestMode(Modes.OFFLINE).then(() => {dog = null;}).then(() => {mainWindow = null;});
-    }
-    else {
-      mainWindow = null;
-    }
+    mainWindow = null;
   });
 }
 
@@ -46,11 +41,17 @@ app.on("ready", createWindow);
 
 // Quit when all windows are closed.
 app.on("window-all-closed", () => {
-  // On OS X it is common for applications and their menu bar
-  // to stay active until the user quits explicitly with Cmd + Q
-  if (process.platform !== "darwin") {
-    app.quit();
+  if(dog) {
+    if(dog.hubFront) {
+      dog.hubFront.shutdown();
+    }
+    if(dog.hubBack) {
+      dog.hubBack.shutdown();
+    }
   }
+  dog = null;
+  mainWindow = null;
+  app.quit();
 });
 
 app.on("activate", () => {

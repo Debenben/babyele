@@ -365,18 +365,17 @@ const buildModeDisplayButton = () => {
 
 const buildModeSelection = () => {
   const panel = new StackPanel("modeSelection");
-  for (var val in Object.values(Modes)) {
-    if(Modes[Number(val)]) {
-      panel.addControl(buildModeButton(Number(val)));
-    }
-  }
+  let keys = Object.keys(Modes).filter(k => typeof (Modes as any)[k] === 'number') as any;
+  keys.forEach((key) => {
+    panel.addControl(buildModeButton(Modes[key]));
+  });
   panel.zIndex = 10;
   panel.isPointerBlocker = true;
   panel.isVisible = false;
   return panel;
 }
 
-const buildModeButton = (mode: number) => {
+const buildModeButton = (mode) => {
   const button = Button.CreateSimpleButton("modeButton", String(Modes[mode]));
   button.width = "180px";
   button.paddingTop = "5px"

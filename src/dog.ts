@@ -18,8 +18,8 @@ export class Dog {
   color: number = 0
   stepWidth: number = 50 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
   stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (1.5*this.stepWidth)**2) // max radius for (pos0) and (pos3)
-  stepLow: number = this.stepHeight - 0.15*LEG_SEPARATION_WIDTH**2/this.stepHeight // CM moves 0.15*width from center to side
-  stepUp: number = this.stepLow - 10
+  stepLow: number = this.stepHeight - 0.20*LEG_SEPARATION_WIDTH**2/this.stepHeight // CM moves 0.20*width from center to side
+  stepUp: number = this.stepLow - 15
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -59,12 +59,15 @@ export class Dog {
     });
     hub.on("button", ({ event }) => {
       if(event === Consts.ButtonState.PRESSED) {
-        if(this.mode == Modes.STANDING) {
-          this.requestMode(Modes.READY0);
+        if(this.mode === Modes.STANDING) {
+          this.requestMode(Modes.FORWARD);
+        }
+        else if(this.mode === Modes.READY0) {
+          this.requestMode(Modes.STANDING);
         }
         else {
-          this.requestMode(Modes.STANDING);
-	}
+          this.requestMode(Modes.READY0);
+        }
       }
     });
     if(hub.name === "BeneLego2") {
@@ -112,7 +115,7 @@ export class Dog {
     this.init();
   }
 
-  init() {
+  async init() {
     if(this.hubFront && this.hubBack) {
       this.mode = Modes.WAITING;
     }
@@ -153,11 +156,12 @@ export class Dog {
     }
     if(res) {
       getStanding(this);
+      this.modeQueue = [];
     }
   }
 
-  async requestMode(destMode: Modes) {
-    if(this.modeQueue.length && allowSwitch(this.modeQueue[this.modeQueue.length], destMode)) {
+  requestMode(destMode: Modes) {
+    if(this.modeQueue.length && allowSwitch(this.modeQueue[this.modeQueue.length-1], destMode)) {
       return this.modeQueue.push(destMode);
     }
     else if(allowSwitch(this.mode, destMode)) {
@@ -189,20 +193,31 @@ export class Dog {
         await getStanding(this);
         continue;
       }
+      if(dest === Modes.DOWN) {
+        await getDown(this);
+        continue;
+      }
       if(this.mode === Modes.STANDING && dest === Modes.READY0) {
         await getReady(this);
         continue;
       }
       if(this.mode === Modes.STANDING && dest === Modes.FORWARD) {
         await getReady(this);
-        continue
+        continue;
       }
       await forward(this);
     }
     return Promise.resolve();
   }
 
-  async move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
+  setBendForward() {
+    this.legBackLeft.bendForward = true;
+    this.legFrontLeft.bendForward = true;
+    this.legFrontRight.bendForward = true;
+    this.legBackRight.bendForward = true;
+  }
+
+  move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
     const bl = this.legBackLeft.setPosition.bind(this.legBackLeft);
     const fl = this.legFrontLeft.setPosition.bind(this.legFrontLeft);
     const fr = this.legFrontRight.setPosition.bind(this.legFrontRight);
@@ -216,6 +231,7 @@ const getReady = async (dog: Dog) => {
   const h = dog.stepHeight;
   const l = dog.stepLow;
   const u = dog.stepUp;
+  await dog.setBendForward();
   if(dog.mode === Modes.STANDING) {
     await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
     await dog.move( h,   0,   h,   0,       h,   0,   h,   0 );//1
@@ -240,6 +256,7 @@ const getReady = async (dog: Dog) => {
   dog.mode = Modes.READY0;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
+
 const getStanding = async (dog: Dog) => {
   const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
   const h = dog.stepHeight;
@@ -265,6 +282,7 @@ const getStanding = async (dog: Dog) => {
     await dog.move( h,  -1,   h,  -1,       h,  -1,   h,  -1 );//2
     await dog.move( h,   0,   h,   0,       h,   0,   h,   0 );//1
   }
+  await dog.setBendForward();
   await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
   dog.mode = Modes.STANDING;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
@@ -274,6 +292,7 @@ const forward = async (dog: Dog) => {
   const h = dog.stepHeight;
   const l = dog.stepLow;
   const u = dog.stepUp;
+  await dog.setBendForward();
   if(dog.mode === Modes.READY0) {
     await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
     await dog.move( h,-1.5,   h,  -1,       l,   1,   l,   0 );//21
@@ -306,6 +325,22 @@ const forward = async (dog: Dog) => {
     await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
     dog.mode -= 3;
   }
+  return dog.mainWindow.webContents.send('notifyMode', dog.mode);
+}
+
+const getDown = async (dog: Dog) => {
+  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
+  const bl = dog.legBackLeft.setPosition.bind(dog.legBackLeft);
+  const fl = dog.legFrontLeft.setPosition.bind(dog.legFrontLeft);
+  const fr = dog.legFrontRight.setPosition.bind(dog.legFrontRight);
+  const br = dog.legBackRight.setPosition.bind(dog.legBackRight);
+  dog.legBackLeft.bendForward = true;
+  dog.legFrontLeft.bendForward = false;
+  dog.legFrontRight.bendForward = false;
+  dog.legBackRight.bendForward = true;
+  await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
+  await Promise.all([ bl(0, -0.5*s), fl(0,  0.5*s), fr(0,  0.5*s), br(0, -0.5*s) ]);
+  dog.mode = Modes.DOWN;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
 

@@ -7,6 +7,7 @@ export enum Modes {
   READY1     = 11,
   READY2     = 12,
   READY3     = 13,
+  DOWN       = 20,
 }
 
 export const allowSwitch = (fromMode: Modes, toMode: Modes) => {
@@ -16,7 +17,7 @@ export const allowSwitch = (fromMode: Modes, toMode: Modes) => {
     case Modes.WAITING:
       return [ Modes.OFFLINE, Modes.WAITING ].includes(toMode);
     case Modes.STANDING:
-      return [ Modes.OFFLINE, Modes.STANDING, Modes.READY0, Modes.FORWARD ].includes(toMode);
+      return [ Modes.OFFLINE, Modes.STANDING, Modes.READY0, Modes.FORWARD, Modes.DOWN ].includes(toMode);
     case Modes.READY0:
       return [ Modes.OFFLINE, Modes.STANDING, Modes.READY0, Modes.READY1, Modes.READY2, Modes.READY3, Modes.FORWARD ].includes(toMode);
     case Modes.READY1:
@@ -24,6 +25,8 @@ export const allowSwitch = (fromMode: Modes, toMode: Modes) => {
     case Modes.READY3:
     case Modes.FORWARD:
       return [ Modes.OFFLINE, Modes.READY0, Modes.READY1, Modes.READY2, Modes.READY3, Modes.FORWARD ].includes(toMode);
+    case Modes.DOWN:
+      return [ Modes.OFFLINE, Modes.STANDING, Modes.DOWN ].includes(toMode);
     default:
       return false;
   }
