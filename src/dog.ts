@@ -16,10 +16,10 @@ export class Dog {
   legBackLeft: Leg
   legBackRight: Leg
   color: number = 0
-  stepWidth: number = 50 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
-  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (1.5*this.stepWidth)**2) // max radius for (pos0) and (pos3)
-  stepLow: number = this.stepHeight - 0.20*LEG_SEPARATION_WIDTH**2/this.stepHeight // CM moves 0.20*width from center to side
-  stepUp: number = this.stepLow - 15
+  stepWidth: number = 80 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
+  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (2*this.stepWidth)**2) // max radius for (pos0) and (pos3)
+  stepLow: number = this.stepHeight - 0.18*LEG_SEPARATION_WIDTH**2/this.stepHeight // CM moves 0.17*width from center to side
+  stepUp: number = this.stepLow - 20
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -228,59 +228,57 @@ export class Dog {
 
 const getReady = async (dog: Dog) => {
   const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
+  const g = dog.stepHeight + 5;
   const h = dog.stepHeight;
+  const k = dog.stepLow + 5;
   const l = dog.stepLow;
   const u = dog.stepUp;
   await dog.setBendForward();
   if(dog.mode === Modes.STANDING) {
     await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
-    await dog.move( h,   0,   h,   0,       h,   0,   h,   0 );//1
-    await dog.move( h,  -1,   h,  -1,       h,  -1,   h,  -1 );//2
-    await dog.move( h,  -1,   h,  -1,       l,  -1,   l,  -1 );//3
-    await dog.move( u,  -1,   h,  -1,       l,  -1,   l,  -1 );//4
-    await dog.move( u,-1.5,   h,  -1,       l,  -1,   l,  -1 );//5
-    await dog.move( l,-1.5,   h,   0,       l,   0,   l,   0 );//6
-    await dog.move( h,-1.5,   h,   0,       l,   0,   l,   0 );//7
-    await dog.move( h,-1.5,   u,   0,       l,   0,   l,   0 );//8
-    await dog.move( h,-1.5,   u,-0.5,       l,   0,   l,   0 );//9
-    await dog.move( l,-1.5,   l,-0.5,       l,   0,   l,   0 );//10
-    await dog.move( l,-1.5,   l,-0.5,       h,   0,   h,   0 );//11
-    await dog.move( l,-1.5,   l,-0.5,       h,   0,   u,   0 );//12
-    await dog.move( l,-1.5,   l,-0.5,       h,   0,   u, 0.5 );//13
-    await dog.move( l,-1.5,   l,-0.5,       h,   0,   h, 0.5 );//14
-    await dog.move( l,-1.5,   l,-0.5,       u,   0,   h, 0.5 );//15
-    await dog.move( l,-1.5,   l,-0.5,       u, 1.5,   h, 0.5 );//16
-    await dog.move( l,-1.5,   l,-0.5,       h, 1.5,   h, 0.5 );//17
+    await dog.move( g,  -1,   h,  -1,       h,  -1,   g,  -1 );//1
+    await dog.move( k,  -1,   l,  -1,       h,  -1,   g,  -1 );//2
+    await dog.move( k,  -1,   l,  -1,       h,  -1,   u,  -1 );//3
+    await dog.move( k,  -1,   l,  -1,       h,  -1,   g,   0 );//4
+    await dog.move( h,  -1,   h,  -1,       h,  -1,   h,   0 );//5
+    await dog.move( g,  -1,   h,  -1,       l,  -1,   k,   0 );//6
+    await dog.move( u,  -1,   h,  -1,       l,  -1,   k,   0 );//7
+    await dog.move( u,  -2,   h,  -1,       l,  -1,   l,   0 );//8
+    await dog.move( h,  -1,   h,   0,       l,   0,   l,   1 );//9
+    await dog.move( h,  -1,   g,   0,       k,   0,   l,   1 );//10
+    await dog.move( h,  -1,   u,   0,       k,   0,   l,   1 );//11
+    await dog.move( h,  -1,   u,   2,       k,   0,   l,   1 );//12
+    await dog.move( h,  -1,   h,   2,       l,   0,   l,   1 );//13
+    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//14
   }
-  await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
+  await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//20
   dog.mode = Modes.READY0;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
 
 const getStanding = async (dog: Dog) => {
   const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
+  const g = dog.stepHeight + 5;
   const h = dog.stepHeight;
+  const k = dog.stepLow + 5;
   const l = dog.stepLow;
   const u = dog.stepUp;
   if(dog.mode === Modes.READY0) {
-    await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
-    await dog.move( l,-1.5,   l,-0.5,       h, 1.5,   h, 0.5 );//17
-    await dog.move( l,-1.5,   l,-0.5,       u, 1.5,   h, 0.5 );//16
-    await dog.move( l,-1.5,   l,-0.5,       u,   0,   h, 0.5 );//15
-    await dog.move( l,-1.5,   l,-0.5,       h,   0,   h, 0.5 );//14
-    await dog.move( l,-1.5,   l,-0.5,       h,   0,   u, 0.5 );//13
-    await dog.move( l,-1.5,   l,-0.5,       h,   0,   u,   0 );//12
-    await dog.move( l,-1.5,   l,-0.5,       h,   0,   h,   0 );//11
-    await dog.move( l,-1.5,   l,-0.5,       l,   0,   l,   0 );//10
-    await dog.move( h,-1.5,   u,-0.5,       l,   0,   l,   0 );//9
-    await dog.move( h,-1.5,   u,   0,       l,   0,   l,   0 );//8
-    await dog.move( h,-1.5,   h,   0,       l,   0,   l,   0 );//7
-    await dog.move( l,-1.5,   h,   0,       l,   0,   l,   0 );//6
-    await dog.move( u,-1.5,   h,  -1,       l,  -1,   l,  -1 );//5
-    await dog.move( u,  -1,   h,  -1,       l,  -1,   l,  -1 );//4
-    await dog.move( h,  -1,   h,  -1,       l,  -1,   l,  -1 );//3
-    await dog.move( h,  -1,   h,  -1,       h,  -1,   h,  -1 );//2
-    await dog.move( h,   0,   h,   0,       h,   0,   h,   0 );//1
+    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//20
+    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//14
+    await dog.move( h,  -1,   h,   2,       l,   0,   l,   1 );//13
+    await dog.move( h,  -1,   u,   2,       k,   0,   l,   1 );//12
+    await dog.move( h,  -1,   u,   0,       k,   0,   l,   1 );//11
+    await dog.move( h,  -1,   g,   0,       k,   0,   l,   1 );//10
+    await dog.move( h,  -1,   h,   0,       l,   0,   l,   1 );//9
+    await dog.move( u,  -2,   h,  -1,       l,  -1,   l,   0 );//8
+    await dog.move( u,  -1,   h,  -1,       l,  -1,   k,   0 );//7
+    await dog.move( g,  -1,   h,  -1,       l,  -1,   k,   0 );//6
+    await dog.move( h,  -1,   h,  -1,       h,  -1,   h,   0 );//5
+    await dog.move( k,  -1,   l,  -1,       h,  -1,   g,   0 );//4
+    await dog.move( k,  -1,   l,  -1,       h,  -1,   u,  -1 );//3
+    await dog.move( k,  -1,   l,  -1,       h,  -1,   g,  -1 );//2
+    await dog.move( g,  -1,   h,  -1,       h,  -1,   g,  -1 );//1
   }
   await dog.setBendForward();
   await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
@@ -290,39 +288,44 @@ const getStanding = async (dog: Dog) => {
 
 const forward = async (dog: Dog) => {
   const h = dog.stepHeight;
+  const k = dog.stepLow + 5;
   const l = dog.stepLow;
   const u = dog.stepUp;
   await dog.setBendForward();
   if(dog.mode === Modes.READY0) {
-    await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
-    await dog.move( h,-1.5,   h,  -1,       l,   1,   l,   0 );//21
-    await dog.move( u,-1.5,   h,-1.5,       l, 0.5,   l,-0.5 );//22
-    await dog.move( u, 1.5,   h,-1.5,       l, 0.5,   l,-0.5 );//23
-    await dog.move( h, 1.5,   h,-1.5,       l, 0.5,   l,-0.5 );//24
+    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//20
+    await dog.move( h,-2.5,   h,   0,       l,  -2,   k,  -1 );//21
+    await dog.move( u,  -2,   h,   0,       l,  -2,   k,  -1 );//22
+    await dog.move( u,   0,   h,   0,       l,  -2,   k,  -1 );//23
+    await dog.move( u,   2,   h,   0,       l,  -2,   k,  -1 );//24
+    await dog.move( h,   1,   h,   0,       h,  -2,   h,  -1 );//25
     dog.mode += 1;
   }
   else if(dog.mode === Modes.READY1) {
-    await dog.move( h, 1.5,   h,-1.5,       l, 0.5,   l,-0.5 );//24
-    await dog.move( h,   1,   h,-1.5,       l,   0,   l,  -1 );//31
-    await dog.move( h, 0.5,   u,-1.5,       l,   0,   l,-1.5 );//32
-    await dog.move( h, 0.5,   u, 1.5,       l,-0.5,   l,-1.5 );//33
-    await dog.move( h, 0.5,   h, 1.5,       h,-0.5,   h,-1.5 );//34
+    await dog.move( h,   1,   h,   0,       h,  -2,   h,  -1 );//25
+    await dog.move( l,   1,   k,   0,       u,  -2,   h,  -1 );//31
+    await dog.move( l,   1,   k,   0,       u,   0,   h,  -1 );//32
+    await dog.move( l,   1,   k,   0,       u, 1.5,   h,  -1 );//33
+    await dog.move( l,   1,   k,   0,       h,   2,   h,  -1 );//34
+    await dog.move( l,   0,   l,  -1,       h,   1,   h,  -2 );//35
     dog.mode += 1;
   }
   else if(dog.mode === Modes.READY2) {
-    await dog.move( h, 0.5,   h, 1.5,       h,-0.5,   h,-1.5 );//34
-    await dog.move( l,   0,   l,   1,       h,  -1,   h,-1.5 );//41
-    await dog.move( l,-0.5,   l, 0.5,       h,-1.5,   u,-1.5 );//42
-    await dog.move( l,-0.5,   l, 0.5,       h,-1.5,   u, 1.5 );//43
-    await dog.move( l,-0.5,   l, 0.5,       h,-1.5,   h, 1.5 );//44
+    await dog.move( l,   0,   l,  -1,       h,   1,   h,  -2 );//35
+    await dog.move( k,  -1,   l,  -2,       h,   0,   h,-2.5 );//41
+    await dog.move( k,  -1,   l,  -2,       h,   0,   u,  -2 );//42
+    await dog.move( k,  -1,   l,  -2,       h,   0,   u,   0 );//43
+    await dog.move( k,  -1,   l,  -2,       h,   0,   u,   2 );//44
+    await dog.move( h,  -1,   h,  -2,       h,   0,   h,   1 );//45
     dog.mode += 1;
   }
   else if(dog.mode === Modes.READY3) {
-    await dog.move( l,-0.5,   l, 0.5,       h,-1.5,   h, 1.5 );//44
-    await dog.move( l,  -1,   l,   0,       h,-1.5,   h,   1 );//51
-    await dog.move( l,-1.5,   l,-0.5,       u,-1.5,   h, 0.5 );//52
-    await dog.move( l,-1.5,   l,-0.5,       u, 1.5,   h, 0.5 );//53
-    await dog.move( h,-1.5,   h,-0.5,       h, 1.5,   h, 0.5 );//20
+    await dog.move( h,  -1,   h,  -2,       h,   0,   h,   1 );//45
+    await dog.move( h,  -1,   u,  -2,       k,   0,   l,   1 );//51
+    await dog.move( h,  -1,   u,   0,       k,   0,   l,   1 );//52
+    await dog.move( h,  -1,   u, 1.5,       k,   0,   l,   1 );//53
+    await dog.move( h,  -1,   h,   2,       k,   0,   l,   1 );//54
+    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//20
     dog.mode -= 3;
   }
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
