@@ -12,11 +12,12 @@
   "license": "ISC",
   "dependencies": {
     "babylonjs": "^4.2.0",
-    "node-poweredup": "6.7.0"
+    "babylonjs-gui": "^4.2.0",
+    "node-poweredup": "^6.11.0"
   },
   "devDependencies": {
-    "electron": "^11.1.1",
-    "electron-rebuild": "^2.3.4",
-    "typescript": "^3.9.5"
+    "electron": "^11.5.0",
+    "electron-rebuild": "2.3.5",
+    "typescript": "^3.9.10"
   }
 }
