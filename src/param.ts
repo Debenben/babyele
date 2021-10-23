@@ -33,7 +33,7 @@ export const allowSwitch = (fromMode: Modes, toMode: Modes) => {
 }
 
 
-export const LEG_LENGTH_TOP = 185.0;
-export const LEG_LENGTH_BOTTOM = 200.0;
-export const LEG_SEPARATION_WIDTH = 225.0;
-export const LEG_SEPARATION_LENGTH = 288.0;
+export const LEG_LENGTH_TOP = 185.0; // length of top part of the leg
+export const LEG_LENGTH_BOTTOM = 200.0; // length of bottom part of the leg
+export const LEG_SEPARATION_WIDTH = 225.0; // distance between left and right legs
+export const LEG_SEPARATION_LENGTH = 288.0; // distance between front and back legs

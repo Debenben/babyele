@@ -1,13 +1,12 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import * as path from "path";
 import * as url from "url";
-import PoweredUP, { Consts } from "node-poweredup";
 import { Dog } from "./dog";
 import { Modes } from "./param"
 
 let mainWindow: Electron.BrowserWindow;
 let dog: Dog;
-let poweredUP: PoweredUP = new PoweredUP();
+const simulation: boolean = true;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -23,7 +22,6 @@ function createWindow() {
   }));
 
   mainWindow.webContents.openDevTools();
-  dog = new Dog(mainWindow);
 
   // Emitted when the window is closed.
   mainWindow.on("closed", () => {
@@ -32,6 +30,27 @@ function createWindow() {
     // when you should delete the corresponding element.
     mainWindow = null;
   });
+}
+
+function createDog() {
+  dog = new Dog(mainWindow);
+  if(simulation) {
+    console.log("Starting simulation...");
+    let simulation = import("./simulation").then( module => {
+      dog.addHub(new module.SimulationHub("BeneLego2"));
+      dog.addHub(new module.SimulationHub("BeneLego3"));
+    });
+  }
+  else {
+    let poweredUP = import("node-poweredup").then( module => {
+      let poweredUP = new module.PoweredUP();
+      poweredUP.on('discover', (hub) => {
+	dog.addHub(hub);
+      });
+      poweredUP.scan();
+      console.log("Looking for Hubs...");
+    });
+  }
 }
 
 // This method will be called when Electron has finished
@@ -62,12 +81,12 @@ app.on("activate", () => {
   }
 });
 
-ipcMain.on('requestMode', (event, arg) => {
-  dog.requestMode(arg);
+ipcMain.on('rendererInitialized', (event, arg) => {
+  createDog();
 });
 
-poweredUP.on('discover', (hub) => {
-  dog.addHub(hub);
+ipcMain.on('requestMode', (event, arg) => {
+  if(dog) {
+    dog.requestMode(arg);
+  }
 });
-poweredUP.scan();
-console.log("Looking for Hubs...");

@@ -1,5 +1,5 @@
-import { TechnicMediumHub, HubLED, Consts } from "node-poweredup";
 import { BrowserWindow, ipcMain } from "electron";
+import { HubAbstraction, LEDAbstraction } from "./interfaces";
 import { Leg } from "./leg";
 import { Modes, allowSwitch, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
 
@@ -7,10 +7,10 @@ export class Dog {
   mainWindow: BrowserWindow
   mode: Modes = Modes.OFFLINE
   modeQueue: Modes [] = []
-  hubFront: TechnicMediumHub
-  hubBack: TechnicMediumHub
-  ledFront: HubLED
-  ledBack: HubLED
+  hubFront: HubAbstraction
+  hubBack: HubAbstraction
+  ledFront: LEDAbstraction
+  ledBack: LEDAbstraction
   legFrontLeft: Leg
   legFrontRight: Leg
   legBackLeft: Leg
@@ -58,7 +58,7 @@ export class Dog {
       this.init();
     });
     hub.on("button", ({ event }) => {
-      if(event === Consts.ButtonState.PRESSED) {
+      if(event === 2) { //Consts.ButtonState.PRESSED
         if(this.mode === Modes.STANDING) {
           this.requestMode(Modes.FORWARD);
         }
@@ -72,7 +72,7 @@ export class Dog {
     });
     if(hub.name === "BeneLego2") {
       this.hubBack = hub;
-      this.ledBack = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
+      this.ledBack = await hub.waitForDeviceByType(23); //Consts.DeviceType.HUB_LED
       hub.on('disconnect', () => {
         this.hubBack = null;
         this.ledBack = null;
@@ -93,7 +93,8 @@ export class Dog {
     }
     if(hub.name === "BeneLego3") {
       this.hubFront = hub;
-      this.ledFront = await hub.waitForDeviceByType(Consts.DeviceType.HUB_LED);
+      this.ledFront = await hub.waitForDeviceByType(23); //Consts.DeviceType.HUB_LED
+
       hub.on("disconnect", () => {
         this.hubFront = null;
         this.ledFront = null;

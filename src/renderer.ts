@@ -473,3 +473,4 @@ ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
 ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
   renderer.setHubTilt(arg1, arg2);
 });
+ipcRenderer.send("rendererInitialized");

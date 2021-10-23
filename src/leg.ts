@@ -1,12 +1,12 @@
-import { AbsoluteMotor, Consts } from "node-poweredup";
 import { BrowserWindow, ipcMain } from "electron";
+import { MotorAbstraction } from "./interfaces";
 import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM } from "./param";
 
 export class Leg {
   legName: string
   mainWindow: BrowserWindow
-  topMotor: AbsoluteMotor
-  bottomMotor: AbsoluteMotor
+  topMotor: MotorAbstraction
+  bottomMotor: MotorAbstraction
   topMotorRange: number
   bottomMotorRange: number
   topMotorAngle: number = 0
@@ -15,7 +15,6 @@ export class Leg {
   destBottomMotorAngle: number = 0
   bendForward: boolean = true
   noMoveMotorAngle: number = 3
-  simulation: boolean = false
 
   constructor(legName, mainWindow, topMotorRange, bottomMotorRange) {
   //motorRange = motor rotation in degree needed for pi forward rotation of segment
@@ -29,7 +28,7 @@ export class Leg {
     ipcMain.removeAllListeners(this.legName+"Bottom");
     this.bottomMotor = motor;
     if(motor) {
-      motor.setBrakingStyle(Consts.BrakingStyle.BRAKE);
+      motor.setBrakingStyle(127); //Consts.BrakingStyle.BRAKE
       motor.setAccelerationTime(10);
       motor.setDecelerationTime(10);
       await this.requestBottomRotation(0);
@@ -65,7 +64,7 @@ export class Leg {
     ipcMain.removeAllListeners(this.legName+"Top");
     this.topMotor = motor;
     if(motor) {
-      motor.setBrakingStyle(Consts.BrakingStyle.BRAKE);
+      motor.setBrakingStyle(127); //Consts.BrakingStyle.BRAKE
       motor.setAccelerationTime(200);
       motor.setDecelerationTime(200);
       await this.requestTopRotation(0);
@@ -98,23 +97,6 @@ export class Leg {
   }
 
   motorLoop() {
-    if(this.simulation) {
-      const topMotorIncrement = 0.1*(this.destTopMotorAngle - this.topMotorAngle);
-      const bottomMotorIncrement = 0.1*(this.destBottomMotorAngle - this.bottomMotorAngle);
-      let promise = Promise.resolve();
-      for(let step=0; step<10; step++) {
-        promise = promise.then(() => {
-          this.topMotorAngle += topMotorIncrement;
-          this.bottomMotorAngle += bottomMotorIncrement;
-          try {
-            this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Top", Math.PI*this.topMotorAngle/this.topMotorRange);
-            this.mainWindow.webContents.send('notifyLegRotation', this.legName+"Bottom", Math.PI*this.bottomMotorAngle/this.bottomMotorRange);
-          } catch(e) {} // catch error when window is closed
-        }).then(() => new Promise(r => setTimeout(r, 50)));
-      }
-      return promise.then(() => new Promise(r => setTimeout(r, 500)));
-    }
-
     if(this.topMotor && this.bottomMotor && Math.abs(this.topMotorAngle - this.destTopMotorAngle) > this.noMoveMotorAngle && Math.abs(this.bottomMotorAngle - this.destBottomMotorAngle) > this.noMoveMotorAngle) {
       const diffTopMotorAngle = this.destTopMotorAngle - this.topMotorAngle;
       const diffBottomMotorAngle = this.destBottomMotorAngle - this.bottomMotorAngle;
