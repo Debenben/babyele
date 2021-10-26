@@ -1,6 +1,6 @@
 import * as BABYLON from 'babylonjs';
-import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
+import { GuiTexture } from "./renderer-gui";
 import { Modes } from './param';
 import * as Param from './param';
 
@@ -9,13 +9,12 @@ export default class Renderer {
   engine: BABYLON.Engine;
   scene: BABYLON.Scene;
   actionManager: BABYLON.ActionManager;
-  advancedTexture: AdvancedDynamicTexture;
-  infobox: StackPanel;
-  modeSelection: StackPanel;
-  modeDisplayButton: Button;
+  guiTexture: GuiTexture;
   greenMaterial: BABYLON.StandardMaterial;
   greyMaterial: BABYLON.StandardMaterial;
   redMaterial: BABYLON.StandardMaterial;
+  selectedItem: string;
+  selectedItemIsPreview: boolean;
 
   createScene(canvas: HTMLCanvasElement, engine: BABYLON.Engine) {
     this.canvas = canvas;
@@ -29,11 +28,12 @@ export default class Renderer {
     const background = buildBackground(scene, engine);
     const ground = buildGround(scene);
     scene.registerBeforeRender(() => {
-      if(!this.infobox) {
+      if(!this.selectedItem) {
         ground.rotation.y += 0.001;
       }
     });
     this.actionManager = new BABYLON.ActionManager(scene);
+    this.guiTexture = new GuiTexture(scene);
 
     const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/2.5, 900, new BABYLON.Vector3(0,250,0), scene);
     camera.attachControl(canvas, true);
@@ -86,11 +86,6 @@ export default class Renderer {
     shadowCaster.usePoissonSampling = true;
     shadowCaster.blurScale = 5;
 
-    this.advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
-    this.modeSelection = buildModeSelection();
-    this.advancedTexture.addControl(this.modeSelection);
-    this.modeDisplayButton = buildModeDisplayButton();
-    this.advancedTexture.addControl(this.modeDisplayButton);
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, selectItem));
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, previewItem));
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, unpreviewItem));
@@ -117,41 +112,36 @@ export default class Renderer {
     const mesh = this.scene.getMeshByName(meshName);
     if(!mesh) {
       console.log(meshName + " not found");
+      return;
     }
     switch(state) {
       case "select":
-        if(this.infobox) {
-          this.advancedTexture.removeControl(this.infobox);
-          this.infobox = null;
-        }
+        renderer.selectedItem = meshName;
+        renderer.selectedItemIsPreview = false;
         mesh.material = this.redMaterial;
         mesh.isPickable = true;
-        this.infobox = buildInfoBox(meshName, false);
-        this.advancedTexture.addControl(this.infobox);
+        this.guiTexture.showInfobox(meshName, false);
         break;
       case "offline":
-	if(this.infobox && this.infobox.name === meshName) {
-	  this.advancedTexture.removeControl(this.infobox);
-          this.infobox = null;
+        if(renderer.selectedItem === meshName) {
+          renderer.selectedItem = null;
+          this.guiTexture.removeInfobox();
         }
         mesh.material = this.greyMaterial;
 	mesh.isPickable = false;
         break;
       case "preview":
-        if(this.infobox) {
-          this.advancedTexture.removeControl(this.infobox);
-          this.infobox = null;
-        }
+        renderer.selectedItem = meshName;
+        renderer.selectedItemIsPreview = true;
         mesh.material = this.greenMaterial;
         mesh.isPickable = true;
-        this.infobox = buildInfoBox(meshName, true);
-        this.advancedTexture.addControl(this.infobox);
+        this.guiTexture.showInfobox(meshName, true);
         break;
       case "online":
       default:
-	if(this.infobox && this.infobox.name === meshName) {
-	  this.advancedTexture.removeControl(this.infobox);
-          this.infobox = null;
+        if(renderer.selectedItem === meshName) {
+          renderer.selectedItem = null;
+          this.guiTexture.removeInfobox();
         }
         mesh.material = this.greenMaterial;
         mesh.isPickable = true;
@@ -173,231 +163,33 @@ export default class Renderer {
 }
 
 const selectItem = (event) => {
-  if(renderer.infobox) {
-    if(event.meshUnderPointer.name === renderer.infobox.name && renderer.infobox.background === "red") {
-      renderer.setState(renderer.infobox.name, "preview");
+  if(renderer.selectedItem) {
+    if(event.meshUnderPointer.name === renderer.selectedItem && !renderer.selectedItemIsPreview) {
+      renderer.setState(renderer.selectedItem, "preview");
       return;
     }
-    renderer.setState(renderer.infobox.name, "online");
+    renderer.setState(renderer.selectedItem, "online");
   }
   renderer.setState(event.meshUnderPointer.name, "select");
 }
 
 const previewItem = (event) => {
-  if(renderer.infobox) {
-    if(renderer.infobox.background === "red") {
+  if(renderer.selectedItem) {
+    if(!renderer.selectedItemIsPreview) {
       return;
     }
-    renderer.setState(renderer.infobox.name, "online");
+    renderer.setState(renderer.selectedItem, "online");
   }
   renderer.setState(event.meshUnderPointer.name, "preview");
 }
 
 const unpreviewItem = (event) => {
-  if(renderer.infobox) {
-    if(renderer.infobox.background === "red") {
+  if(renderer.selectedItem) {
+    if(!renderer.selectedItemIsPreview) {
       return;
     }
-    renderer.setState(renderer.infobox.name, "online");
+    renderer.setState(renderer.selectedItem, "online");
   }
-}
-
-const buildInfoBox = (name: string, preview: boolean) => {
-  const box = new StackPanel(name);
-  box.width = "300px";
-  box.height = "220px";
-  box.alpha = 0.7;
-  box.isPointerBlocker = true;
-  box.shadowBlur = 15;
-  box.paddingLeft = 10; 
-  box.paddingRight = 10; 
-  box.paddingTop = 10; 
-  box.paddingBottom = 10; 
-  box.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-  box.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-  box.addControl(buildHeading(name));
-  if(preview) {
-    box.background = "green";
-  }
-  else {
-    box.background = "red";
-  }
-  if(name.endsWith("Hub")) {
-    ipcRenderer.send("getHubProperties");
-    box.addControl(buildBatteryText(name));
-    box.addControl(buildRssiText(name));
-    box.addControl(buildTiltText(name));
-  }
-  else {
-    box.addControl(buildText("angle:"));
-    box.addControl(buildAngleSlider(name));
-    box.addControl(buildResetButton(name));
-    box.addControl(buildText("power:"));
-    box.addControl(buildCorrectionSlider(name));
-  }
-  return box;
-}
-
-const buildHeading = (content: string) => {
-  const heading = new TextBlock();
-  heading.text = content;
-  heading.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  heading.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-  heading.height = "30px";
-  heading.width = "260px";
-  heading.fontSize = 20;
-  return heading;
-}
-
-const buildText = (content: string) => {
-  const block = new TextBlock();
-  block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-  block.text = content;
-  block.height = "30px";
-  block.width = "260px";
-  return block;
-}
-
-const buildBatteryText = (meshName: string) => {
-  const block = new TextBlock();
-  block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-  block.text = "battery: --";
-  block.height = "30px";
-  block.width = "260px";
-  ipcRenderer.on("notifyBattery", (event, arg1, arg2) => {
-    if(arg1===meshName) {
-      block.text = "battery: " + String(arg2);
-    }
-  });
-  return block;
-}
-
-const buildRssiText = (meshName: string) => {
-  const block = new TextBlock();
-  block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-  block.text = "rssi: --";
-  block.height = "30px";
-  block.width = "260px";
-  ipcRenderer.on("notifyRssi", (event, arg1, arg2) => {
-    if(arg1===meshName) {
-      block.text = "rssi: " + String(arg2);
-    }
-  });
-  return block;
-}
-
-const buildTiltText = (meshName: string) => {
-  const block = new TextBlock();
-  block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-  block.text = "tilt: --";
-  block.height = "30px";
-  block.width = "260px";
-  ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
-    if(arg1===meshName) {
-      block.text = "tilt: " + arg2.x + " " + arg2.y + " " + arg2.z;
-    }
-  });
-  return block;
-}
-
-const buildAngleSlider = (meshName: string) => {
-  const slider = new Slider();
-  slider.height = "30px";
-  slider.width = "260px";
-  slider.minimum = -Math.PI;
-  slider.maximum = Math.PI;
-  slider.value = renderer.getLegRotation(meshName);
-  slider.onValueChangedObservable.add((value) => {
-    //header
-  });
-  slider.onPointerUpObservable.add(() => {
-    ipcRenderer.send(meshName, "requestRotation", slider.value);
-  });
-  return slider;
-}
-
-const buildResetButton = (meshName: string) => {
-  const button = Button.CreateSimpleButton("resetButton", "reset angle");
-  button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-  button.paddingTop = "5px";
-  button.paddingRight = "5px";
-  button.width = "120px";
-  button.height = "30px";
-  button.onPointerClickObservable.add(() => {
-    ipcRenderer.send(meshName, "requestReset");
-  });
-  return button;
-}
-
-const buildCorrectionSlider = (meshName: string) => {
-  const slider = new Slider();
-  slider.height = "30px";
-  slider.width = "260px";
-  slider.minimum = -100;
-  slider.maximum = 100;
-  slider.value = 0;
-  slider.onValueChangedObservable.add((value) => {
-    ipcRenderer.send(meshName, "requestPower", value);
-  });
-  slider.onPointerUpObservable.add(() => {
-    slider.value = 0;
-  });
-  return slider;
-}
-
-const buildModeDisplayButton = () => {
-  const button = Button.CreateSimpleButton("modeDisplayButton", String(Modes[Modes.OFFLINE]));
-  button.width = "250px";
-  button.paddingTop = "5px"
-  button.height = "35px";
-  button.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  button.background = "grey";
-  button.onPointerClickObservable.add(() => {
-    if(renderer.modeSelection) {
-      renderer.modeSelection.isVisible = !renderer.modeSelection.isVisible;
-    }
-  });
-  ipcRenderer.on('notifyMode', (event, arg) => {
-    button.textBlock.text = String(Modes[arg]);
-  });
-  return button;
-}
-
-const buildModeSelection = () => {
-  const panel = new StackPanel("modeSelection");
-  let keys = Object.keys(Modes).filter(k => typeof (Modes as any)[k] === 'number') as any;
-  keys.forEach((key) => {
-    panel.addControl(buildModeButton(Modes[key]));
-  });
-  panel.zIndex = 10;
-  panel.isPointerBlocker = true;
-  panel.isVisible = false;
-  return panel;
-}
-
-const buildModeButton = (mode) => {
-  const button = Button.CreateSimpleButton("modeButton", String(Modes[mode]));
-  button.width = "180px";
-  button.paddingTop = "5px"
-  button.height = "35px";
-  button.background = "grey";
-  button.color = "darkgrey";
-  button.isEnabled = false;
-  button.onPointerClickObservable.add(() => {
-    ipcRenderer.send("requestMode", mode); 
-    renderer.modeSelection.isVisible = false;
-  });
-  ipcRenderer.on('notifyMode', (event, arg) => {
-    if(Param.allowSwitch(arg, mode)) {
-      button.color = "black";
-      button.isEnabled = true;
-    }
-    else {
-      button.color = "darkgrey";
-      button.isEnabled = false;
-    }
-  });
-  return button; 
 }
 
 const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
