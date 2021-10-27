@@ -234,21 +234,32 @@ const buildHub = (scene: BABYLON.Scene, meshName: string) => {
   return hub;
 }
 
+const buildBone = ({width, height, depth}, scene: BABYLON.Scene) => {
+  const rect = BABYLON.MeshBuilder.CreateBox("rect", {width:width, height:height, depth:depth}, scene);
+  const topCyl = BABYLON.MeshBuilder.CreateCylinder("topCyl", {diameter:width, height:depth}, scene);
+  topCyl.rotation.x = Math.PI/2;
+  topCyl.position.y = height/2.0;
+  topCyl.parent = rect;
+  const bottomCyl = BABYLON.MeshBuilder.CreateCylinder("bottomCyl", {diameter:width, height:depth}, scene);
+  bottomCyl.rotation.x = Math.PI/2;
+  bottomCyl.position.y = -height/2.0;
+  bottomCyl.parent = rect;
+  const bone = BABYLON.Mesh.MergeMeshes([rect, topCyl, bottomCyl], true);
+  bone.setPivotPoint(new BABYLON.Vector3(0,height/2,0));
+  bone.material = renderer.greyMaterial;
+  bone.isPickable = false;
+  bone.receiveShadows = true;
+  bone.actionManager = renderer.actionManager;
+  return bone;
+}
+
 const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
-  const topLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Top", {width:70, height:Param.LEG_LENGTH_TOP, depth:40}, scene);
-  topLeg.setPivotPoint(new BABYLON.Vector3(0,Param.LEG_LENGTH_TOP/2,0));
-  topLeg.material = renderer.greyMaterial;
-  topLeg.isPickable = false;
-  topLeg.receiveShadows = true;
-  topLeg.actionManager = renderer.actionManager;
-  const bottomLeg = BABYLON.MeshBuilder.CreateBox(meshName+"Bottom", {width:60, height:Param.LEG_LENGTH_BOTTOM, depth:30}, scene);
-  bottomLeg.setPivotPoint(new BABYLON.Vector3(0,Param.LEG_LENGTH_BOTTOM/2,0));
+  const topLeg = buildBone({width:70, height:Param.LEG_LENGTH_TOP, depth:40}, scene);
+  topLeg.name = meshName + "Top";
+  const bottomLeg = buildBone({width:60, height:Param.LEG_LENGTH_BOTTOM, depth:30}, scene);
+  bottomLeg.name = meshName+"Bottom";
   bottomLeg.parent = topLeg;
   bottomLeg.position.y = -Param.LEG_LENGTH_TOP;
-  bottomLeg.material = renderer.greyMaterial;
-  bottomLeg.isPickable = false;
-  bottomLeg.receiveShadows = true;
-  bottomLeg.actionManager = renderer.actionManager;
   topLeg.position.y = -Param.LEG_LENGTH_BOTTOM/2;
   return topLeg;
 }

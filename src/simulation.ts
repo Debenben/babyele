@@ -63,7 +63,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     return this.motorLoop();
   }
 
-  motorLoop() {
+  async motorLoop() {
     while(this.rotation != this.destRotation) {
       console.log("simulation motor rotating with speed " + this.speed + " from " + this.rotation + " to " + this.destRotation);
       if(Math.abs(this.destRotation - this.rotation) < Math.abs(this.speed)) {
@@ -72,8 +72,15 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
       else {
         this.rotation += this.speed;
       }
+      await sleep(100);
       this.emit('rotate', {degrees: this.rotation});
     }
     return Promise.resolve();
   }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
