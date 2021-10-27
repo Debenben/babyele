@@ -9,6 +9,8 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   constructor(hubName: string) {
     super();
     this.name = hubName;
+    this.batteryLevel = Math.floor(100 * Math.random());
+    this.rssi = Math.floor(100 * Math.random() - 80);
     console.log("creating simulation hub " + this.name);
   }
 

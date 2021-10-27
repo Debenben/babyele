@@ -97,17 +97,17 @@ class Infobox extends StackPanel {
       ipcRenderer.removeListener('notifyTilt', this.updateTilt);
     }
   }
-  updateBattery(event, arg1, arg2) {
+  updateBattery = (event, arg1, arg2) => {
     if(arg1 === this.name) {
       this.batteryText.text = "battery: " + String(arg2);
     }
   }
-  updateRssi(event, arg1, arg2) {
+  updateRssi = (event, arg1, arg2) => {
     if(arg1 === this.name) {
       this.rssiText.text = "rssi: " + String(arg2);
     }
   }
-  updateTilt(event, arg1, arg2) {
+  updateTilt = (event, arg1, arg2) => {
     if(arg1 === this.name) {
       this.tiltText.text = "tilt: " + arg2.x + " " + arg2.y + " " + arg2.z;
     }
