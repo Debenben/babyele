@@ -123,7 +123,13 @@ export class Dog {
     else {
       this.mode = Modes.OFFLINE;
     }
-    this.mainWindow.webContents.send('notifyMode', this.mode);
+    try {
+      this.mainWindow.webContents.send('notifyMode', this.mode);
+    }
+    catch(e) {
+      console.log("unable to notify mode change: " + e);
+      return;
+    }
     var res = true;
     if(this.hubFront) {
       this.mainWindow.webContents.send('notifyState', 'frontHub', 'online');
