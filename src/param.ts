@@ -37,3 +37,5 @@ export const LEG_LENGTH_TOP = 185.0; // length of top part of the leg
 export const LEG_LENGTH_BOTTOM = 200.0; // length of bottom part of the leg
 export const LEG_SEPARATION_WIDTH = 225.0; // distance between left and right legs
 export const LEG_SEPARATION_LENGTH = 288.0; // distance between front and back legs
+export const LEG_MOUNT_HEIGHT = 90.0; // distance from top leg rotation axis to bottom of leg mount
+export const LEG_MOUNT_WIDTH = 60.0; // distance from middle of leg to mount rotation axis 

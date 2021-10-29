@@ -70,6 +70,7 @@ export default class Renderer {
     const legFrontRight = buildLeg(scene, "legFrontRight");
     legFrontRight.position.x = Param.LEG_SEPARATION_LENGTH/2 - frontHub.position.x;
     legFrontRight.position.z = -Param.LEG_SEPARATION_WIDTH/2;
+    legFrontRight.scaling.z = -1;
     legFrontRight.parent = frontHub;
     const legBackLeft = buildLeg(scene, "legBackLeft");
     legBackLeft.position.x = -Param.LEG_SEPARATION_LENGTH/2 - backHub.position.x;
@@ -78,6 +79,7 @@ export default class Renderer {
     const legBackRight = buildLeg(scene, "legBackRight");
     legBackRight.position.x = -Param.LEG_SEPARATION_LENGTH/2 - backHub.position.x;
     legBackRight.position.z = -Param.LEG_SEPARATION_WIDTH/2;
+    legBackRight.scaling.z = -1;
     legBackRight.parent = backHub;
 
     const shadowCaster = new BABYLON.ShadowGenerator(1024, dirLight);
@@ -100,12 +102,22 @@ export default class Renderer {
 
   getLegRotation(meshName: string) {
     const mesh = this.scene.getMeshByName(meshName);
-    return mesh.rotation.z;
+    if(meshName.endsWith("Mount")) {
+      return mesh.rotation.x;
+    }
+    else {
+      return mesh.rotation.z;
+    }
   }
 
   setLegRotation(meshName: string, rotation: number) {
     const mesh = this.scene.getMeshByName(meshName);
-    mesh.rotation.z = rotation;
+    if(meshName.endsWith("Mount")) {
+      mesh.rotation.x = rotation;
+    }
+    else {
+      mesh.rotation.z = rotation;
+    }
   }
 
   setState(meshName: string, state: string) {
@@ -226,7 +238,7 @@ const buildGround = (scene: BABYLON.Scene) => {
 }
 
 const buildHub = (scene: BABYLON.Scene, meshName: string) => {
-  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:200, height:100, depth:190}, scene);
+  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:200, height:100, depth:80}, scene);
   hub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
   hub.material = renderer.greyMaterial;
   hub.isPickable = false;
@@ -254,14 +266,25 @@ const buildBone = ({width, height, depth}, scene: BABYLON.Scene) => {
 }
 
 const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
+  const leg = new BABYLON.Mesh(meshName, scene);
+  const mount = BABYLON.MeshBuilder.CreateBox(meshName + "Mount", {width:Param.LEG_MOUNT_HEIGHT, height:Param.LEG_MOUNT_HEIGHT, depth:Param.LEG_MOUNT_WIDTH}, scene);
+  mount.parent = leg;
+  mount.setPivotPoint(new BABYLON.Vector3(0,-Param.LEG_MOUNT_HEIGHT/2,Param.LEG_MOUNT_WIDTH/2));
+  mount.position.z = -Param.LEG_MOUNT_WIDTH/2;
+  mount.material = renderer.greyMaterial;
+  mount.isPickable = false;
+  mount.receiveShadows = true;
+  mount.actionManager = renderer.actionManager;
   const topLeg = buildBone({width:70, height:Param.LEG_LENGTH_TOP, depth:40}, scene);
   topLeg.name = meshName + "Top";
+  topLeg.parent = mount;
+  topLeg.position.z = Param.LEG_MOUNT_WIDTH/2;
   const bottomLeg = buildBone({width:60, height:Param.LEG_LENGTH_BOTTOM, depth:30}, scene);
   bottomLeg.name = meshName+"Bottom";
   bottomLeg.parent = topLeg;
   bottomLeg.position.y = -Param.LEG_LENGTH_TOP;
   topLeg.position.y = -Param.LEG_LENGTH_BOTTOM/2;
-  return topLeg;
+  return leg;
 }
 
 const renderer = new Renderer();

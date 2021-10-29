@@ -23,10 +23,10 @@ export class Dog {
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-    this.legFrontLeft = new Leg("legFrontLeft", this.mainWindow, 7415, -8064);
-    this.legFrontRight = new Leg("legFrontRight", this.mainWindow, -7415, 8064);
-    this.legBackLeft = new Leg("legBackLeft", this.mainWindow, 7415, -13593);
-    this.legBackRight = new Leg("legBackRight", this.mainWindow, -7415, 13593);
+    this.legFrontLeft = new Leg("legFrontLeft", this.mainWindow, 7415, -8064, 10000);
+    this.legFrontRight = new Leg("legFrontRight", this.mainWindow, -7415, 8064, 10000);
+    this.legBackLeft = new Leg("legBackLeft", this.mainWindow, 7415, -13593, 10000);
+    this.legBackRight = new Leg("legBackRight", this.mainWindow, -7415, 13593, 10000);
     setInterval(() => {
       if(this.ledFront) {
         this.ledFront.setColor(((this.mode+7)%10+1)*(this.color%2));
@@ -133,33 +133,37 @@ export class Dog {
     var res = true;
     if(this.hubFront) {
       this.mainWindow.webContents.send('notifyState', 'frontHub', 'online');
-      res = this.legFrontRight.addTopMotor(this.hubFront.getDeviceAtPort("A")) && res;
-      res = this.legFrontRight.addBottomMotor(this.hubFront.getDeviceAtPort("C")) && res;
-      res = this.legFrontLeft.addTopMotor(this.hubFront.getDeviceAtPort("B")) && res;
-      res = this.legFrontLeft.addBottomMotor(this.hubFront.getDeviceAtPort("D")) && res;
+      res = this.legFrontRight.addMotor('legFrontRightTop', this.hubFront.getDeviceAtPort("A")) && res;
+      res = this.legFrontRight.addMotor('legFrontRightBottom', this.hubFront.getDeviceAtPort("C")) && res;
+      res = this.legFrontRight.addMotor('legFrontRightMount', this.hubFront.getDeviceAtPort("test2")) && res;
+      res = this.legFrontLeft.addMotor('legFrontLeftTop', this.hubFront.getDeviceAtPort("B")) && res;
+      res = this.legFrontLeft.addMotor('legFrontLeftBottom', this.hubFront.getDeviceAtPort("D")) && res;
+      res = this.legFrontLeft.addMotor('legFrontRightMount', this.hubFront.getDeviceAtPort("test3")) && res;
     }
     else {
       this.mainWindow.webContents.send('notifyState', 'frontHub', 'offline');
       res = false;
-      this.legFrontRight.addTopMotor(null);
-      this.legFrontRight.addBottomMotor(null);
-      this.legFrontLeft.addTopMotor(null);
-      this.legFrontLeft.addBottomMotor(null);
+      this.legFrontRight.addMotor('legFrontRightTop', null);
+      this.legFrontRight.addMotor('legFrontRightBottom', null);
+      this.legFrontRight.addMotor('legFrontRightMount', null);
+      this.legFrontLeft.addMotor('legFrontLeftTop', null);
+      this.legFrontLeft.addMotor('legFrontLeftBottom', null);
+      this.legFrontLeft.addMotor('legFrontLeftMount', null);
     }
     if(this.hubBack) {
       this.mainWindow.webContents.send('notifyState', 'backHub', 'online');
-      res = this.legBackRight.addTopMotor(this.hubBack.getDeviceAtPort("B")) && res;
-      res = this.legBackRight.addBottomMotor(this.hubBack.getDeviceAtPort("D")) && res;
-      res = this.legBackLeft.addTopMotor(this.hubBack.getDeviceAtPort("A")) && res;
-      res = this.legBackLeft.addBottomMotor(this.hubBack.getDeviceAtPort("C")) && res;
+      res = this.legBackRight.addMotor('legBackRightTop', this.hubBack.getDeviceAtPort("B")) && res;
+      res = this.legBackRight.addMotor('legBackRightBottom', this.hubBack.getDeviceAtPort("D")) && res;
+      res = this.legBackLeft.addMotor('legBackLeftTop', this.hubBack.getDeviceAtPort("A")) && res;
+      res = this.legBackLeft.addMotor('legBackLeftBottom', this.hubBack.getDeviceAtPort("C")) && res;
     }
     else {
       this.mainWindow.webContents.send('notifyState', 'backHub', 'offline');
       res = false;
-      this.legBackRight.addTopMotor(null);
-      this.legBackRight.addBottomMotor(null);
-      this.legBackLeft.addTopMotor(null);
-      this.legBackLeft.addBottomMotor(null);
+      this.legBackRight.addMotor('legBackRightTop', null);
+      this.legBackRight.addMotor('legBackRightBottom', null);
+      this.legBackLeft.addMotor('legBackLeftTop', null);
+      this.legBackLeft.addMotor('legBackLeftBottom', null);
     }
     if(res) {
       getStanding(this);
