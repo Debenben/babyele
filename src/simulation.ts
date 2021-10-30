@@ -37,15 +37,22 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
 	  case "C":
 	  case "D":
 	  case "test":
-            console.log("simulation hub " + this.name + " returns device at port " + portName);
+            console.log("simulation hub " + this.name + " returns motor at port " + portName);
 	    return new SimulationMotor();
-          default:
-            return null; 
+        }
+      case "BeneLego1":
+      case "BeneLego4":
+        switch(portName) {
+	  case "test":
+	  case "tess":
+	  case "tese":
+            console.log("simulation hub " + this.name + " returns motor at port " + portName);
+	    return new SimulationMotor();
         }
       default:
+        console.log("simulation hub " + this.name + " returns null at port " + portName);
         return null;
     }
-    return null;
   }
   waitForDeviceByType(deviceType: number) {
     return new Promise((resolve) => {
@@ -72,7 +79,12 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   rotation: number
   destRotation: number
   speed: number
+  speedIntervalID: NodeJS.Timeout
 
+  constructor() {
+    super();
+    this.rotation = 0;
+  }
   setBrakingStyle(style: number) {
     return Promise.resolve();
   }
@@ -88,7 +100,20 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     return Promise.resolve();
   }
   setPower(power: number) {
+    console.log("simulation motor setting power to " + this.speed);
     this.speed = power;
+    if(power === 0) {
+      clearInterval(this.speedIntervalID);
+      this.speedIntervalID = null;
+      return Promise.resolve();
+    }
+    if(this.speedIntervalID) {
+      return Promise.resolve();
+    }
+    this.speedIntervalID = setInterval(() => {
+      this.rotation += this.speed;
+      this.emit('rotate', {degrees: this.rotation});
+    }, 100);
     return Promise.resolve();
   }
   rotateByDegrees(degrees: number, speed: number) {

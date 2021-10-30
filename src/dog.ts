@@ -18,10 +18,10 @@ export class Dog {
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-    this.legs[Legs.FRONTLEFT] = new Leg(Legs.FRONTLEFT, this.mainWindow, 7415, -8064, 10000);
-    this.legs[Legs.FRONTRIGHT] = new Leg(Legs.FRONTRIGHT, this.mainWindow, -7415, 8064, 10000);
-    this.legs[Legs.BACKLEFT] = new Leg(Legs.BACKLEFT, this.mainWindow, 7415, -13593, 10000);
-    this.legs[Legs.BACKRIGHT] = new Leg(Legs.BACKRIGHT, this.mainWindow, -7415, 13593, 10000);
+    this.legs[Legs.FRONTLEFT] = new Leg(Legs.FRONTLEFT, this.mainWindow, 7415, -8064, 100);
+    this.legs[Legs.FRONTRIGHT] = new Leg(Legs.FRONTRIGHT, this.mainWindow, -7415, 8064, 100);
+    this.legs[Legs.BACKLEFT] = new Leg(Legs.BACKLEFT, this.mainWindow, 7415, -13593, 100);
+    this.legs[Legs.BACKRIGHT] = new Leg(Legs.BACKRIGHT, this.mainWindow, -7415, 13593, 100);
     setInterval(() => {
       for(var ledNum in this.leds) {
         if(this.leds[ledNum]) {

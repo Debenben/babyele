@@ -63,10 +63,10 @@ class Infobox extends StackPanel {
   }
   setPreview(preview: boolean) {
     if(preview) {
-      this.background = "green";
+      this.background = "rgb(20,255,20)";
     }
     else {
-      this.background = "red";
+      this.background = "rgb(255,40,40)";
     }
   }
   addControls() {
@@ -138,7 +138,12 @@ const getLegRotation = (meshName: string, scene: BABYLON.Scene) => {
   if(scene) {
     const mesh = scene.getMeshByName(meshName);
     if(mesh) {
-      return mesh.rotation.z;
+      if(meshName.endsWith("Mount")) {
+        return mesh.rotation.x;
+      }
+      else {
+        return mesh.rotation.z;
+      }
     }
   }
 }

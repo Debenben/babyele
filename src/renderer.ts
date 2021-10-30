@@ -57,8 +57,8 @@ export default class Renderer {
     this.pickMaterial.emissiveColor = new BABYLON.Color3(0.1,0.2,0.1);
     this.redMaterial = new BABYLON.StandardMaterial("redMat", scene);
     this.redMaterial.diffuseColor = new BABYLON.Color3(1,0,0);
-    this.redMaterial.specularColor = new BABYLON.Color3(0.4,0.1,0.1);
-    this.redMaterial.emissiveColor = new BABYLON.Color3(0.05,0,0);
+    this.redMaterial.specularColor = new BABYLON.Color3(0,0,0);
+    this.redMaterial.emissiveColor = new BABYLON.Color3(0.2,0.1,0.1);
 
     const frontHub = buildBody(scene, "hubFrontCenter");
     frontHub.parent = ground;
@@ -106,16 +106,6 @@ export default class Renderer {
     mesh.rotation.z = Math.PI*tilt.z/180;
     mesh.rotation.y = Math.PI*tilt.y/180;
     mesh.rotation.x = Math.PI*tilt.x/180;
-  }
-
-  getLegRotation(meshName: string) {
-    const mesh = this.scene.getMeshByName(meshName);
-    if(meshName.endsWith("Mount")) {
-      return mesh.rotation.x;
-    }
-    else {
-      return mesh.rotation.z;
-    }
   }
 
   setLegRotation(meshName: string, rotation: number) {
@@ -313,7 +303,7 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   const leg = new BABYLON.Mesh(meshName, scene);
   const mount = BABYLON.MeshBuilder.CreateBox(meshName + "Mount", {width:Param.LEG_MOUNT_HEIGHT, height:Param.LEG_MOUNT_HEIGHT, depth:Param.LEG_MOUNT_WIDTH}, scene);
   mount.parent = leg;
-  mount.setPivotPoint(new BABYLON.Vector3(0,-Param.LEG_MOUNT_HEIGHT/2,Param.LEG_MOUNT_WIDTH/2));
+  mount.setPivotPoint(new BABYLON.Vector3(0,-Param.LEG_MOUNT_HEIGHT/2,-Param.LEG_MOUNT_WIDTH/2));
   mount.position.z = -Param.LEG_MOUNT_WIDTH/2;
   mount.material = renderer.greyMaterial;
   mount.isPickable = false;

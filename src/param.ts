@@ -42,24 +42,33 @@ export enum Legs {
 export const MotorMap = {
   "BeneLego3": {
     "name": "hubFrontCenter",
-    "A": "legFrontRightTop",
-    "C": "legFrontRightBottom",
-    "B": "legFrontLeftTop",
-    "D": "legFrontLeftBottom",
+    "A"   : "legFrontRightTop",
+    "C"   : "legFrontRightBottom",
+    "B"   : "legFrontLeftTop",
+    "D"   : "legFrontLeftBottom",
     "test": "legFrontRightMount",
   },
   "BeneLego2": {
     "name": "hubBackCenter",
-    "B": "legBackRightTop",
-    "D": "legBackRightBottom",
-    "A": "legBackLeftTop",
-    "C": "legBackLeftBottom",
+    "B"   : "legBackRightTop",
+    "D"   : "legBackRightBottom",
+    "A"   : "legBackLeftTop",
+    "C"   : "legBackLeftBottom",
   },
   "BeneLego1": {
     "name": "hubFrontLeft",
+    "test": "legFrontLeftMount",
+    "tess": "legBackLeftMount",
+    "tese": "legBackRightMount",
   },
   "BeneLego4": {
     "name": "hubFrontRight",
+  },
+  "BeneLego5": {
+    "name": "hubBackRight",
+  },
+  "BeneLego6": {
+    "name": "hubBackLeft",
   },
 }
 
@@ -68,4 +77,7 @@ export const LEG_LENGTH_BOTTOM = 200.0; // length of bottom part of the leg
 export const LEG_SEPARATION_WIDTH = 225.0; // distance between left and right legs
 export const LEG_SEPARATION_LENGTH = 288.0; // distance between front and back legs
 export const LEG_MOUNT_HEIGHT = 90.0; // distance from top leg rotation axis to bottom of leg mount
-export const LEG_MOUNT_WIDTH = 60.0; // distance from middle of leg to mount rotation axis 
+export const LEG_MOUNT_WIDTH = 60.0; // distance from middle of leg to mount rotation axis
+export const LEG_PISTON_HEIGHT = 120.0; // distance from bootom of leg mount to top of piston
+export const LEG_PISTON_WIDTH = 140.0; // distance from bootom of leg mount to bottom of piston
+export const LEG_PISTON_LENGTH = 184.3; // length of piston when leg is vertical

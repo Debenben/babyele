@@ -41,6 +41,8 @@ function createDog() {
       dog.addHub(new module.SimulationHub("BeneLego2"));
       dog.addHub(new module.SimulationHub("BeneLego3"));
       dog.addHub(new module.SimulationHub("BeneLego4"));
+      dog.addHub(new module.SimulationHub("BeneLego5"));
+      dog.addHub(new module.SimulationHub("BeneLego6"));
     });
   }
   else {
