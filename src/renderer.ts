@@ -10,8 +10,9 @@ export default class Renderer {
   scene: BABYLON.Scene;
   actionManager: BABYLON.ActionManager;
   guiTexture: GuiTexture;
-  greenMaterial: BABYLON.StandardMaterial;
   greyMaterial: BABYLON.StandardMaterial;
+  greenMaterial: BABYLON.StandardMaterial;
+  pickMaterial: BABYLON.StandardMaterial;
   redMaterial: BABYLON.StandardMaterial;
   selectedItem: string;
   selectedItemIsPreview: boolean;
@@ -31,6 +32,7 @@ export default class Renderer {
       if(!this.selectedItem) {
         ground.rotation.y += 0.001;
       }
+      setBodyHeight(scene);
     });
     this.actionManager = new BABYLON.ActionManager(scene);
     this.guiTexture = new GuiTexture(scene);
@@ -49,6 +51,10 @@ export default class Renderer {
     this.greenMaterial.diffuseColor = new BABYLON.Color3(0,1,0);
     this.greenMaterial.specularColor = new BABYLON.Color3(0.1,0.4,0.1);
     this.greenMaterial.emissiveColor = new BABYLON.Color3(0,0.05,0);
+    this.pickMaterial = new BABYLON.StandardMaterial("greenMat", scene);
+    this.pickMaterial.diffuseColor = new BABYLON.Color3(0,1,0);
+    this.pickMaterial.specularColor = new BABYLON.Color3(0,0,0);
+    this.pickMaterial.emissiveColor = new BABYLON.Color3(0.1,0.2,0.1);
     this.redMaterial = new BABYLON.StandardMaterial("redMat", scene);
     this.redMaterial.diffuseColor = new BABYLON.Color3(1,0,0);
     this.redMaterial.specularColor = new BABYLON.Color3(0.4,0.1,0.1);
@@ -147,7 +153,7 @@ export default class Renderer {
       case "preview":
         renderer.selectedItem = meshName;
         renderer.selectedItemIsPreview = true;
-        mesh.material = this.greenMaterial;
+        mesh.material = this.pickMaterial;
         mesh.isPickable = true;
         this.guiTexture.showInfobox(meshName, true);
         break;
@@ -174,6 +180,22 @@ export default class Renderer {
       engine.resize();
     });
   }
+}
+
+const setBodyHeight = (scene: BABYLON.Scene) => {
+  const frontHub = scene.getMeshByName('hubFrontCenter');
+  const backHub = scene.getMeshByName('hubBackCenter');
+  const shift = Math.min(getClearance(scene,'legFrontRightFoot') - 30, getClearance(scene,'legFrontLeftFoot') - 30, getClearance(scene,'legBackRightFoot') - 30, getClearance(scene,'legBackLeftFoot') - 30);
+  frontHub.position.y -= shift;
+  backHub.position.y -= shift;
+}
+
+const getClearance = (scene: BABYLON.Scene, meshName: string) => {
+  const mesh = scene.getMeshByName(meshName);
+  const ground = scene.getMeshByName('ground');
+  const origin = mesh.position;
+  const position = BABYLON.Vector3.TransformCoordinates(mesh.position, mesh.getWorldMatrix());
+  return position.y;
 }
 
 const selectItem = (event) => {
@@ -308,6 +330,9 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   bottomLeg.parent = topLeg;
   bottomLeg.position.y = -Param.LEG_LENGTH_TOP;
   topLeg.position.y = -Param.LEG_LENGTH_BOTTOM/2;
+  const foot = new BABYLON.Mesh(meshName + "Foot", scene);
+  foot.parent=bottomLeg;
+  foot.position.y = -Param.LEG_LENGTH_BOTTOM/4;
   return leg;
 }
 
