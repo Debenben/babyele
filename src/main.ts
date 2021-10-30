@@ -60,13 +60,15 @@ app.on("ready", createWindow);
 
 // Quit when all windows are closed.
 app.on("window-all-closed", () => {
-  if(dog) {
-    if(dog.hubFront) {
-      dog.hubFront.shutdown();
+  try {
+    if(dog) {
+      for(var hubNum in dog.hubs) {
+        dog.hubs[hubNum].shutdown();
+      }
     }
-    if(dog.hubBack) {
-      dog.hubBack.shutdown();
-    }
+  }
+  catch(e) {
+    console.log("discard error " + e + " during shutdown");
   }
   dog = null;
   mainWindow = null;

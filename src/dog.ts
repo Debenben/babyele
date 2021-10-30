@@ -1,20 +1,15 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { HubAbstraction, LEDAbstraction } from "./interfaces";
 import { Leg } from "./leg";
-import { Modes, allowSwitch, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
+import { Modes, Legs, MotorMap, allowSwitch, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
 
 export class Dog {
   mainWindow: BrowserWindow
   mode: Modes = Modes.OFFLINE
   modeQueue: Modes [] = []
-  hubFront: HubAbstraction
-  hubBack: HubAbstraction
-  ledFront: LEDAbstraction
-  ledBack: LEDAbstraction
-  legFrontLeft: Leg
-  legFrontRight: Leg
-  legBackLeft: Leg
-  legBackRight: Leg
+  legs: Record<string, Leg> = {}
+  hubs: Record<string, HubAbstraction> = {}
+  leds: Record<string, LEDAbstraction> = {}
   color: number = 0
   stepWidth: number = 80 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
   stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (2*this.stepWidth)**2) // max radius for (pos0) and (pos3)
@@ -23,102 +18,110 @@ export class Dog {
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-    this.legFrontLeft = new Leg("legFrontLeft", this.mainWindow, 7415, -8064, 10000);
-    this.legFrontRight = new Leg("legFrontRight", this.mainWindow, -7415, 8064, 10000);
-    this.legBackLeft = new Leg("legBackLeft", this.mainWindow, 7415, -13593, 10000);
-    this.legBackRight = new Leg("legBackRight", this.mainWindow, -7415, 13593, 10000);
+    this.legs[Legs.FRONTLEFT] = new Leg(Legs.FRONTLEFT, this.mainWindow, 7415, -8064, 10000);
+    this.legs[Legs.FRONTRIGHT] = new Leg(Legs.FRONTRIGHT, this.mainWindow, -7415, 8064, 10000);
+    this.legs[Legs.BACKLEFT] = new Leg(Legs.BACKLEFT, this.mainWindow, 7415, -13593, 10000);
+    this.legs[Legs.BACKRIGHT] = new Leg(Legs.BACKRIGHT, this.mainWindow, -7415, 13593, 10000);
     setInterval(() => {
-      if(this.ledFront) {
-        this.ledFront.setColor(((this.mode+7)%10+1)*(this.color%2));
-      }
-      if(this.ledBack) {
-        this.ledBack.setColor(((this.mode+7)%10+1)*(this.color%2));
+      for(var ledNum in this.leds) {
+        if(this.leds[ledNum]) {
+          this.leds[ledNum].setColor(((this.mode+7)%10+1)*(this.color%2));
+	}
       }
       this.color++;
     }, 1000);
     ipcMain.on("getHubProperties", () => {
-      if(this.hubFront) {
-        this.mainWindow.webContents.send('notifyBattery', 'frontHub', this.hubFront.batteryLevel);
-        this.mainWindow.webContents.send('notifyRssi', 'frontHub', this.hubFront.rssi);
-      }
-      if(this.hubBack) {
-        this.mainWindow.webContents.send('notifyBattery', 'backHub', this.hubBack.batteryLevel);
-        this.mainWindow.webContents.send('notifyRssi', 'backHub', this.hubBack.rssi);
+      for(var hubNum in this.hubs) {
+        this.mainWindow.webContents.send('notifyBattery', hubNum, this.hubs[hubNum].batteryLevel);
+        this.mainWindow.webContents.send('notifyRssi', hubNum, this.hubs[hubNum].rssi);
       }
     });
   }
 
-  async addHub(hub) {
+  async addHub(hub: HubAbstraction) {
     await hub.connect();
     console.log("Connected to " + hub.name);
-    hub.on("attach", (device) => {
-      this.init();
-    });
-    hub.on("detach", (device) => {
-      this.init();
-    });
-    hub.on("button", ({ event }) => {
-      if(event === 2) { //Consts.ButtonState.PRESSED
-        if(this.mode === Modes.STANDING) {
-          this.requestMode(Modes.FORWARD);
-        }
-        else if(this.mode === Modes.READY0) {
-          this.requestMode(Modes.STANDING);
-        }
-        else {
-          this.requestMode(Modes.READY0);
-        }
-      }
-    });
-    if(hub.name === "BeneLego2") {
-      this.hubBack = hub;
-      this.ledBack = await hub.waitForDeviceByType(23); //Consts.DeviceType.HUB_LED
-      hub.on('disconnect', () => {
-        this.hubBack = null;
-        this.ledBack = null;
+    if(MotorMap[hub.name]) {
+      const hubName = MotorMap[hub.name]["name"];
+      this.hubs[hubName] = hub;
+      this.leds[hubName] = await hub.waitForDeviceByType(23); //Consts.DeviceType.HUB_LED
+      this.mainWindow.webContents.send('notifyState', hubName, 'online');
+      hub.on("attach", (device) => {
         this.init();
       });
-      hub.on('tilt', (device, tilt) => {
-        const x = tilt.x;
-	const y = tilt.z;
-	const z = tilt.y;
-	return this.mainWindow.webContents.send('notifyTilt', 'backHub', { x, y, z });
+      hub.on("detach", (device) => {
+        this.init();
       });
-      hub.on("batteryLevel", (level) => {
-        return this.mainWindow.webContents.send('notifyBattery', 'backHub', Number(level.batteryLevel));
+      hub.on("button", ({ event }) => {
+        if(event === 2) { //Consts.ButtonState.PRESSED
+          if(this.mode === Modes.STANDING) {
+            this.requestMode(Modes.FORWARD);
+          }
+          else if(this.mode === Modes.READY0) {
+            this.requestMode(Modes.STANDING);
+          }
+          else {
+            this.requestMode(Modes.READY0);
+          }
+        }
       });
-      hub.on("rssi", (rssi) => {
-        return this.mainWindow.webContents.send('notifyRssi', 'backHub', Number(rssi.rssi));
-      });
-    }
-    if(hub.name === "BeneLego3") {
-      this.hubFront = hub;
-      this.ledFront = await hub.waitForDeviceByType(23); //Consts.DeviceType.HUB_LED
-
       hub.on("disconnect", () => {
-        this.hubFront = null;
-        this.ledFront = null;
-        this.init();
-      });
-      hub.on('tilt', (device, tilt) => {
-        const x = -tilt.x;
-	const y = tilt.z;
-        const z = -tilt.y;
-	return this.mainWindow.webContents.send('notifyTilt', 'frontHub', { x, y, z });
+        this.mainWindow.webContents.send('notifyState', hubName, 'offline');
+        this.hubs[hubName] = null;
+        this.leds[hubName] = null;
+	this.init();
       });
       hub.on("batteryLevel", (level) => {
-        return this.mainWindow.webContents.send('notifyBattery', 'frontHub', Number(level.batteryLevel));
+        return this.mainWindow.webContents.send('notifyBattery', hubName, Number(level.batteryLevel));
       });
       hub.on("rssi", (rssi) => {
-        return this.mainWindow.webContents.send('notifyRssi', 'frontHub', Number(rssi.rssi));
+        return this.mainWindow.webContents.send('notifyRssi', hubName, Number(rssi.rssi));
       });
+      if(hubName === 'hubBackCenter') {
+        hub.on('tilt', (device, tilt) => {
+          const x = tilt.x;
+          const y = tilt.z;
+          const z = tilt.y;
+          return this.mainWindow.webContents.send('notifyTilt', hubName, { x, y, z });
+        });
+      }
+      else if(hubName === 'hubFrontCenter') {
+        hub.on('tilt', (device, tilt) => {
+          const x = -tilt.x;
+          const y = tilt.z;
+          const z = -tilt.y;
+          return this.mainWindow.webContents.send('notifyTilt', 'hubFrontCenter', { x, y, z });
+        });
+      }
+      this.init();
+      return;
     }
-    this.init();
+    console.log("HubName " + hub.name + " not known, disconnecting");
+    hub.disconnect();
   }
 
   async init() {
-    if(this.hubFront && this.hubBack) {
+    var deviceComplete = true;
+    var hubComplete = true;
+    for(var hubNum in MotorMap) {
+      for(var portNum in MotorMap[hubNum]) {
+        for(var legNum in this.legs) {
+          try {
+            deviceComplete = await this.legs[legNum].addMotor(MotorMap[hubNum][portNum], this.hubs[MotorMap[hubNum]["name"]].getDeviceAtPort(portNum)) && deviceComplete;
+          }
+          catch(e) {
+            hubComplete = false;
+            this.legs[legNum].addMotor(MotorMap[hubNum][portNum], null);
+          }
+	}
+      }
+    }
+    if(hubComplete) {
       this.mode = Modes.WAITING;
+      if(deviceComplete) {
+        getStanding(this);
+        this.modeQueue = [];
+      }
     }
     else {
       this.mode = Modes.OFFLINE;
@@ -129,45 +132,6 @@ export class Dog {
     catch(e) {
       console.log("unable to notify mode change: " + e);
       return;
-    }
-    var res = true;
-    if(this.hubFront) {
-      this.mainWindow.webContents.send('notifyState', 'frontHub', 'online');
-      res = this.legFrontRight.addMotor('legFrontRightTop', this.hubFront.getDeviceAtPort("A")) && res;
-      res = this.legFrontRight.addMotor('legFrontRightBottom', this.hubFront.getDeviceAtPort("C")) && res;
-      res = this.legFrontRight.addMotor('legFrontRightMount', this.hubFront.getDeviceAtPort("test2")) && res;
-      res = this.legFrontLeft.addMotor('legFrontLeftTop', this.hubFront.getDeviceAtPort("B")) && res;
-      res = this.legFrontLeft.addMotor('legFrontLeftBottom', this.hubFront.getDeviceAtPort("D")) && res;
-      res = this.legFrontLeft.addMotor('legFrontRightMount', this.hubFront.getDeviceAtPort("test3")) && res;
-    }
-    else {
-      this.mainWindow.webContents.send('notifyState', 'frontHub', 'offline');
-      res = false;
-      this.legFrontRight.addMotor('legFrontRightTop', null);
-      this.legFrontRight.addMotor('legFrontRightBottom', null);
-      this.legFrontRight.addMotor('legFrontRightMount', null);
-      this.legFrontLeft.addMotor('legFrontLeftTop', null);
-      this.legFrontLeft.addMotor('legFrontLeftBottom', null);
-      this.legFrontLeft.addMotor('legFrontLeftMount', null);
-    }
-    if(this.hubBack) {
-      this.mainWindow.webContents.send('notifyState', 'backHub', 'online');
-      res = this.legBackRight.addMotor('legBackRightTop', this.hubBack.getDeviceAtPort("B")) && res;
-      res = this.legBackRight.addMotor('legBackRightBottom', this.hubBack.getDeviceAtPort("D")) && res;
-      res = this.legBackLeft.addMotor('legBackLeftTop', this.hubBack.getDeviceAtPort("A")) && res;
-      res = this.legBackLeft.addMotor('legBackLeftBottom', this.hubBack.getDeviceAtPort("C")) && res;
-    }
-    else {
-      this.mainWindow.webContents.send('notifyState', 'backHub', 'offline');
-      res = false;
-      this.legBackRight.addMotor('legBackRightTop', null);
-      this.legBackRight.addMotor('legBackRightBottom', null);
-      this.legBackLeft.addMotor('legBackLeftTop', null);
-      this.legBackLeft.addMotor('legBackLeftBottom', null);
-    }
-    if(res) {
-      getStanding(this);
-      this.modeQueue = [];
     }
   }
 
@@ -222,17 +186,17 @@ export class Dog {
   }
 
   setBendForward() {
-    this.legBackLeft.bendForward = true;
-    this.legFrontLeft.bendForward = true;
-    this.legFrontRight.bendForward = true;
-    this.legBackRight.bendForward = true;
+    this.legs[Legs.BACKLEFT].bendForward = true;
+    this.legs[Legs.FRONTLEFT].bendForward = true;
+    this.legs[Legs.FRONTRIGHT].bendForward = true;
+    this.legs[Legs.BACKRIGHT].bendForward = true;
   }
 
   move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
-    const bl = this.legBackLeft.setPosition.bind(this.legBackLeft);
-    const fl = this.legFrontLeft.setPosition.bind(this.legFrontLeft);
-    const fr = this.legFrontRight.setPosition.bind(this.legFrontRight);
-    const br = this.legBackRight.setPosition.bind(this.legBackRight);
+    const bl = this.legs[Legs.BACKLEFT].setPosition.bind(this.legs[Legs.BACKLEFT]);
+    const fl = this.legs[Legs.FRONTLEFT].setPosition.bind(this.legs[Legs.FRONTLEFT]);
+    const fr = this.legs[Legs.FRONTRIGHT].setPosition.bind(this.legs[Legs.FRONTRIGHT]);
+    const br = this.legs[Legs.BACKRIGHT].setPosition.bind(this.legs[Legs.BACKRIGHT]);
     return Promise.all([ bl(backLeftHeight, backLeftXPos*this.stepWidth), fl(frontLeftHeight, frontLeftXPos*this.stepWidth), fr(frontRightHeight, frontRightXPos*this.stepWidth), br(backRightHeight, backRightXPos*this.stepWidth) ]);
   }
 }
@@ -344,14 +308,14 @@ const forward = async (dog: Dog) => {
 
 const getDown = async (dog: Dog) => {
   const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
-  const bl = dog.legBackLeft.setPosition.bind(dog.legBackLeft);
-  const fl = dog.legFrontLeft.setPosition.bind(dog.legFrontLeft);
-  const fr = dog.legFrontRight.setPosition.bind(dog.legFrontRight);
-  const br = dog.legBackRight.setPosition.bind(dog.legBackRight);
-  dog.legBackLeft.bendForward = true;
-  dog.legFrontLeft.bendForward = false;
-  dog.legFrontRight.bendForward = false;
-  dog.legBackRight.bendForward = true;
+  const bl = dog.legs[Legs.BACKLEFT].setPosition.bind(dog.legs[Legs.BACKLEFT]);
+  const fl = dog.legs[Legs.FRONTLEFT].setPosition.bind(dog.legs[Legs.FRONTLEFT]);
+  const fr = dog.legs[Legs.FRONTRIGHT].setPosition.bind(dog.legs[Legs.FRONTRIGHT]);
+  const br = dog.legs[Legs.BACKRIGHT].setPosition.bind(dog.legs[Legs.BACKRIGHT]);
+  dog.legs[Legs.BACKLEFT].bendForward = true;
+  dog.legs[Legs.FRONTLEFT].bendForward = false;
+  dog.legs[Legs.FRONTRIGHT].bendForward = false;
+  dog.legs[Legs.BACKRIGHT].bendForward = true;
   await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
   await Promise.all([ bl(0, -0.5*s), fl(0,  0.5*s), fr(0,  0.5*s), br(0, -0.5*s) ]);
   dog.mode = Modes.DOWN;
@@ -359,12 +323,7 @@ const getDown = async (dog: Dog) => {
 }
 
 const shutdown = async (dog: Dog) => {
-  let promiseFront, promiseBack;
-  if(dog.hubFront) { 
-    promiseFront = dog.hubFront.shutdown();
+  for(var hubNum in dog.hubs) {
+    dog.hubs[hubNum].shutdown();
   }
-  if(dog.hubBack) { 
-    promiseBack = dog.hubBack.shutdown();
-  }
-  return Promise.all( [ promiseFront, promiseBack ]);
 }

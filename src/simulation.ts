@@ -19,6 +19,12 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     return Promise.resolve();
   }
 
+  disconnect() {
+    console.log("disconnecting from simulation hub " + this.name);
+    this.emit('disconnect');
+    return Promise.resolve();
+  }
+
   shutdown() {
     console.log("shutdown simulation hub " + this.name);
     this.emit('disconnect');
@@ -26,8 +32,24 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   }
 
   getDeviceAtPort(portName: string) {
-    console.log("simulation hub " + this.name + " returns device at port " + portName);
-    return new SimulationMotor();
+    switch(this.name) {
+      case "BeneLego2":
+      case "BeneLego3":
+        switch(portName) {
+          case "A":
+          case "B":
+	  case "C":
+	  case "D":
+	  case "test":
+            console.log("simulation hub " + this.name + " returns device at port " + portName);
+	    return new SimulationMotor();
+          default:
+            return null; 
+        }
+      default:
+        return null;
+    }
+    return null;
   }
 
   waitForDeviceByType(deviceType: number) {

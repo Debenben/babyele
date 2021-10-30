@@ -70,7 +70,7 @@ class Infobox extends StackPanel {
     }
   }
   addControls() {
-    if(this.name.endsWith("Hub")) {
+    if(this.name.startsWith("hub")) {
       this.batteryText = buildText("battery: --");
       ipcRenderer.on('notifyBattery', this.updateBattery);
       this.addControl(this.batteryText);
@@ -91,7 +91,7 @@ class Infobox extends StackPanel {
     }
   }
   removeControls() {
-    if(this.name.endsWith("Hub")) {
+    if(this.name.startsWith("hub")) {
       ipcRenderer.removeListener('notifyBattery', this.updateBattery);
       ipcRenderer.removeListener('notifyRssi', this.updateRssi);
       ipcRenderer.removeListener('notifyTilt', this.updateTilt);

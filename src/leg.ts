@@ -22,6 +22,9 @@ export class Leg {
   }
 
   async addMotor(motorName: string, motor: MotorAbstraction) {
+    if(!motorName.startsWith(this.legName)) {
+      return true;
+    }
     ipcMain.removeAllListeners(motorName);
     this.motors[motorName] = motor;
     this.motorAngles[motorName] = 0;

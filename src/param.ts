@@ -32,6 +32,30 @@ export const allowSwitch = (fromMode: Modes, toMode: Modes) => {
   }
 }
 
+export enum Legs {
+  FRONTRIGHT = "legFrontRight",
+  FRONTLEFT = "legFrontLeft",
+  BACKRIGHT = "legBackRight",
+  BACKLEFT = "legBackLeft",
+}
+
+export const MotorMap = {
+  "BeneLego3": {
+    "name": "hubFrontCenter",
+    "A": "legFrontRightTop",
+    "C": "legFrontRightBottom",
+    "B": "legFrontLeftTop",
+    "D": "legFrontLeftBottom",
+    "test": "legFrontRightMount",
+  },
+  "BeneLego2": {
+    "name": "hubBackCenter",
+    "B": "legBackRightTop",
+    "D": "legBackRightBottom",
+    "A": "legBackLeftTop",
+    "C": "legBackLeftBottom",
+  }
+}
 
 export const LEG_LENGTH_TOP = 185.0; // length of top part of the leg
 export const LEG_LENGTH_BOTTOM = 200.0; // length of bottom part of the leg

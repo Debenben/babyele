@@ -54,11 +54,11 @@ export default class Renderer {
     this.redMaterial.specularColor = new BABYLON.Color3(0.4,0.1,0.1);
     this.redMaterial.emissiveColor = new BABYLON.Color3(0.05,0,0);
 
-    const frontHub = buildHub(scene, "frontHub");
+    const frontHub = buildHub(scene, "hubFrontCenter");
     frontHub.parent = ground;
     frontHub.position.x = 100;
     frontHub.setPivotPoint(frontHub.position.negate());
-    const backHub = buildHub(scene, "backHub");
+    const backHub = buildHub(scene, "hubBackCenter");
     backHub.parent = ground;
     backHub.position.x = -100;
     backHub.setPivotPoint(backHub.position.negate());

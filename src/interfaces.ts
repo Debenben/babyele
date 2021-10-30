@@ -4,6 +4,7 @@ export interface HubAbstraction extends EventEmitter {
   readonly batteryLevel: number;
   readonly rssi: number;
   connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
   shutdown: () => Promise<void>;
   getDeviceAtPort: (portName: string) => any;
   waitForDeviceByType: (deviceType: number) => Promise<any>;
