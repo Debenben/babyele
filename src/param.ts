@@ -54,7 +54,13 @@ export const MotorMap = {
     "D": "legBackRightBottom",
     "A": "legBackLeftTop",
     "C": "legBackLeftBottom",
-  }
+  },
+  "BeneLego1": {
+    "name": "hubFrontLeft",
+  },
+  "BeneLego4": {
+    "name": "hubFrontRight",
+  },
 }
 
 export const LEG_LENGTH_TOP = 185.0; // length of top part of the leg

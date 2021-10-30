@@ -54,13 +54,15 @@ export default class Renderer {
     this.redMaterial.specularColor = new BABYLON.Color3(0.4,0.1,0.1);
     this.redMaterial.emissiveColor = new BABYLON.Color3(0.05,0,0);
 
-    const frontHub = buildHub(scene, "hubFrontCenter");
+    const frontHub = buildBody(scene, "hubFrontCenter");
     frontHub.parent = ground;
-    frontHub.position.x = 100;
+    frontHub.position.x = Param.LEG_SEPARATION_LENGTH/2;
+    frontHub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
     frontHub.setPivotPoint(frontHub.position.negate());
-    const backHub = buildHub(scene, "hubBackCenter");
+    const backHub = buildBody(scene, "hubBackCenter");
     backHub.parent = ground;
-    backHub.position.x = -100;
+    backHub.position.x = -Param.LEG_SEPARATION_LENGTH/2;
+    backHub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
     backHub.setPivotPoint(backHub.position.negate());
 
     const legFrontLeft = buildLeg(scene, "legFrontLeft");
@@ -237,11 +239,31 @@ const buildGround = (scene: BABYLON.Scene) => {
   return ground;
 }
 
+const buildBody = (scene: BABYLON.Scene, meshName: string) => {
+  const inner = BABYLON.MeshBuilder.CreateBox(meshName + "Inner", {width:120, height:120, depth:200}, scene);
+  const outer = BABYLON.MeshBuilder.CreateBox(meshName + "Outer", {width:160, height:160, depth:160}, scene);
+  outer.position.y = -30;
+  outer.rotation.x = Math.PI/4;
+  const innerCSG = BABYLON.CSG.FromMesh(inner);
+  const outerCSG = BABYLON.CSG.FromMesh(outer);
+  const bodyCSG = innerCSG.intersect(outerCSG);
+  const body = bodyCSG.toMesh(meshName, null, scene);
+  inner.dispose();
+  outer.dispose();
+  scene.removeMesh(inner);
+  scene.removeMesh(outer);
+  body.material = renderer.greyMaterial;
+  body.isPickable = false;
+  body.receiveShadows = true;
+  body.actionManager = renderer.actionManager;
+  return body;
+}
+
 const buildHub = (scene: BABYLON.Scene, meshName: string) => {
-  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:200, height:100, depth:80}, scene);
-  hub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
+  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:80, height:50, depth:60}, scene);
   hub.material = renderer.greyMaterial;
   hub.isPickable = false;
+  hub.receiveShadows = true;
   hub.actionManager = renderer.actionManager;
   return hub;
 }
@@ -279,6 +301,8 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   topLeg.name = meshName + "Top";
   topLeg.parent = mount;
   topLeg.position.z = Param.LEG_MOUNT_WIDTH/2;
+  const hub = buildHub(scene, meshName.replace("leg","hub"));
+  hub.parent = topLeg;
   const bottomLeg = buildBone({width:60, height:Param.LEG_LENGTH_BOTTOM, depth:30}, scene);
   bottomLeg.name = meshName+"Bottom";
   bottomLeg.parent = topLeg;

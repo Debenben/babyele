@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { HubAbstraction, MotorAbstraction } from "./interfaces";
+import { HubAbstraction, LEDAbstraction, MotorAbstraction } from "./interfaces";
 
 export class SimulationHub extends EventEmitter implements HubAbstraction {
   name: string
@@ -13,24 +13,20 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     this.rssi = Math.floor(100 * Math.random() - 80);
     console.log("creating simulation hub " + this.name);
   }
-
   connect() {
     console.log("connecting to simulation hub " + this.name);
     return Promise.resolve();
   }
-
   disconnect() {
     console.log("disconnecting from simulation hub " + this.name);
     this.emit('disconnect');
     return Promise.resolve();
   }
-
   shutdown() {
     console.log("shutdown simulation hub " + this.name);
     this.emit('disconnect');
     return Promise.resolve();
   }
-
   getDeviceAtPort(portName: string) {
     switch(this.name) {
       case "BeneLego2":
@@ -51,9 +47,23 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     }
     return null;
   }
-
   waitForDeviceByType(deviceType: number) {
-    console.log("simulation hub " + this.name + " waiting for device of type " + deviceType);
+    return new Promise((resolve) => {
+      if(deviceType == 23) {
+        console.log("simulation hub " + this.name + " returns simulationLED");
+        return resolve(new SimulationLED());
+      }
+      return true;
+    });
+  }
+}
+
+export class SimulationLED extends EventEmitter implements LEDAbstraction {
+  color: number
+
+  setColor(color: number) {
+    this.color = color;
+    console.log("simulation led showing color " + this.color);
     return Promise.resolve();
   }
 }

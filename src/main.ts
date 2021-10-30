@@ -37,8 +37,10 @@ function createDog() {
   if(simulation) {
     console.log("Starting simulation...");
     let simulation = import("./simulation").then( module => {
+      dog.addHub(new module.SimulationHub("BeneLego1"));
       dog.addHub(new module.SimulationHub("BeneLego2"));
       dog.addHub(new module.SimulationHub("BeneLego3"));
+      dog.addHub(new module.SimulationHub("BeneLego4"));
     });
   }
   else {
