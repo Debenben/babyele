@@ -43,6 +43,7 @@ class Infobox extends StackPanel {
   batteryText: TextBlock;
   rssiText: TextBlock;
   tiltText: TextBlock;
+  angleText: TextBlock;
   constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
     super(name);
     this.scene = scene;
@@ -83,7 +84,9 @@ class Infobox extends StackPanel {
       ipcRenderer.send("getHubProperties");
     }
     else {
-      this.addControl(buildText("angle:"));
+      this.angleText = buildText("current angle: " + (180*getLegRotation(this.name, this.scene)/Math.PI).toFixed(2) + " deg");
+      ipcRenderer.on('notifyLegRotation', this.updateAngle);
+      this.addControl(this.angleText);
       this.addControl(buildAngleSlider(this));
       this.addControl(buildResetButton(this.name));
       this.addControl(buildText("power:"));
@@ -95,6 +98,9 @@ class Infobox extends StackPanel {
       ipcRenderer.removeListener('notifyBattery', this.updateBattery);
       ipcRenderer.removeListener('notifyRssi', this.updateRssi);
       ipcRenderer.removeListener('notifyTilt', this.updateTilt);
+    }
+    else {
+      ipcRenderer.removeListener('notifyLegRotation', this.updateAngle);
     }
   }
   updateBattery = (event, arg1, arg2) => {
@@ -110,6 +116,11 @@ class Infobox extends StackPanel {
   updateTilt = (event, arg1, arg2) => {
     if(arg1 === this.name) {
       this.tiltText.text = "tilt: " + arg2.x + " " + arg2.y + " " + arg2.z;
+    }
+  }
+  updateAngle = (event, arg1, arg2) => {
+    if(arg1 === this.name) {
+      this.angleText.text = "current angle: " + (180*arg2/Math.PI).toFixed(2) + " deg";
     }
   }
 }
@@ -156,7 +167,7 @@ const buildAngleSlider = (infobox: Infobox) => {
   slider.maximum = Math.PI;
   slider.value = getLegRotation(infobox.name, infobox.scene);
   slider.onValueChangedObservable.add((value) => {
-    //header
+    infobox.angleText.text = "requested angle: " + (180*slider.value/Math.PI).toFixed(2) + " deg";
   });
   slider.onPointerUpObservable.add(() => {
     ipcRenderer.send(infobox.name, "requestRotation", slider.value);

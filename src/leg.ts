@@ -38,6 +38,7 @@ export class Leg {
     }
     this.motors[motorName] = motor;
     this.motorAngles[motorName] = 0;
+    this.destMotorAngles[motorName] = 0;
     if(motor) {
       motor.setBrakingStyle(127); //Consts.BrakingStyle.BRAKE
       motor.setAccelerationTime(200);
@@ -68,29 +69,12 @@ export class Leg {
   }
 
   motorLoop() {
-    if(this.motors['Top'] && this.motors['Bottom'] && Math.abs(this.motorAngles['Top'] - this.destMotorAngles['Top']) > this.noMoveMotorAngle && Math.abs(this.motorAngles['Bottom'] - this.destMotorAngles['Bottom']) > this.noMoveMotorAngle) {
-      const diffTopMotorAngle = this.destMotorAngles['Top'] - this.motorAngles['Top'];
-      const diffBottomMotorAngle = this.destMotorAngles['Bottom'] - this.motorAngles['Bottom'];
-      const topMotorSpeed = 10*Math.sign(diffTopMotorAngle) + 90*diffTopMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle));
-      const bottomMotorSpeed = 10*Math.sign(diffBottomMotorAngle) + 90*diffBottomMotorAngle/Math.max(Math.abs(diffTopMotorAngle),Math.abs(diffBottomMotorAngle));
-      return Promise.all([ this.motors['Top'].rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed), this.motors['Bottom'].rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed) ]);
-    }
-    if(this.motors['Top'] && Math.abs(this.motorAngles['Top'] - this.destMotorAngles['Top']) > this.noMoveMotorAngle) {
-      const diffTopMotorAngle = this.destMotorAngles['Top'] - this.motorAngles['Top'];
-      const topMotorSpeed = 10*Math.sign(diffTopMotorAngle) + 0.9*Math.min(Math.max(diffTopMotorAngle, -100), 100);
-      return this.motors['Top'].rotateByDegrees(Math.abs(diffTopMotorAngle), topMotorSpeed);
-    }
-    if(this.motors['Bottom'] && Math.abs(this.motorAngles['Bottom'] - this.destMotorAngles['Bottom']) > this.noMoveMotorAngle) {
-      const diffBottomMotorAngle = this.destMotorAngles['Bottom'] - this.motorAngles['Bottom'];
-      const bottomMotorSpeed = 10*Math.sign(diffBottomMotorAngle) + 0.9*Math.min(Math.max(diffBottomMotorAngle, -100), 100);
-      return this.motors['Bottom'].rotateByDegrees(Math.abs(diffBottomMotorAngle), bottomMotorSpeed);
-    }
-    if(this.motors['Mount'] && Math.abs(this.motorAngles['Mount'] - this.destMotorAngles['Mount']) > this.noMoveMotorAngle) {
-      const diffMountMotorAngle = this.destMotorAngles['Mount'] - this.motorAngles['Mount'];
-      const mountMotorSpeed = 10*Math.sign(diffMountMotorAngle) + 0.9*Math.min(Math.max(diffMountMotorAngle, -100), 100);
-      return this.motors['Mount'].rotateByDegrees(Math.abs(diffMountMotorAngle), mountMotorSpeed);
-    }
-    return Promise.resolve();
+    var motorNames = ['Top', 'Bottom', 'Mount'];
+    motorNames = motorNames.filter(n => this.motors[n] && Math.abs(this.destMotorAngles[n] - this.motorAngles[n]) > this.noMoveMotorAngle);
+    var diffMotorAngles = motorNames.map(n => (this.destMotorAngles[n] - this.motorAngles[n]));
+    var motorSpeeds = diffMotorAngles.map(diff => (10*Math.sign(diff) + 90*diff/Math.max.apply(null, diffMotorAngles.map(Math.abs))));
+    var promises = motorNames.map((n,i) => this.motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), motorSpeeds[i]));
+    return Promise.all(promises);
   }
 
   requestRotation(motorName: string, angle: number) {
@@ -99,44 +83,22 @@ export class Leg {
       return this.motorLoop();
     }
     else {
-      const pistonLength = Math.sqrt(Math.abs(LEG_PISTON_HEIGHT**2 + LEG_PISTON_WIDTH**2 - 2*LEG_PISTON_HEIGHT*LEG_PISTON_WIDTH*Math.cos(angle+Math.PI/2)));
+      const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, angle+Math.PI/2);
       this.destMotorAngles[motorName] = (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges[motorName];
       return this.motorLoop();
     }
   }
 
-  getAngle(motorName: string) {
-    if(!(motorName === 'Mount')) {
-      return Math.PI*this.motorAngles[motorName]/this.motorRanges[motorName];
-    }
-    else {
-      const pistonLength = LEG_PISTON_LENGTH + this.motorAngles['Mount']/this.motorRanges['Mount'];
-      return Math.acos((LEG_PISTON_HEIGHT**2 + LEG_PISTON_WIDTH**2 - pistonLength**2) / (2*LEG_PISTON_HEIGHT*LEG_PISTON_WIDTH))-Math.PI/2;
-    }
+  requestPosition(forward: number, sideways: number, height: number) {
+  
   }
 
-  getHeight() {
-    const topAngle = this.getAngle('Top');
-    const bottomAngle = this.getAngle('Bottom') - topAngle;
-    return LEG_LENGTH_TOP*Math.cos(topAngle) + LEG_LENGTH_BOTTOM*Math.cos(bottomAngle);
-  }
-
-  getXPos() {
-    const topAngle = this.getAngle('Top');
-    const bottomAngle = this.getAngle('Bottom') - topAngle;
-    return LEG_LENGTH_TOP*Math.sin(topAngle) + LEG_LENGTH_BOTTOM*Math.sin(bottomAngle);
-  }
-
-  setPosition(h, x) {
+  setPosition(h: number, x: number) {
     const l = Math.sqrt(h**2 + x**2);
     const phi = Math.atan2(x, h);
     const t = LEG_LENGTH_TOP;
     const b = LEG_LENGTH_BOTTOM;
-    let cosval = (l**2 + t**2 - b**2)/(2*l*t);
-    if(cosval > 1.0) {
-      cosval = 1.0;
-    }
-    const alpha = Math.acos(cosval);
+    const alpha = invCosLaw(l, t, b);
     let destTopAngle = phi + alpha;
     let destBottomAngle = Math.acos((t/b)*Math.cos(Math.PI/2 - alpha)) - alpha - Math.PI/2;
     if(this.bendForward) {
@@ -148,4 +110,36 @@ export class Leg {
     this.destMotorAngles['Bottom'] = destBottomAngle*this.motorRanges['Bottom']/Math.PI;
     return this.motorLoop();
   }
+
+  getAngle(motorName: string) {
+    if(!(motorName === 'Mount')) {
+      return Math.PI*this.motorAngles[motorName]/this.motorRanges[motorName];
+    }
+    else {
+      const pistonLength = LEG_PISTON_LENGTH + this.motorAngles['Mount']/this.motorRanges['Mount'];
+      return invCosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, pistonLength)-Math.PI/2;
+    }
+  }
+
+  getPos() {
+    const tAngle = this.getAngle('Top');
+    const bAngle = this.getAngle('Bottom') - tAngle;
+    const mAngle = this.getAngle('Mount');
+    const mLength = LEG_LENGTH_TOP*Math.cos(tAngle) + LEG_LENGTH_BOTTOM*Math.cos(bAngle) - LEG_MOUNT_HEIGHT;
+    const height = mLength*Math.cos(mAngle) + LEG_MOUNT_WIDTH*Math.sin(mAngle);
+    const sideways = -mLength*Math.sin(mAngle) + LEG_MOUNT_WIDTH*(Math.cos(mAngle)-1);
+    const forward = (LEG_LENGTH_TOP*Math.sin(tAngle) + LEG_LENGTH_BOTTOM*Math.sin(bAngle));
+    return {forward: forward, sideways: sideways, height: height};
+  } 
+}
+
+const cosLaw = (rSide: number, lSide: number, angle: number) => {
+  // returns the side length opposite of the angle in a triangle with rSide and lSide side lengths adjacent to the angle
+  return Math.sqrt(Math.abs(rSide**2 + lSide**2 - 2*rSide*lSide*Math.cos(angle)));
+}
+
+const invCosLaw = (rSide: number, lSide: number, oSide: number) => {
+  // returns angle in a triangle with rSide and lSide adjacent side lengths and oSide the side length opposite of the angle
+  const cosVal = (rSide**2 + lSide**2 - oSide**2)/(2*rSide*lSide);
+  return Math.acos(cosVal > 1.0 ? 1.0 : (cosVal < -1.0 ? -1.0 : cosVal));  
 }

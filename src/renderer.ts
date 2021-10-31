@@ -74,20 +74,20 @@ export default class Renderer {
     const legFrontLeft = buildLeg(scene, "legFrontLeft");
     legFrontLeft.position.x = Param.LEG_SEPARATION_LENGTH/2 - frontHub.position.x;
     legFrontLeft.position.z = Param.LEG_SEPARATION_WIDTH/2;
+    legFrontLeft.scaling.z = -1;
     legFrontLeft.parent = frontHub;
     const legFrontRight = buildLeg(scene, "legFrontRight");
     legFrontRight.position.x = Param.LEG_SEPARATION_LENGTH/2 - frontHub.position.x;
     legFrontRight.position.z = -Param.LEG_SEPARATION_WIDTH/2;
-    legFrontRight.scaling.z = -1;
     legFrontRight.parent = frontHub;
     const legBackLeft = buildLeg(scene, "legBackLeft");
     legBackLeft.position.x = -Param.LEG_SEPARATION_LENGTH/2 - backHub.position.x;
     legBackLeft.position.z = Param.LEG_SEPARATION_WIDTH/2;
+    legBackLeft.scaling.z = -1;
     legBackLeft.parent = backHub;
     const legBackRight = buildLeg(scene, "legBackRight");
     legBackRight.position.x = -Param.LEG_SEPARATION_LENGTH/2 - backHub.position.x;
     legBackRight.position.z = -Param.LEG_SEPARATION_WIDTH/2;
-    legBackRight.scaling.z = -1;
     legBackRight.parent = backHub;
 
     const shadowCaster = new BABYLON.ShadowGenerator(1024, dirLight);
@@ -303,8 +303,8 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   const leg = new BABYLON.Mesh(meshName, scene);
   const mount = BABYLON.MeshBuilder.CreateBox(meshName + "Mount", {width:Param.LEG_MOUNT_HEIGHT, height:Param.LEG_MOUNT_HEIGHT, depth:Param.LEG_MOUNT_WIDTH}, scene);
   mount.parent = leg;
-  mount.setPivotPoint(new BABYLON.Vector3(0,-Param.LEG_MOUNT_HEIGHT/2,-Param.LEG_MOUNT_WIDTH/2));
-  mount.position.z = -Param.LEG_MOUNT_WIDTH/2;
+  mount.setPivotPoint(new BABYLON.Vector3(0,-Param.LEG_MOUNT_HEIGHT/2,Param.LEG_MOUNT_WIDTH/2));
+  mount.position.z = Param.LEG_MOUNT_WIDTH/2;
   mount.material = renderer.greyMaterial;
   mount.isPickable = false;
   mount.receiveShadows = true;
@@ -312,7 +312,7 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   const topLeg = buildBone({width:70, height:Param.LEG_LENGTH_TOP, depth:40}, scene);
   topLeg.name = meshName + "Top";
   topLeg.parent = mount;
-  topLeg.position.z = Param.LEG_MOUNT_WIDTH/2;
+  topLeg.position.z = -Param.LEG_MOUNT_WIDTH/2;
   const hub = buildHub(scene, meshName.replace("leg","hub"));
   hub.parent = topLeg;
   const bottomLeg = buildBone({width:60, height:Param.LEG_LENGTH_BOTTOM, depth:30}, scene);
