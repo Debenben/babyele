@@ -27,14 +27,14 @@ export class Leg {
       return true;
     }
     const motorName = legMotorName.replace(this.legName, "");
-    if(this.motors[motorName]) {
-      return true;
-    }
     if(!motor) {
       this.mainWindow.webContents.send("notifyState", legMotorName, "offline");
       ipcMain.removeAllListeners(legMotorName);
       this.motors[motorName] = null;
       return false;
+    }
+    if(this.motors[motorName]) {
+      return true;
     }
     this.motors[motorName] = motor;
     this.motorAngles[motorName] = 0;
