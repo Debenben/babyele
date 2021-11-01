@@ -20,6 +20,9 @@ export class Leg {
     this.motorRanges["Top"] = topMotorRange;
     this.motorRanges["Bottom"] = bottomMotorRange;
     this.motorRanges["Mount"] = mountMotorRange;
+    ipcMain.on("getHubProperties", () => {
+      this.mainWindow.webContents.send('notifyLegPosition', this.legName, this.getPosition());
+    });
   }
 
   async addMotor(legMotorName: string, motor: MotorAbstraction) {
@@ -62,6 +65,7 @@ export class Leg {
       motor.on('rotate', ({degrees}) => {
         this.motorAngles[motorName] = degrees;
         this.mainWindow.webContents.send('notifyLegRotation', legMotorName, this.getAngle(motorName));
+        this.mainWindow.webContents.send('notifyLegPosition', this.legName, this.getPosition());
       });
       this.mainWindow.webContents.send("notifyState", legMotorName, "online");
       return true;
@@ -121,15 +125,16 @@ export class Leg {
     }
   }
 
-  getPos() {
+  getPosition() {
     const tAngle = this.getAngle('Top');
-    const bAngle = this.getAngle('Bottom') - tAngle;
-    const mAngle = this.getAngle('Mount');
-    const mLength = LEG_LENGTH_TOP*Math.cos(tAngle) + LEG_LENGTH_BOTTOM*Math.cos(bAngle) - LEG_MOUNT_HEIGHT;
-    const height = mLength*Math.cos(mAngle) + LEG_MOUNT_WIDTH*Math.sin(mAngle);
-    const sideways = -mLength*Math.sin(mAngle) + LEG_MOUNT_WIDTH*(Math.cos(mAngle)-1);
+    const bAngle = this.getAngle('Bottom') + tAngle;
     const forward = (LEG_LENGTH_TOP*Math.sin(tAngle) + LEG_LENGTH_BOTTOM*Math.sin(bAngle));
-    return {forward: forward, sideways: sideways, height: height};
+    const mHeight = LEG_LENGTH_TOP*Math.cos(tAngle) + LEG_LENGTH_BOTTOM*Math.cos(bAngle) - LEG_MOUNT_HEIGHT;
+    const mAngle = this.getAngle('Mount') + Math.atan2(LEG_MOUNT_WIDTH, mHeight);
+    const mLength = Math.sqrt(Math.abs(mHeight**2 + LEG_MOUNT_WIDTH**2));
+    const height = mLength*Math.cos(mAngle);
+    const sideways = mLength*Math.sin(mAngle) - LEG_MOUNT_WIDTH;
+    return {forward: forward, height: height, sideways: sideways};
   } 
 }
 

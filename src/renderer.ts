@@ -301,9 +301,9 @@ const buildBone = ({width, height, depth}, scene: BABYLON.Scene) => {
 
 const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
   const leg = new BABYLON.Mesh(meshName, scene);
-  const mount = BABYLON.MeshBuilder.CreateBox(meshName + "Mount", {width:Param.LEG_MOUNT_HEIGHT, height:Param.LEG_MOUNT_HEIGHT, depth:Param.LEG_MOUNT_WIDTH}, scene);
+  const mount = BABYLON.MeshBuilder.CreateBox(meshName + "Mount", {width:2*Param.LEG_MOUNT_HEIGHT, height:2*Param.LEG_MOUNT_HEIGHT, depth:Param.LEG_MOUNT_WIDTH}, scene);
   mount.parent = leg;
-  mount.setPivotPoint(new BABYLON.Vector3(0,-Param.LEG_MOUNT_HEIGHT/2,Param.LEG_MOUNT_WIDTH/2));
+  mount.setPivotPoint(new BABYLON.Vector3(0,-Param.LEG_MOUNT_HEIGHT,Param.LEG_MOUNT_WIDTH/2));
   mount.position.z = Param.LEG_MOUNT_WIDTH/2;
   mount.material = renderer.greyMaterial;
   mount.isPickable = false;

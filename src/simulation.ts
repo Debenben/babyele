@@ -70,7 +70,7 @@ export class SimulationLED extends EventEmitter implements LEDAbstraction {
 
   setColor(color: number) {
     this.color = color;
-    console.log("simulation led showing color " + this.color);
+    //console.log("simulation led showing color " + this.color);
     return Promise.resolve();
   }
 }

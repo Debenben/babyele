@@ -43,13 +43,13 @@ class Infobox extends StackPanel {
   batteryText: TextBlock;
   rssiText: TextBlock;
   tiltText: TextBlock;
+  positionText: TextBlock;
   angleText: TextBlock;
   constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
     super(name);
     this.scene = scene;
     this.setPreview(preview);
-    this.width = "300px";
-    this.height = "220px";
+    this.widthInPixels = window.innerWidth > 650 ? 0.4*window.innerWidth : 260;
     this.alpha = 0.7;
     this.isPointerBlocker = true;
     this.shadowBlur = 15;
@@ -59,18 +59,18 @@ class Infobox extends StackPanel {
     this.paddingBottom = 10; 
     this.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
     this.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this.addControl(buildHeading(name));
     this.addControls();
   }
   setPreview(preview: boolean) {
     if(preview) {
-      this.background = "rgb(20,255,20)";
+      this.background = "rgb(40,255,40)";
     }
     else {
-      this.background = "rgb(255,40,40)";
+      this.background = "rgb(255,80,80)";
     }
   }
   addControls() {
+    this.addControl(buildHeading(this.name));
     if(this.name.startsWith("hub")) {
       this.batteryText = buildText("battery: --");
       ipcRenderer.on('notifyBattery', this.updateBattery);
@@ -81,6 +81,14 @@ class Infobox extends StackPanel {
       this.tiltText = buildText("tilt: --");
       ipcRenderer.on('notifyTilt', this.updateTilt);
       this.addControl(this.tiltText);
+      if(!this.name.endsWith("Center")) {
+        ipcRenderer.on('notifyLegPosition', this.updatePosition);
+        this.positionText = buildText("position: --");
+        this.addControl(this.positionText);
+        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestXMove"));
+        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestYMove"));
+        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestZMove"));
+      }
       ipcRenderer.send("getHubProperties");
     }
     else {
@@ -90,7 +98,7 @@ class Infobox extends StackPanel {
       this.addControl(buildAngleSlider(this));
       this.addControl(buildResetButton(this.name));
       this.addControl(buildText("power:"));
-      this.addControl(buildCorrectionSlider(this.name));
+      this.addControl(buildCorrectionSlider(this.name, "requestPower"));
     }
   }
   removeControls() {
@@ -98,6 +106,9 @@ class Infobox extends StackPanel {
       ipcRenderer.removeListener('notifyBattery', this.updateBattery);
       ipcRenderer.removeListener('notifyRssi', this.updateRssi);
       ipcRenderer.removeListener('notifyTilt', this.updateTilt);
+      if(!this.name.endsWith("Center")) {
+        ipcRenderer.removeListener('notifyLegPosition', this.updatePosition);
+      }
     }
     else {
       ipcRenderer.removeListener('notifyLegRotation', this.updateAngle);
@@ -115,7 +126,12 @@ class Infobox extends StackPanel {
   }
   updateTilt = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.tiltText.text = "tilt: " + arg2.x + " " + arg2.y + " " + arg2.z;
+      this.tiltText.text = "tilt: " + arg2.x + "  " + arg2.y + "  " + arg2.z;
+    }
+  }
+  updatePosition = (event, arg1, arg2) => {
+    if(arg1 === this.name.replace("hub","leg")) {
+      this.positionText.text = "position: " + arg2.forward.toFixed(0) + "  " + arg2.height.toFixed(0) + "  " + arg2.sideways.toFixed(0);
     }
   }
   updateAngle = (event, arg1, arg2) => {
@@ -125,13 +141,12 @@ class Infobox extends StackPanel {
   }
 }
 
-const buildHeading = (content: string) => {
+const buildHeading = (meshName: string) => {
   const heading = new TextBlock();
-  heading.text = content;
-  heading.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  heading.text = meshName;
   heading.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   heading.height = "30px";
-  heading.width = "260px";
+  heading.paddingLeft = "5px";
   heading.fontSize = 20;
   return heading;
 }
@@ -140,8 +155,8 @@ const buildText = (content: string) => {
   const block = new TextBlock();
   block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   block.text = content;
-  block.height = "30px";
-  block.width = "260px";
+  block.height = "25px";
+  block.paddingLeft = "5px";
   return block;
 }
 
@@ -162,7 +177,9 @@ const getLegRotation = (meshName: string, scene: BABYLON.Scene) => {
 const buildAngleSlider = (infobox: Infobox) => {
   const slider = new Slider();
   slider.height = "30px";
-  slider.width = "260px";
+  slider.color = "transparent";
+  slider.thumbColor = "grey";
+  slider.borderColor = "black";
   slider.minimum = -Math.PI;
   slider.maximum = Math.PI;
   slider.value = getLegRotation(infobox.name, infobox.scene);
@@ -182,21 +199,26 @@ const buildResetButton = (meshName: string) => {
   button.paddingRight = "5px";
   button.width = "120px";
   button.height = "30px";
+  button.color = "black";
+  button.background = "grey";
   button.onPointerClickObservable.add(() => {
     ipcRenderer.send(meshName, "requestReset");
   });
   return button;
 }
 
-const buildCorrectionSlider = (meshName: string) => {
+const buildCorrectionSlider = (meshName: string, requestName: string) => {
   const slider = new Slider();
-  slider.height = "30px";
-  slider.width = "260px";
+  slider.height = "35px";
+  slider.paddingBottom = "5px";
   slider.minimum = -100;
   slider.maximum = 100;
   slider.value = 0;
+  slider.color = "transparent";
+  slider.thumbColor = "grey";
+  slider.borderColor = "black";
   slider.onValueChangedObservable.add((value) => {
-    ipcRenderer.send(meshName, "requestPower", value);
+    ipcRenderer.send(meshName, requestName, value);
   });
   slider.onPointerUpObservable.add(() => {
     slider.value = 0;
@@ -211,6 +233,7 @@ const buildModeDisplayButton = (guiTexture) => {
   button.height = "35px";
   button.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
   button.background = "grey";
+  button.color = "black";
   button.onPointerClickObservable.add(() => {
     if(guiTexture.modeSelection) {
       guiTexture.modeSelection.isVisible = !guiTexture.modeSelection.isVisible;
