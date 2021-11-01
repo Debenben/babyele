@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { HubAbstraction, LEDAbstraction } from "./interfaces";
 import { Leg } from "./leg";
-import { Modes, Legs, MotorMap, allowSwitch, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
+import { Modes, Legs, MotorMap, allowSwitch, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH, LEG_MOUNT_HEIGHT } from "./param";
 
 export class Dog {
   mainWindow: BrowserWindow
@@ -12,7 +12,7 @@ export class Dog {
   leds: Record<string, LEDAbstraction> = {}
   color: number = 0
   stepWidth: number = 80 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
-  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (2*this.stepWidth)**2) // max radius for (pos0) and (pos3)
+  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT)**2 - (2*this.stepWidth)**2) // max radius for (pos0) and (pos3)
   stepLow: number = this.stepHeight - 0.18*LEG_SEPARATION_WIDTH**2/this.stepHeight // CM moves 0.17*width from center to side
   stepUp: number = this.stepLow - 20
 
@@ -193,16 +193,16 @@ export class Dog {
   }
 
   move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
-    const bl = this.legs[Legs.BACKLEFT].setPosition.bind(this.legs[Legs.BACKLEFT]);
-    const fl = this.legs[Legs.FRONTLEFT].setPosition.bind(this.legs[Legs.FRONTLEFT]);
-    const fr = this.legs[Legs.FRONTRIGHT].setPosition.bind(this.legs[Legs.FRONTRIGHT]);
-    const br = this.legs[Legs.BACKRIGHT].setPosition.bind(this.legs[Legs.BACKRIGHT]);
-    return Promise.all([ bl(backLeftHeight, backLeftXPos*this.stepWidth), fl(frontLeftHeight, frontLeftXPos*this.stepWidth), fr(frontRightHeight, frontRightXPos*this.stepWidth), br(backRightHeight, backRightXPos*this.stepWidth) ]);
+    const bl = this.legs[Legs.BACKLEFT].requestPosition.bind(this.legs[Legs.BACKLEFT]);
+    const fl = this.legs[Legs.FRONTLEFT].requestPosition.bind(this.legs[Legs.FRONTLEFT]);
+    const fr = this.legs[Legs.FRONTRIGHT].requestPosition.bind(this.legs[Legs.FRONTRIGHT]);
+    const br = this.legs[Legs.BACKRIGHT].requestPosition.bind(this.legs[Legs.BACKRIGHT]);
+    return Promise.all([ bl({forward:backLeftXPos*this.stepWidth, height:backLeftHeight, sideways:0}), fl({forward:frontLeftXPos*this.stepWidth, height:frontLeftHeight, sideways:0}), fr({forward:frontRightXPos*this.stepWidth, height:frontRightHeight, sideways:0}), br({forward:backRightXPos*this.stepWidth, height:backRightHeight, sideways:0})]);
   }
 }
 
 const getReady = async (dog: Dog) => {
-  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
+  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT;
   const g = dog.stepHeight + 5;
   const h = dog.stepHeight;
   const k = dog.stepLow + 5;
@@ -232,7 +232,7 @@ const getReady = async (dog: Dog) => {
 }
 
 const getStanding = async (dog: Dog) => {
-  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
+  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT;
   const g = dog.stepHeight + 5;
   const h = dog.stepHeight;
   const k = dog.stepLow + 5;
@@ -307,17 +307,17 @@ const forward = async (dog: Dog) => {
 }
 
 const getDown = async (dog: Dog) => {
-  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM;
-  const bl = dog.legs[Legs.BACKLEFT].setPosition.bind(dog.legs[Legs.BACKLEFT]);
-  const fl = dog.legs[Legs.FRONTLEFT].setPosition.bind(dog.legs[Legs.FRONTLEFT]);
-  const fr = dog.legs[Legs.FRONTRIGHT].setPosition.bind(dog.legs[Legs.FRONTRIGHT]);
-  const br = dog.legs[Legs.BACKRIGHT].setPosition.bind(dog.legs[Legs.BACKRIGHT]);
+  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT;
+  const bl = dog.legs[Legs.BACKLEFT].requestPosition.bind(dog.legs[Legs.BACKLEFT]);
+  const fl = dog.legs[Legs.FRONTLEFT].requestPosition.bind(dog.legs[Legs.FRONTLEFT]);
+  const fr = dog.legs[Legs.FRONTRIGHT].requestPosition.bind(dog.legs[Legs.FRONTRIGHT]);
+  const br = dog.legs[Legs.BACKRIGHT].requestPosition.bind(dog.legs[Legs.BACKRIGHT]);
   dog.legs[Legs.BACKLEFT].bendForward = true;
   dog.legs[Legs.FRONTLEFT].bendForward = false;
   dog.legs[Legs.FRONTRIGHT].bendForward = false;
   dog.legs[Legs.BACKRIGHT].bendForward = true;
   await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
-  await Promise.all([ bl(0, -0.5*s), fl(0,  0.5*s), fr(0,  0.5*s), br(0, -0.5*s) ]);
+  await Promise.all([ bl({forward:-0.5*s, height:0, sideways:0}), fl({forward:0.5*s, height:0, sideways:0}), fr({forward:0.5*s, height:0, sideways:0}), br({forward:-0.5*s, height:0, sideways:0}) ]);
   dog.mode = Modes.DOWN;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }

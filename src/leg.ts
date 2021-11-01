@@ -117,20 +117,28 @@ export class Leg {
   }
 
   requestPosition(position: Position) {
-    console.log("@@@@@@@@@@@@ request position " + toArray(position));
-    const alpha = Math.atan2(position.sideways, position.height);
-    const mLength = Math.sqrt(Math.abs(position.height**2 + (position.sideways + LEG_MOUNT_WIDTH)**1));
-    const gamma = Math.asin(LEG_MOUNT_WIDTH/mLength);
-    const beta = alpha - gamma;
-    const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, beta+Math.PI/2);
-    this.destMotorAngles['Mount'] = (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges['Mount'];
-
+    const mAngle = Math.atan2(position.sideways + LEG_MOUNT_WIDTH, position.height);
+    const mLength = position.height/Math.cos(mAngle);
     const mHeight = Math.sqrt(Math.abs(mLength**2 - LEG_MOUNT_WIDTH**2));
-    this.setPosition(mHeight + LEG_MOUNT_HEIGHT, position.forward);
+    const destMountAngle = mAngle - Math.atan2(LEG_MOUNT_WIDTH, mHeight);
+    const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, destMountAngle+Math.PI/2);
+    this.destMotorAngles['Mount'] = (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges['Mount'];
+    const tbHeight = mHeight + LEG_MOUNT_HEIGHT
+    const tbLength = Math.sqrt(tbHeight**2 + position.forward**2);
+    const phi = Math.atan2(position.forward, tbHeight);
+    const alpha = invCosLaw(tbLength, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM);
+    let destTopAngle = phi + alpha;
+    let destBottomAngle = Math.acos((LEG_LENGTH_TOP/LEG_LENGTH_BOTTOM)*Math.cos(Math.PI/2 - alpha)) - alpha - Math.PI/2;
+    if(this.bendForward) {
+      destTopAngle = phi - alpha;
+      destBottomAngle *= -1;
+    }
+    this.destMotorAngles['Top'] = destTopAngle*this.motorRanges['Top']/Math.PI;
+    this.destMotorAngles['Bottom'] = destBottomAngle*this.motorRanges['Bottom']/Math.PI;
+    return this.motorLoop();
   }
 
   requestMoveSpeed(speed: Position) {
-    console.log("@@@@@@@@@@@@ request speed " + toArray(speed));
     this.moveSpeed = speed;
     if(!speed) {
       clearInterval(this.moveSpeedIntervalID);
@@ -144,31 +152,13 @@ export class Leg {
       this.moveSpeedIntervalID = setInterval(() => {
         const position = toArray(this.startMovePosition).map((n,i) => {
           if(toArray(this.moveSpeed)[i] != 0) {
-            return toArray(this.getPosition())[i] - toArray(this.moveSpeed)[i]/10;
+            return toArray(this.getPosition())[i] + toArray(this.moveSpeed)[i]/10;
 	  }
 	  return n;
 	});
         this.requestPosition(fromArray(position));
       }, 100);
     }
-  }
-
-  setPosition(h: number, x: number) {
-    const l = Math.sqrt(h**2 + x**2);
-    const phi = Math.atan2(x, h);
-    const t = LEG_LENGTH_TOP;
-    const b = LEG_LENGTH_BOTTOM;
-    const alpha = invCosLaw(l, t, b);
-    let destTopAngle = phi + alpha;
-    let destBottomAngle = Math.acos((t/b)*Math.cos(Math.PI/2 - alpha)) - alpha - Math.PI/2;
-    if(this.bendForward) {
-      destTopAngle = phi - alpha;
-      destBottomAngle *= -1;
-    }
-
-    this.destMotorAngles['Top'] = destTopAngle*this.motorRanges['Top']/Math.PI;
-    this.destMotorAngles['Bottom'] = destBottomAngle*this.motorRanges['Bottom']/Math.PI;
-    return this.motorLoop();
   }
 
   getAngle(motorName: string) {
