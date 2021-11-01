@@ -80,6 +80,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   destRotation: number
   speed: number
   speedIntervalID: NodeJS.Timeout
+  token: Token
 
   constructor() {
     super();
@@ -110,6 +111,10 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     if(this.speedIntervalID) {
       return Promise.resolve();
     }
+    if(this.token) {
+      this.token.isCancellationRequested = true;
+      this.token = null;
+    }
     this.speedIntervalID = setInterval(() => {
       this.rotation += this.speed;
       this.emit('rotate', {degrees: this.rotation});
@@ -117,13 +122,24 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     return Promise.resolve();
   }
   rotateByDegrees(degrees: number, speed: number) {
+    if(this.speedIntervalID) {
+      this.setPower(0);
+    }
+    if(this.token) {
+      this.token.isCancellationRequested = true;
+    }
     this.speed = speed;
     this.destRotation = this.rotation + degrees*Math.sign(speed);
-    return this.motorLoop();
+    this.token = new Token();
+    return this.motorLoop(this.token);
   }
 
-  async motorLoop() {
+  async motorLoop(token: Token) {
     while(this.rotation != this.destRotation) {
+      if(token.isCancellationRequested) {
+        console.log("simulation motor rotateByDegree is cancelled");
+        return Promise.resolve();
+      }
       console.log("simulation motor rotating with speed " + this.speed + " from " + this.rotation + " to " + this.destRotation);
       if(Math.abs(this.destRotation - this.rotation) < Math.abs(this.speed)) {
         this.rotation = this.destRotation;
@@ -142,4 +158,8 @@ function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+class Token {
+  isCancellationRequested: boolean = false; 
 }

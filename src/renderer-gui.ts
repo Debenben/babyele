@@ -85,9 +85,10 @@ class Infobox extends StackPanel {
         ipcRenderer.on('notifyLegPosition', this.updatePosition);
         this.positionText = buildText("position: --");
         this.addControl(this.positionText);
-        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestXMove"));
-        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestYMove"));
-        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestZMove"));
+        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestMoveSpeedForward"));
+        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestMoveSpeedHeight"));
+        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestMoveSpeedSideways"));
+        ipcRenderer.send(this.name.replace("hub","leg"), "getProperties");
       }
       ipcRenderer.send("getHubProperties");
     }

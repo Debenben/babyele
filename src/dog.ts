@@ -90,7 +90,7 @@ export class Dog {
           const x = -tilt.x;
           const y = tilt.z;
           const z = -tilt.y;
-          return this.mainWindow.webContents.send('notifyTilt', 'hubFrontCenter', { x, y, z });
+          return this.mainWindow.webContents.send('notifyTilt', hubName, { x, y, z });
         });
       }
       this.init();
