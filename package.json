@@ -5,19 +5,50 @@
   "main": "./app/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "electron --no-sandbox ./app/main.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron-forge start",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
   },
   "author": "bene",
   "license": "ISC",
   "dependencies": {
     "babylonjs": "^4.2.0",
     "babylonjs-gui": "^4.2.0",
+    "electron-squirrel-startup": "^1.0.0",
     "node-poweredup": "^6.11.0"
   },
   "devDependencies": {
+    "@electron-forge/cli": "^6.0.0-beta.61",
+    "@electron-forge/maker-deb": "^6.0.0-beta.61",
+    "@electron-forge/maker-rpm": "^6.0.0-beta.61",
+    "@electron-forge/maker-squirrel": "^6.0.0-beta.61",
+    "@electron-forge/maker-zip": "^6.0.0-beta.61",
     "electron": "^11.5.0",
     "electron-rebuild": "2.3.5",
     "typescript": "^3.9.10"
+  },
+  "config": {
+    "forge": {
+      "packagerConfig": {},
+      "makers": [
+        {
+          "name": "@electron-forge/maker-squirrel",
+          "config": {
+            "name": "babyele"
+          }
+        },
+        {
+          "name": "@electron-forge/maker-zip",
+          "platforms": [
+            "darwin"
+          ]
+        },
+        {
+          "name": "@electron-forge/maker-deb",
+          "config": {}
+        }
+      ]
+    }
   }
 }
