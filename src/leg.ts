@@ -117,8 +117,8 @@ export class Leg {
   }
 
   requestPosition(position: Position) {
-    const mAngle = Math.atan2(position.sideways + LEG_MOUNT_WIDTH, position.height);
-    const mLength = position.height/Math.cos(mAngle);
+    const mAngle = Math.atan2(position.sideways + LEG_MOUNT_WIDTH, position.height + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT);
+    const mLength = (position.height + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT)/Math.cos(mAngle);
     const mHeight = Math.sqrt(Math.abs(mLength**2 - LEG_MOUNT_WIDTH**2));
     const destMountAngle = mAngle - Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, destMountAngle+Math.PI/2);
@@ -179,7 +179,7 @@ export class Leg {
     const mHeight = LEG_LENGTH_TOP*Math.cos(tAngle) + LEG_LENGTH_BOTTOM*Math.cos(bAngle) - LEG_MOUNT_HEIGHT;
     const mAngle = this.getAngle('Mount') + Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const mLength = Math.sqrt(Math.abs(mHeight**2 + LEG_MOUNT_WIDTH**2));
-    position.height = mLength*Math.cos(mAngle);
+    position.height = mLength*Math.cos(mAngle) + LEG_MOUNT_HEIGHT - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM);
     position.sideways = mLength*Math.sin(mAngle) - LEG_MOUNT_WIDTH;
     return position;
   } 

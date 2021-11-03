@@ -6,7 +6,6 @@ import { Modes } from "./param"
 
 let mainWindow: Electron.BrowserWindow;
 let dog: Dog;
-const simulation: boolean = true;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -34,7 +33,8 @@ function createWindow() {
 
 function createDog() {
   dog = new Dog(mainWindow);
-  if(simulation) {
+  //if(String(process.argv[1]).includes('--simulation')) {
+  if(true) {
     console.log("Starting simulation...");
     let simulation = import("./simulation").then( module => {
       dog.addHub(new module.SimulationHub("BeneLego1"));

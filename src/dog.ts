@@ -12,8 +12,8 @@ export class Dog {
   leds: Record<string, LEDAbstraction> = {}
   color: number = 0
   stepWidth: number = 80 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
-  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT)**2 - (2*this.stepWidth)**2) // max radius for (pos0) and (pos3)
-  stepLow: number = this.stepHeight - 0.18*LEG_SEPARATION_WIDTH**2/this.stepHeight // CM moves 0.17*width from center to side
+  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (2*this.stepWidth)**2) - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM) // min height for (pos0) and (pos3)
+  stepLow: number = this.stepHeight - 0.18*LEG_SEPARATION_WIDTH**2/(LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM) // CM moves 0.17*width from center to side
   stepUp: number = this.stepLow - 20
 
   constructor(mainWindow: BrowserWindow) {
@@ -202,7 +202,7 @@ export class Dog {
 }
 
 const getReady = async (dog: Dog) => {
-  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT;
+  const s = 0;
   const g = dog.stepHeight + 5;
   const h = dog.stepHeight;
   const k = dog.stepLow + 5;
@@ -232,7 +232,7 @@ const getReady = async (dog: Dog) => {
 }
 
 const getStanding = async (dog: Dog) => {
-  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT;
+  const s = 0;
   const g = dog.stepHeight + 5;
   const h = dog.stepHeight;
   const k = dog.stepLow + 5;
@@ -307,7 +307,7 @@ const forward = async (dog: Dog) => {
 }
 
 const getDown = async (dog: Dog) => {
-  const s = LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT;
+  const d = -0.9*(LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM);
   const bl = dog.legs[Legs.BACKLEFT].requestPosition.bind(dog.legs[Legs.BACKLEFT]);
   const fl = dog.legs[Legs.FRONTLEFT].requestPosition.bind(dog.legs[Legs.FRONTLEFT]);
   const fr = dog.legs[Legs.FRONTRIGHT].requestPosition.bind(dog.legs[Legs.FRONTRIGHT]);
@@ -316,8 +316,8 @@ const getDown = async (dog: Dog) => {
   dog.legs[Legs.FRONTLEFT].bendForward = false;
   dog.legs[Legs.FRONTRIGHT].bendForward = false;
   dog.legs[Legs.BACKRIGHT].bendForward = true;
-  await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
-  await Promise.all([ bl({forward:-0.5*s, height:0, sideways:0}), fl({forward:0.5*s, height:0, sideways:0}), fr({forward:0.5*s, height:0, sideways:0}), br({forward:-0.5*s, height:0, sideways:0}) ]);
+  await dog.move( 0,   0,   0,   0,       0,   0,   0,   0 );//0
+  await Promise.all([ bl({forward:0.5*d, height:d, sideways:0}), fl({forward:-0.5*d, height:d, sideways:0}), fr({forward:-0.5*d, height:d, sideways:0}), br({forward:0.5*d, height:d, sideways:0}) ]);
   dog.mode = Modes.DOWN;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
