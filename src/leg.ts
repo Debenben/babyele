@@ -1,16 +1,17 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { MotorAbstraction } from "./interfaces";
-import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
+import { MotorAbstraction, Position } from "./interfaces";
+import { NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
+
+type MotorName = 'Top'|'Bottom'|'Mount'
 
 export class Leg {
   legName: string
   mainWindow: BrowserWindow
-  motors: Record<string, MotorAbstraction> = {}
-  motorRanges: Record<string, number> = {}
-  motorAngles: Record<string, number> = {}
-  destMotorAngles: Record<string, number> = {}
+  motors: Record<MotorName, MotorAbstraction> = {Top: null, Bottom: null, Mount: null}
+  motorRanges: Record<MotorName, number> = {Top: 0, Bottom: 0, Mount: 0}
+  motorAngles: Record<MotorName, number> = {Top: 0, Bottom: 0, Mount: 0}
+  destMotorAngles: Record<MotorName, number> = {Top: 0, Bottom: 0, Mount: 0}
   bendForward: boolean = true
-  noMoveMotorAngle: number = 3
   moveSpeed: Position
   startMovePosition: Position
   moveSpeedIntervalID: NodeJS.Timeout
@@ -20,9 +21,9 @@ export class Leg {
   //motorRange for mount motor = rotation in degree needed for one millimeter piston extension
     this.legName = legName;
     this.mainWindow = mainWindow;
-    this.motorRanges["Top"] = topMotorRange;
-    this.motorRanges["Bottom"] = bottomMotorRange;
-    this.motorRanges["Mount"] = mountMotorRange;
+    this.motorRanges.Top = topMotorRange;
+    this.motorRanges.Bottom = bottomMotorRange;
+    this.motorRanges.Mount = mountMotorRange;
     ipcMain.on(this.legName, (event, arg1, arg2) => {
       if(arg1.startsWith("requestMoveSpeed")) {
 	if(arg2 === 0) {
@@ -63,8 +64,6 @@ export class Leg {
       return true;
     }
     this.motors[motorName] = motor;
-    this.motorAngles[motorName] = 0;
-    this.destMotorAngles[motorName] = 0;
     if(motor) {
       motor.setBrakingStyle(127); //Consts.BrakingStyle.BRAKE
       motor.setAccelerationTime(200);
@@ -96,11 +95,11 @@ export class Leg {
   }
 
   motorLoop() {
-    var motorNames = ['Top', 'Bottom', 'Mount'];
-    motorNames = motorNames.filter(n => this.motors[n] && Math.abs(this.destMotorAngles[n] - this.motorAngles[n]) > this.noMoveMotorAngle);
-    var diffMotorAngles = motorNames.map(n => (this.destMotorAngles[n] - this.motorAngles[n]));
-    var motorSpeeds = diffMotorAngles.map(diff => (10*Math.sign(diff) + 90*diff/Math.max.apply(null, diffMotorAngles.map(Math.abs))));
-    var promises = motorNames.map((n,i) => this.motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), motorSpeeds[i]));
+    let motorNames = Object.keys(this.motors);
+    motorNames = motorNames.filter(n => this.motors[n] && Math.abs(this.destMotorAngles[n] - this.motorAngles[n]) > NO_MOVE_MOTOR_ANGLE);
+    const diffMotorAngles = motorNames.map(n => (this.destMotorAngles[n] - this.motorAngles[n]));
+    const motorSpeeds = diffMotorAngles.map(diff => (10*Math.sign(diff) + 90*diff/Math.max.apply(null, diffMotorAngles.map(Math.abs))));
+    const promises = motorNames.map((n,i) => this.motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), motorSpeeds[i]));
     return Promise.all(promises);
   }
 
@@ -116,7 +115,7 @@ export class Leg {
     }
   }
 
-  requestPosition(position: Position) {
+  setPosition(position: Position) {
     const mAngle = Math.atan2(position.sideways + LEG_MOUNT_WIDTH, position.height + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT);
     const mLength = (position.height + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT)/Math.cos(mAngle);
     const mHeight = Math.sqrt(Math.abs(mLength**2 - LEG_MOUNT_WIDTH**2));
@@ -135,6 +134,10 @@ export class Leg {
     }
     this.destMotorAngles['Top'] = destTopAngle*this.motorRanges['Top']/Math.PI;
     this.destMotorAngles['Bottom'] = destBottomAngle*this.motorRanges['Bottom']/Math.PI;
+  }
+
+  requestPosition(position: Position) {
+    this.setPosition(position);
     return this.motorLoop();
   }
 
@@ -172,23 +175,16 @@ export class Leg {
   }
 
   getPosition() {
-    const position = new Position();
     const tAngle = this.getAngle('Top');
     const bAngle = this.getAngle('Bottom') + tAngle;
-    position.forward = (LEG_LENGTH_TOP*Math.sin(tAngle) + LEG_LENGTH_BOTTOM*Math.sin(bAngle));
+    const forward = (LEG_LENGTH_TOP*Math.sin(tAngle) + LEG_LENGTH_BOTTOM*Math.sin(bAngle));
     const mHeight = LEG_LENGTH_TOP*Math.cos(tAngle) + LEG_LENGTH_BOTTOM*Math.cos(bAngle) - LEG_MOUNT_HEIGHT;
     const mAngle = this.getAngle('Mount') + Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const mLength = Math.sqrt(Math.abs(mHeight**2 + LEG_MOUNT_WIDTH**2));
-    position.height = mLength*Math.cos(mAngle) + LEG_MOUNT_HEIGHT - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM);
-    position.sideways = mLength*Math.sin(mAngle) - LEG_MOUNT_WIDTH;
-    return position;
+    const height = mLength*Math.cos(mAngle) + LEG_MOUNT_HEIGHT - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM);
+    const sideways = mLength*Math.sin(mAngle) - LEG_MOUNT_WIDTH;
+    return {forward:forward, height:height, sideways:sideways};
   } 
-}
-
-class Position {
-  forward: number
-  height: number
-  sideways: number
 }
 
 const toArray = (position: Position) => {
@@ -199,7 +195,7 @@ const toArray = (position: Position) => {
 }
 
 const fromArray = (array: number[]) => {
-  return {forward: array[0], height: array[1], sideways: array[2]};
+  return {forward:array[0], height:array[1], sideways:array[2]};
 }
 
 const cosLaw = (rSide: number, lSide: number, angle: number) => {

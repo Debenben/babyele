@@ -22,3 +22,9 @@ export interface MotorAbstraction extends EventEmitter {
   setPower: (power: number) => Promise<void>;
   rotateByDegrees: (degrees: number, speed: number) => Promise<void>;
 }
+
+export interface Position {
+  forward: number
+  height: number
+  sideways: number
+}

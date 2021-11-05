@@ -32,13 +32,6 @@ export const allowSwitch = (fromMode: Modes, toMode: Modes) => {
   }
 }
 
-export enum Legs {
-  FRONTRIGHT = "legFrontRight",
-  FRONTLEFT = "legFrontLeft",
-  BACKRIGHT = "legBackRight",
-  BACKLEFT = "legBackLeft",
-}
-
 export const MotorMap = {
   "BeneLego3": {
     "name": "hubFrontCenter",
@@ -81,3 +74,5 @@ export const LEG_MOUNT_WIDTH = 60.0; // distance from middle of leg to mount rot
 export const LEG_PISTON_HEIGHT = 120.0; // distance from bootom of leg mount to top of piston
 export const LEG_PISTON_WIDTH = 140.0; // distance from bootom of leg mount to bottom of piston
 export const LEG_PISTON_LENGTH = 184.3; // length of piston when leg is vertical
+
+export const NO_MOVE_MOTOR_ANGLE = 3; 

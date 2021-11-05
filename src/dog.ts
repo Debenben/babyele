@@ -1,16 +1,19 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { HubAbstraction, LEDAbstraction } from "./interfaces";
+import { HubAbstraction, LEDAbstraction, MotorAbstraction, Position } from "./interfaces";
 import { Leg } from "./leg";
-import { Modes, Legs, MotorMap, allowSwitch, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH, LEG_MOUNT_HEIGHT } from "./param";
+import { Modes, MotorMap, allowSwitch, NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
+
+type LegName = 'legFrontRight' | 'legFrontLeft' | 'legBackRight' | 'legBackLeft'
 
 export class Dog {
   mainWindow: BrowserWindow
   mode: Modes = Modes.OFFLINE
   modeQueue: Modes [] = []
-  legs: Record<string, Leg> = {}
+  legs: Record<LegName, Leg> = {legFrontLeft: null, legFrontRight: null, legBackRight: null, legBackLeft: null} 
   hubs: Record<string, HubAbstraction> = {}
   leds: Record<string, LEDAbstraction> = {}
   color: number = 0
+  dogPosition: Position = {forward: 0, height: 0, sideways: 0}
   stepWidth: number = 80 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
   stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (2*this.stepWidth)**2) - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM) // min height for (pos0) and (pos3)
   stepLow: number = this.stepHeight - 0.18*LEG_SEPARATION_WIDTH**2/(LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM) // CM moves 0.17*width from center to side
@@ -18,10 +21,10 @@ export class Dog {
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-    this.legs[Legs.FRONTLEFT] = new Leg(Legs.FRONTLEFT, this.mainWindow, 7415, -8064, 100);
-    this.legs[Legs.FRONTRIGHT] = new Leg(Legs.FRONTRIGHT, this.mainWindow, -7415, 8064, 100);
-    this.legs[Legs.BACKLEFT] = new Leg(Legs.BACKLEFT, this.mainWindow, 7415, -13593, 100);
-    this.legs[Legs.BACKRIGHT] = new Leg(Legs.BACKRIGHT, this.mainWindow, -7415, 13593, 100);
+    this.legs.legFrontLeft = new Leg('legFrontLeft', this.mainWindow, 7415, -8064, 100);
+    this.legs.legFrontRight = new Leg('legFrontRight', this.mainWindow, -7415, 8064, 100);
+    this.legs.legBackLeft = new Leg('legBackLeft', this.mainWindow, 7415, -13593, 100);
+    this.legs.legBackRight = new Leg('legBackRight', this.mainWindow, -7415, 13593, 100);
     setInterval(() => {
       for(var ledNum in this.leds) {
         if(this.leds[ledNum]) {
@@ -186,23 +189,44 @@ export class Dog {
   }
 
   setBendForward() {
-    this.legs[Legs.BACKLEFT].bendForward = true;
-    this.legs[Legs.FRONTLEFT].bendForward = true;
-    this.legs[Legs.FRONTRIGHT].bendForward = true;
-    this.legs[Legs.BACKRIGHT].bendForward = true;
+    for(let i in this.legs) {
+      this.legs[i].bendForward = true;
+    }
+  }
+
+  buildLegRecord = (recordName) => {
+    let record = {}
+    for(let legName of Object.keys(this.legs)) {
+      for(let motorName of ['Top', 'Bottom', 'Mount']) {
+        record[legName + motorName] = this.legs[legName][recordName][motorName];
+      }
+    }
+    return record;
+  }
+
+  motorLoop() {
+    const motors = this.buildLegRecord('motors');
+    const motorAngles = this.buildLegRecord('motorAngles');
+    const destMotorAngles = this.buildLegRecord('destMotorAngles');
+    let motorNames = Object.keys(motors);
+    motorNames = motorNames.filter(n => motors[n] && Math.abs(destMotorAngles[n] - motorAngles[n]) > NO_MOVE_MOTOR_ANGLE);
+    const diffMotorAngles = motorNames.map(n => (destMotorAngles[n] - motorAngles[n]))
+    const motorSpeeds = diffMotorAngles.map(diff => (10*Math.sign(diff) + 90*diff/Math.max.apply(null, diffMotorAngles.map(Math.abs))));
+    const promises = motorNames.map((n,i) => motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), motorSpeeds[i]));
+    return Promise.all(promises);
   }
 
   move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
-    const bl = this.legs[Legs.BACKLEFT].requestPosition.bind(this.legs[Legs.BACKLEFT]);
-    const fl = this.legs[Legs.FRONTLEFT].requestPosition.bind(this.legs[Legs.FRONTLEFT]);
-    const fr = this.legs[Legs.FRONTRIGHT].requestPosition.bind(this.legs[Legs.FRONTRIGHT]);
-    const br = this.legs[Legs.BACKRIGHT].requestPosition.bind(this.legs[Legs.BACKRIGHT]);
-    return Promise.all([ bl({forward:backLeftXPos*this.stepWidth, height:backLeftHeight, sideways:0}), fl({forward:frontLeftXPos*this.stepWidth, height:frontLeftHeight, sideways:0}), fr({forward:frontRightXPos*this.stepWidth, height:frontRightHeight, sideways:0}), br({forward:backRightXPos*this.stepWidth, height:backRightHeight, sideways:0})]);
+    const bl = this.legs['legBackLeft'].setPosition.bind(this.legs['legBackLeft']);
+    const fl = this.legs['legFrontLeft'].setPosition.bind(this.legs['legFrontLeft']);
+    const fr = this.legs['legFrontRight'].setPosition.bind(this.legs['legFrontRight']);
+    const br = this.legs['legBackRight'].setPosition.bind(this.legs['legBackRight']);
+    Promise.all([ bl({forward:backLeftXPos*this.stepWidth, height:backLeftHeight, sideways:0}), fl({forward:frontLeftXPos*this.stepWidth, height:frontLeftHeight, sideways:0}), fr({forward:frontRightXPos*this.stepWidth, height:frontRightHeight, sideways:0}), br({forward:backRightXPos*this.stepWidth, height:backRightHeight, sideways:0})]);
+    return this.motorLoop();
   }
 }
 
 const getReady = async (dog: Dog) => {
-  const s = 0;
   const g = dog.stepHeight + 5;
   const h = dog.stepHeight;
   const k = dog.stepLow + 5;
@@ -210,7 +234,7 @@ const getReady = async (dog: Dog) => {
   const u = dog.stepUp;
   await dog.setBendForward();
   if(dog.mode === Modes.STANDING) {
-    await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
+    await dog.move( 0,   0,   0,   0,       0,   0,   0,   0 );//0
     await dog.move( g,  -1,   h,  -1,       h,  -1,   g,  -1 );//1
     await dog.move( k,  -1,   l,  -1,       h,  -1,   g,  -1 );//2
     await dog.move( k,  -1,   l,  -1,       h,  -1,   u,  -1 );//3
@@ -232,7 +256,6 @@ const getReady = async (dog: Dog) => {
 }
 
 const getStanding = async (dog: Dog) => {
-  const s = 0;
   const g = dog.stepHeight + 5;
   const h = dog.stepHeight;
   const k = dog.stepLow + 5;
@@ -256,7 +279,7 @@ const getStanding = async (dog: Dog) => {
     await dog.move( g,  -1,   h,  -1,       h,  -1,   g,  -1 );//1
   }
   await dog.setBendForward();
-  await dog.move( s,   0,   s,   0,       s,   0,   s,   0 );//0
+  await dog.move( 0,   0,   0,   0,       0,   0,   0,   0 );//0
   dog.mode = Modes.STANDING;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
@@ -308,16 +331,17 @@ const forward = async (dog: Dog) => {
 
 const getDown = async (dog: Dog) => {
   const d = -0.9*(LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM);
-  const bl = dog.legs[Legs.BACKLEFT].requestPosition.bind(dog.legs[Legs.BACKLEFT]);
-  const fl = dog.legs[Legs.FRONTLEFT].requestPosition.bind(dog.legs[Legs.FRONTLEFT]);
-  const fr = dog.legs[Legs.FRONTRIGHT].requestPosition.bind(dog.legs[Legs.FRONTRIGHT]);
-  const br = dog.legs[Legs.BACKRIGHT].requestPosition.bind(dog.legs[Legs.BACKRIGHT]);
-  dog.legs[Legs.BACKLEFT].bendForward = true;
-  dog.legs[Legs.FRONTLEFT].bendForward = false;
-  dog.legs[Legs.FRONTRIGHT].bendForward = false;
-  dog.legs[Legs.BACKRIGHT].bendForward = true;
+  const bl = dog.legs['legBackLeft'].setPosition.bind(dog.legs['legBackLeft']);
+  const fl = dog.legs['legFrontLeft'].setPosition.bind(dog.legs['legFrontLeft']);
+  const fr = dog.legs['legFrontRight'].setPosition.bind(dog.legs['legFrontRight']);
+  const br = dog.legs['legBackRight'].setPosition.bind(dog.legs['legBackRight']);
+  dog.legs['legBackLeft'].bendForward = true;
+  dog.legs['legFrontLeft'].bendForward = false;
+  dog.legs['legFrontRight'].bendForward = false;
+  dog.legs['legBackRight'].bendForward = true;
   await dog.move( 0,   0,   0,   0,       0,   0,   0,   0 );//0
   await Promise.all([ bl({forward:0.5*d, height:d, sideways:0}), fl({forward:-0.5*d, height:d, sideways:0}), fr({forward:-0.5*d, height:d, sideways:0}), br({forward:0.5*d, height:d, sideways:0}) ]);
+  await dog.motorLoop();
   dog.mode = Modes.DOWN;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
