@@ -75,4 +75,7 @@ export const LEG_PISTON_HEIGHT = 120.0; // distance from bootom of leg mount to 
 export const LEG_PISTON_WIDTH = 140.0; // distance from bootom of leg mount to bottom of piston
 export const LEG_PISTON_LENGTH = 184.3; // length of piston when leg is vertical
 
-export const NO_MOVE_MOTOR_ANGLE = 3; 
+export const NO_MOVE_MOTOR_ANGLE = 3;
+export const TOP_MOTOR_RANGE = 7415; // motor rotation in degree needed for rotation of top leg segment by pi
+export const BOTTOM_MOTOR_RANGE = 13593; // motor rotation in degree needed for rotation of bottom leg segment by pi
+export const MOUNT_MOTOR_RANGE = 100; // motor rotation in degree needed for one millimeter piston extension

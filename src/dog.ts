@@ -1,19 +1,21 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { HubAbstraction, LEDAbstraction, MotorAbstraction, Position } from "./interfaces";
 import { Leg } from "./leg";
+import { HubAbstraction, LEDAbstraction, MotorAbstraction } from "./interfaces";
+import { LegName, Position, fromArray, toArray, add, multiply } from "./tools";
 import { Modes, MotorMap, allowSwitch, NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
-
-type LegName = 'legFrontRight' | 'legFrontLeft' | 'legBackRight' | 'legBackLeft'
 
 export class Dog {
   mainWindow: BrowserWindow
   mode: Modes = Modes.OFFLINE
   modeQueue: Modes [] = []
-  legs: Record<LegName, Leg> = {legFrontLeft: null, legFrontRight: null, legBackRight: null, legBackLeft: null} 
+  legs: Record<LegName, Leg>
   hubs: Record<string, HubAbstraction> = {}
   leds: Record<string, LEDAbstraction> = {}
   color: number = 0
   dogPosition: Position = {forward: 0, height: 0, sideways: 0}
+  moveSpeed: Position
+  startMovePositions: Record<LegName, Position>
+  moveSpeedIntervalID: NodeJS.Timeout
   stepWidth: number = 80 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
   stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (2*this.stepWidth)**2) - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM) // min height for (pos0) and (pos3)
   stepLow: number = this.stepHeight - 0.18*LEG_SEPARATION_WIDTH**2/(LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM) // CM moves 0.17*width from center to side
@@ -21,12 +23,9 @@ export class Dog {
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-    this.legs.legFrontLeft = new Leg('legFrontLeft', this.mainWindow, 7415, -8064, 100);
-    this.legs.legFrontRight = new Leg('legFrontRight', this.mainWindow, -7415, 8064, 100);
-    this.legs.legBackLeft = new Leg('legBackLeft', this.mainWindow, 7415, -13593, 100);
-    this.legs.legBackRight = new Leg('legBackRight', this.mainWindow, -7415, 13593, 100);
+    this.legs = {legFrontRight: new Leg('legFrontRight', mainWindow), legFrontLeft: new Leg('legFrontLeft', mainWindow), legBackRight: new Leg('legBackRight', mainWindow), legBackLeft: new Leg('legBackLeft', mainWindow)};
     setInterval(() => {
-      for(var ledNum in this.leds) {
+      for(let ledNum in this.leds) {
         if(this.leds[ledNum]) {
           this.leds[ledNum].setColor(((this.mode+7)%10+1)*(this.color%2));
 	}
@@ -34,9 +33,32 @@ export class Dog {
       this.color++;
     }, 1000);
     ipcMain.on("getHubProperties", () => {
-      for(var hubNum in this.hubs) {
+      for(let hubNum in this.hubs) {
         this.mainWindow.webContents.send('notifyBattery', hubNum, this.hubs[hubNum].batteryLevel);
         this.mainWindow.webContents.send('notifyRssi', hubNum, this.hubs[hubNum].rssi);
+      }
+    });
+    ipcMain.on("dog", (event, arg1, arg2) => {
+      if(arg1.startsWith("requestMoveSpeed")) {
+	if(arg2 === 0) {
+          this.requestMoveSpeed(null);
+        }
+	else {
+          switch(arg1) {
+            case "requestMoveSpeedForward":
+              this.requestMoveSpeed({forward: arg2, height: 0, sideways: 0});
+	      return;
+            case "requestMoveSpeedHeight":
+              this.requestMoveSpeed({forward: 0, height: arg2, sideways: 0});
+	      return;
+            case "requestMoveSpeedSideways":
+              this.requestMoveSpeed({forward: 0, height: 0, sideways: arg2});
+	      return;
+	  }
+        }
+      }
+      else if(arg1 === "getProperties") {
+        this.mainWindow.webContents.send('notifyDogPosition', "dog", this.dogPosition);
       }
     });
   }
@@ -104,11 +126,11 @@ export class Dog {
   }
 
   async init() {
-    var deviceComplete = true;
-    var hubComplete = true;
-    for(var hubNum in MotorMap) {
-      for(var portNum in MotorMap[hubNum]) {
-        for(var legNum in this.legs) {
+    let deviceComplete = true;
+    let hubComplete = true;
+    for(let hubNum in MotorMap) {
+      for(let portNum in MotorMap[hubNum]) {
+        for(let legNum in this.legs) {
           try {
             deviceComplete = await this.legs[legNum].addMotor(MotorMap[hubNum][portNum], this.hubs[MotorMap[hubNum]["name"]].getDeviceAtPort(portNum)) && deviceComplete;
           }
@@ -216,12 +238,52 @@ export class Dog {
     return Promise.all(promises);
   }
 
+  requestMoveSpeed(speed: Position) {
+    this.moveSpeed = speed;
+    if(!speed) {
+      clearInterval(this.moveSpeedIntervalID);
+      this.moveSpeedIntervalID = null;
+    }
+    else if(this.moveSpeedIntervalID) {
+      return;
+    }
+    else {
+      this.startMovePositions = {legBackLeft: this.legs.legBackLeft.getPosition(), legBackRight: this.legs.legBackRight.getPosition(), legFrontLeft: this.legs.legFrontLeft.getPosition(), legFrontRight: this.legs.legFrontRight.getPosition()};
+      this.moveSpeedIntervalID = setInterval(() => {
+        let averageDiff = {forward:0, height:0, sideways:0};
+        let averageStart = {forward:0, height:0, sideways:0};
+        for(let id in this.legs) {
+          averageDiff = add(averageDiff, multiply(0.25,(add(this.legs[id].getPosition(), multiply(-1,this.startMovePositions[id])))))
+          averageStart = add(averageStart, multiply(0.25,this.startMovePositions[id]))
+	}
+	this.dogPosition = add(averageStart, averageDiff);
+        this.mainWindow.webContents.send('notifyDogPosition', "dog", this.dogPosition);
+	for(let id in this.legs) {
+          const diffPosition = add(this.legs[id].getPosition(), multiply(-1,this.startMovePositions[id]));
+	  const syncSpeed = add(averageDiff, multiply(-1,diffPosition));
+          const position = toArray(this.startMovePositions[id]).map((n,i) => {
+            if(toArray(this.moveSpeed)[i] != 0) {
+              return toArray(this.legs[id].getPosition())[i] + toArray(syncSpeed)[i] + toArray(this.moveSpeed)[i]/10;
+            }
+            return n;
+	  });
+          this.legs[id].setPosition(fromArray(position));
+	}
+	return this.motorLoop();
+      }, 100);
+    }
+  }
+
   move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
     const bl = this.legs['legBackLeft'].setPosition.bind(this.legs['legBackLeft']);
+    const blp = add(this.dogPosition, {forward:backLeftXPos*this.stepWidth, height:backLeftHeight, sideways:0});
     const fl = this.legs['legFrontLeft'].setPosition.bind(this.legs['legFrontLeft']);
+    const flp = add(this.dogPosition, {forward:frontLeftXPos*this.stepWidth, height:frontLeftHeight, sideways:0});
     const fr = this.legs['legFrontRight'].setPosition.bind(this.legs['legFrontRight']);
+    const frp = add(this.dogPosition, {forward:frontRightXPos*this.stepWidth, height:frontRightHeight, sideways:0});
     const br = this.legs['legBackRight'].setPosition.bind(this.legs['legBackRight']);
-    Promise.all([ bl({forward:backLeftXPos*this.stepWidth, height:backLeftHeight, sideways:0}), fl({forward:frontLeftXPos*this.stepWidth, height:frontLeftHeight, sideways:0}), fr({forward:frontRightXPos*this.stepWidth, height:frontRightHeight, sideways:0}), br({forward:backRightXPos*this.stepWidth, height:backRightHeight, sideways:0})]);
+    const brp = add(this.dogPosition, {forward:backRightXPos*this.stepWidth, height:backRightHeight, sideways:0});
+    Promise.all([ bl(blp), fl(flp), fr(frp), br(brp)]);
     return this.motorLoop();
   }
 }
@@ -347,7 +409,7 @@ const getDown = async (dog: Dog) => {
 }
 
 const shutdown = async (dog: Dog) => {
-  for(var hubNum in dog.hubs) {
+  for(let hubNum in dog.hubs) {
     dog.hubs[hubNum].shutdown();
   }
 }

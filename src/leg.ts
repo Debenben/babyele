@@ -1,14 +1,13 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { MotorAbstraction, Position } from "./interfaces";
-import { NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
-
-type MotorName = 'Top'|'Bottom'|'Mount'
+import { MotorAbstraction } from "./interfaces";
+import { MotorName, LegName, Position, fromArray, toArray, cosLaw, invCosLaw } from "./tools";
+import { NO_MOVE_MOTOR_ANGLE, TOP_MOTOR_RANGE, BOTTOM_MOTOR_RANGE, MOUNT_MOTOR_RANGE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
 
 export class Leg {
-  legName: string
+  legName: LegName
   mainWindow: BrowserWindow
   motors: Record<MotorName, MotorAbstraction> = {Top: null, Bottom: null, Mount: null}
-  motorRanges: Record<MotorName, number> = {Top: 0, Bottom: 0, Mount: 0}
+  motorRanges: Record<MotorName, number> = {Top: TOP_MOTOR_RANGE, Bottom: BOTTOM_MOTOR_RANGE, Mount: MOUNT_MOTOR_RANGE}
   motorAngles: Record<MotorName, number> = {Top: 0, Bottom: 0, Mount: 0}
   destMotorAngles: Record<MotorName, number> = {Top: 0, Bottom: 0, Mount: 0}
   bendForward: boolean = true
@@ -16,14 +15,9 @@ export class Leg {
   startMovePosition: Position
   moveSpeedIntervalID: NodeJS.Timeout
 
-  constructor(legName, mainWindow, topMotorRange, bottomMotorRange, mountMotorRange) {
-  //motorRange for top and bottom motor = rotation in degree needed for pi forward rotation of segment
-  //motorRange for mount motor = rotation in degree needed for one millimeter piston extension
+  constructor(legName: LegName, mainWindow: BrowserWindow) {
     this.legName = legName;
     this.mainWindow = mainWindow;
-    this.motorRanges.Top = topMotorRange;
-    this.motorRanges.Bottom = bottomMotorRange;
-    this.motorRanges.Mount = mountMotorRange;
     ipcMain.on(this.legName, (event, arg1, arg2) => {
       if(arg1.startsWith("requestMoveSpeed")) {
 	if(arg2 === 0) {
@@ -116,6 +110,9 @@ export class Leg {
   }
 
   setPosition(position: Position) {
+    if(this.legName.endsWith("Left")) {
+      position.sideways *= -1;
+    }
     const mAngle = Math.atan2(position.sideways + LEG_MOUNT_WIDTH, position.height + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT);
     const mLength = (position.height + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT)/Math.cos(mAngle);
     const mHeight = Math.sqrt(Math.abs(mLength**2 - LEG_MOUNT_WIDTH**2));
@@ -128,7 +125,7 @@ export class Leg {
     const alpha = invCosLaw(tbLength, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM);
     let destTopAngle = phi + alpha;
     let destBottomAngle = Math.acos((LEG_LENGTH_TOP/LEG_LENGTH_BOTTOM)*Math.cos(Math.PI/2 - alpha)) - alpha - Math.PI/2;
-    if(this.bendForward) {
+    if(!this.bendForward) {
       destTopAngle = phi - alpha;
       destBottomAngle *= -1;
     }
@@ -182,29 +179,10 @@ export class Leg {
     const mAngle = this.getAngle('Mount') + Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const mLength = Math.sqrt(Math.abs(mHeight**2 + LEG_MOUNT_WIDTH**2));
     const height = mLength*Math.cos(mAngle) + LEG_MOUNT_HEIGHT - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM);
-    const sideways = mLength*Math.sin(mAngle) - LEG_MOUNT_WIDTH;
+    let sideways = mLength*Math.sin(mAngle) - LEG_MOUNT_WIDTH;
+    if(this.legName.endsWith("Left")) {
+      sideways *= -1;
+    }
     return {forward:forward, height:height, sideways:sideways};
   } 
-}
-
-const toArray = (position: Position) => {
-  if(position) {
-    return [position.forward, position.height, position.sideways];
-  }
-  return null;
-}
-
-const fromArray = (array: number[]) => {
-  return {forward:array[0], height:array[1], sideways:array[2]};
-}
-
-const cosLaw = (rSide: number, lSide: number, angle: number) => {
-  // returns the side length opposite of the angle in a triangle with rSide and lSide side lengths adjacent to the angle
-  return Math.sqrt(Math.abs(rSide**2 + lSide**2 - 2*rSide*lSide*Math.cos(angle)));
-}
-
-const invCosLaw = (rSide: number, lSide: number, oSide: number) => {
-  // returns angle in a triangle with rSide and lSide adjacent side lengths and oSide the side length opposite of the angle
-  const cosVal = (rSide**2 + lSide**2 - oSide**2)/(2*rSide*lSide);
-  return Math.acos(cosVal > 1.0 ? 1.0 : (cosVal < -1.0 ? -1.0 : cosVal));  
 }

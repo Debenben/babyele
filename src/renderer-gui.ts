@@ -1,5 +1,5 @@
 import * as BABYLON from 'babylonjs';
-import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel } from "babylonjs-gui";
+import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel, Grid } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Modes } from './param';
 import * as Param from './param';
@@ -35,7 +35,7 @@ export class GuiTexture {
     }
     this.infobox = new Infobox(meshName, preview, this.scene);
     this.texture.addControl(this.infobox);
-  }  
+  }
 }
 
 class Infobox extends StackPanel {
@@ -72,24 +72,36 @@ class Infobox extends StackPanel {
   addControls() {
     this.addControl(buildHeading(this.name));
     if(this.name.startsWith("hub")) {
+      const grid = new Grid("hubColumn");
       this.batteryText = buildText("battery: --");
+      grid.heightInPixels = this.batteryText.heightInPixels;
+      grid.widthInPixels = this.widthInPixels - 20;
+      grid.addColumnDefinition(0.5);
+      grid.addColumnDefinition(0.5);
       ipcRenderer.on('notifyBattery', this.updateBattery);
-      this.addControl(this.batteryText);
+      grid.addControl(this.batteryText, 0, 0);
       this.rssiText = buildText("rssi: --");
       ipcRenderer.on('notifyRssi', this.updateRssi);
-      this.addControl(this.rssiText);
+      grid.addControl(this.rssiText, 0, 1);
+      this.addControl(grid);
       this.tiltText = buildText("tilt: --");
       ipcRenderer.on('notifyTilt', this.updateTilt);
       this.addControl(this.tiltText);
-      if(!this.name.endsWith("Center")) {
-        ipcRenderer.on('notifyLegPosition', this.updatePosition);
-        this.positionText = buildText("position: --");
-        this.addControl(this.positionText);
-        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestMoveSpeedForward"));
-        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestMoveSpeedHeight"));
-        this.addControl(buildCorrectionSlider(this.name.replace("hub","leg"), "requestMoveSpeedSideways"));
-        ipcRenderer.send(this.name.replace("hub","leg"), "getProperties");
+      let sliderDest;
+      if(this.name.endsWith("Center")) {
+        sliderDest = "dog";
+        ipcRenderer.on('notifyDogPosition', this.updatePosition);
       }
+      else {
+        sliderDest = this.name.replace("hub","leg");
+        ipcRenderer.on('notifyLegPosition', this.updatePosition);
+      }
+      this.positionText = buildText("position: --");
+      this.addControl(this.positionText);
+      this.addControl(buildCorrectionSlider(sliderDest, "requestMoveSpeedForward"));
+      this.addControl(buildCorrectionSlider(sliderDest, "requestMoveSpeedHeight"));
+      this.addControl(buildCorrectionSlider(sliderDest, "requestMoveSpeedSideways"));
+      ipcRenderer.send(sliderDest, "getProperties");
       ipcRenderer.send("getHubProperties");
     }
     else {
@@ -107,7 +119,10 @@ class Infobox extends StackPanel {
       ipcRenderer.removeListener('notifyBattery', this.updateBattery);
       ipcRenderer.removeListener('notifyRssi', this.updateRssi);
       ipcRenderer.removeListener('notifyTilt', this.updateTilt);
-      if(!this.name.endsWith("Center")) {
+      if(this.name.endsWith("Center")) {
+        ipcRenderer.removeListener('notifyDogPosition', this.updatePosition);
+      }
+      else {
         ipcRenderer.removeListener('notifyLegPosition', this.updatePosition);
       }
     }
@@ -131,7 +146,7 @@ class Infobox extends StackPanel {
     }
   }
   updatePosition = (event, arg1, arg2) => {
-    if(arg1 === this.name.replace("hub","leg")) {
+    if(arg1 === this.name.replace("hub","leg") || (this.name.endsWith("Center") && arg1 === "dog")) {
       this.positionText.text = "position: " + arg2.forward.toFixed(0) + "  " + arg2.height.toFixed(0) + "  " + arg2.sideways.toFixed(0);
     }
   }

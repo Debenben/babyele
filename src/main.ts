@@ -20,6 +20,7 @@ function createWindow() {
       slashes: true,
   }));
 
+  mainWindow.removeMenu();
   mainWindow.webContents.openDevTools();
 
   // Emitted when the window is closed.
