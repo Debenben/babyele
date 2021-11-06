@@ -57,6 +57,9 @@ export class Dog {
 	  }
         }
       }
+      else if(arg1 === "requestMode") {
+        this.requestMode(arg2);
+      }
       else if(arg1 === "getProperties") {
         this.mainWindow.webContents.send('notifyDogPosition', "dog", this.dogPosition);
       }

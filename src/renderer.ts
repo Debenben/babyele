@@ -27,7 +27,7 @@ export default class Renderer {
     const glow = new BABYLON.GlowLayer("glow", scene);
     glow.intensity = 0.5;
     const background = buildBackground(scene, engine);
-    const ground = buildGround(scene);
+    const ground = buildGround(scene, engine);
     scene.registerBeforeRender(() => {
       if(!this.selectedItem) {
         ground.rotation.y += 0.001;
@@ -56,9 +56,9 @@ export default class Renderer {
     this.pickMaterial.specularColor = new BABYLON.Color3(0,0,0);
     this.pickMaterial.emissiveColor = new BABYLON.Color3(0.1,0.2,0.1);
     this.redMaterial = new BABYLON.StandardMaterial("redMat", scene);
-    this.redMaterial.diffuseColor = new BABYLON.Color3(1,0,0);
+    this.redMaterial.diffuseColor = new BABYLON.Color3(1,0.2,0.2);
     this.redMaterial.specularColor = new BABYLON.Color3(0,0,0);
-    this.redMaterial.emissiveColor = new BABYLON.Color3(0.2,0.1,0.1);
+    this.redMaterial.emissiveColor = new BABYLON.Color3(0.3,0.1,0.1);
 
     const frontHub = buildBody(scene, "hubFrontCenter");
     frontHub.parent = ground;
@@ -219,11 +219,11 @@ const unpreviewItem = (event) => {
 }
 
 const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
-  var rtt = new BABYLON.RenderTargetTexture("", 200, scene)
-  var background = new BABYLON.Layer("back", null, scene);
+  const backTexture = new BABYLON.RenderTargetTexture("backgroundTexture", 200, scene)
+  const background = new BABYLON.Layer("background", null, scene);
   background.isBackground = true;
-  background.texture = rtt;
-  var renderImage = new BABYLON.EffectWrapper({
+  background.texture = backTexture;
+  const renderImage = new BABYLON.EffectWrapper({
     engine: engine,
     fragmentShader: `
       varying vec2 vUV;
@@ -233,18 +233,41 @@ const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
     `
   });
   renderImage.effect.executeWhenCompiled(() => {
-    var effectRenderer = new BABYLON.EffectRenderer(engine);
-    effectRenderer.render(renderImage, rtt);
+    const effectRenderer = new BABYLON.EffectRenderer(engine);
+    effectRenderer.render(renderImage, backTexture);
   });
   return background;
 }
 
-const buildGround = (scene: BABYLON.Scene) => {
+const buildGround = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
+  const groundTexture = new BABYLON.RenderTargetTexture("groundTexture", 1200, scene)
+  groundTexture.hasAlpha = true;
+  const renderImage = new BABYLON.EffectWrapper({
+    engine: engine,
+    fragmentShader: `
+      varying vec2 vUV;
+      void main(void) {
+        float distance = (vUV.x - 0.5)*(vUV.x - 0.5) + (vUV.y - 0.5)*(vUV.y - 0.5);
+	if(cos(250.0*(vUV.x - 0.5)) > 0.98 && cos(250.0*(vUV.y - 0.5)) > 0.98) {
+          gl_FragColor = vec4(0.4, 0.6, 0.6, 1.0-5.0*distance);
+	}
+	else {
+          gl_FragColor = vec4(0.05, 0.1, 0.1, 1.0-70.0*distance*distance);
+	}
+      }
+    `
+  });
+  renderImage.effect.executeWhenCompiled(() => {
+    const effectRenderer = new BABYLON.EffectRenderer(engine);
+    effectRenderer.render(renderImage, groundTexture);
+  });
   const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-  groundMat.diffuseColor = new BABYLON.Color3(0.1,0.2,0.2);
+  groundMat.diffuseTexture = groundTexture;
+  groundMat.emissiveTexture = groundTexture;
+  groundMat.alphaCutOff = 0.4;
+  groundMat.useAlphaFromDiffuseTexture = true;
   groundMat.specularColor = new BABYLON.Color3(0,0.0,0.1);
-  groundMat.alpha = 0.7;
-  const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:800,height:800}, scene);
+  const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:2000,height:2000}, scene);
   ground.material = groundMat;
   ground.receiveShadows = true;
   ground.isPickable = false;
@@ -272,7 +295,7 @@ const buildBody = (scene: BABYLON.Scene, meshName: string) => {
 }
 
 const buildHub = (scene: BABYLON.Scene, meshName: string) => {
-  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:80, height:50, depth:60}, scene);
+  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:80, height:70, depth:60}, scene);
   hub.material = renderer.greyMaterial;
   hub.isPickable = false;
   hub.receiveShadows = true;

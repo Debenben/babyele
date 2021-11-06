@@ -1,5 +1,5 @@
 import * as BABYLON from 'babylonjs';
-import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel, Grid } from "babylonjs-gui";
+import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Modes } from './param';
 import * as Param from './param';
@@ -8,7 +8,7 @@ export class GuiTexture {
   scene: BABYLON.Scene;
   texture: AdvancedDynamicTexture;
   infobox: Infobox;
-  modeSelection: StackPanel;
+  modeSelection: Container;
   modeDisplayButton: Button;
   constructor(scene: BABYLON.Scene) {
     this.scene = scene;
@@ -38,39 +38,52 @@ export class GuiTexture {
   }
 }
 
-class Infobox extends StackPanel {
+class Infobox extends Container {
   scene: BABYLON.Scene;
+  panel: StackPanel;
+  fillRectangle: Rectangle;
+  heading: Rectangle;
   batteryText: TextBlock;
   rssiText: TextBlock;
   tiltText: TextBlock;
+  rotationText: TextBlock;
   positionText: TextBlock;
   angleText: TextBlock;
   constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
     super(name);
     this.scene = scene;
-    this.setPreview(preview);
     this.widthInPixels = window.innerWidth > 650 ? 0.4*window.innerWidth : 260;
-    this.alpha = 0.7;
-    this.isPointerBlocker = true;
-    this.shadowBlur = 15;
+    this.adaptHeightToChildren = true;
     this.paddingLeft = 10; 
     this.paddingRight = 10; 
     this.paddingTop = 10; 
     this.paddingBottom = 10; 
     this.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
     this.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    this.fillRectangle = new Rectangle("background");
+    this.fillRectangle.alpha = 0.6;
+    this.fillRectangle.thickness = 0;
+    this.fillRectangle.cornerRadius = 5;
+    this.isPointerBlocker = true;
+    this.addControl(this.fillRectangle);
+    this.panel = new StackPanel();
+    this.addControl(this.panel);
     this.addControls();
+    this.setPreview(preview);
   }
   setPreview(preview: boolean) {
     if(preview) {
-      this.background = "rgb(40,255,40)";
+      this.color = "rgb(60,215,60)";
     }
     else {
-      this.background = "rgb(255,80,80)";
+      this.color = "rgb(255,110,90)";
     }
+    this.fillRectangle.background = this.color;
+    this.heading.background = this.color;
   }
   addControls() {
-    this.addControl(buildHeading(this.name));
+    this.heading = buildHeading(this.name);
+    this.panel.addControl(this.heading);
     if(this.name.startsWith("hub")) {
       const grid = new Grid("hubColumn");
       this.batteryText = buildText("battery: --");
@@ -83,35 +96,41 @@ class Infobox extends StackPanel {
       this.rssiText = buildText("rssi: --");
       ipcRenderer.on('notifyRssi', this.updateRssi);
       grid.addControl(this.rssiText, 0, 1);
-      this.addControl(grid);
+      this.panel.addControl(grid);
       this.tiltText = buildText("tilt: --");
       ipcRenderer.on('notifyTilt', this.updateTilt);
-      this.addControl(this.tiltText);
+      this.panel.addControl(this.tiltText);
       let sliderDest;
       if(this.name.endsWith("Center")) {
         sliderDest = "dog";
+        this.rotationText = buildText("rotation: --");
+        this.panel.addControl(this.rotationText);
+        ipcRenderer.on('notifyDogRotation', this.updateRotation);
         ipcRenderer.on('notifyDogPosition', this.updatePosition);
+        this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedForward"));
+        this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedHeight"));
+        this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedSideways"));
       }
       else {
         sliderDest = this.name.replace("hub","leg");
         ipcRenderer.on('notifyLegPosition', this.updatePosition);
       }
       this.positionText = buildText("position: --");
-      this.addControl(this.positionText);
-      this.addControl(buildCorrectionSlider(sliderDest, "requestMoveSpeedForward"));
-      this.addControl(buildCorrectionSlider(sliderDest, "requestMoveSpeedHeight"));
-      this.addControl(buildCorrectionSlider(sliderDest, "requestMoveSpeedSideways"));
+      this.panel.addControl(this.positionText);
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestMoveSpeedForward"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestMoveSpeedHeight"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestMoveSpeedSideways"));
       ipcRenderer.send(sliderDest, "getProperties");
       ipcRenderer.send("getHubProperties");
     }
     else {
-      this.angleText = buildText("current angle: " + (180*getLegRotation(this.name, this.scene)/Math.PI).toFixed(2) + " deg");
+      this.angleText = buildText("current angle: " + (180*getLegRotation(this.name, this.scene)/Math.PI).toFixed(1) + " deg");
       ipcRenderer.on('notifyLegRotation', this.updateAngle);
-      this.addControl(this.angleText);
-      this.addControl(buildAngleSlider(this));
-      this.addControl(buildResetButton(this.name));
-      this.addControl(buildText("power:"));
-      this.addControl(buildCorrectionSlider(this.name, "requestPower"));
+      this.panel.addControl(this.angleText);
+      this.panel.addControl(buildAngleSlider(this));
+      this.panel.addControl(buildResetButton(this.name));
+      this.panel.addControl(buildText("power:"));
+      this.panel.addControl(buildCorrectionSlider(this.name, "requestPower"));
     }
   }
   removeControls() {
@@ -121,6 +140,7 @@ class Infobox extends StackPanel {
       ipcRenderer.removeListener('notifyTilt', this.updateTilt);
       if(this.name.endsWith("Center")) {
         ipcRenderer.removeListener('notifyDogPosition', this.updatePosition);
+        ipcRenderer.removeListener('notifyDogRotation', this.updateRotation);
       }
       else {
         ipcRenderer.removeListener('notifyLegPosition', this.updatePosition);
@@ -145,6 +165,11 @@ class Infobox extends StackPanel {
       this.tiltText.text = "tilt: " + arg2.x + "  " + arg2.y + "  " + arg2.z;
     }
   }
+  updateRotation = (event, arg1, arg2) => {
+    if(arg1 === "dog") {
+      this.rotationText.text = "rotation: " + arg2.forward.toFixed(0) + "  " + arg2.height.toFixed(0) + "  " + arg2.sideways.toFixed(0);
+    }
+  }
   updatePosition = (event, arg1, arg2) => {
     if(arg1 === this.name.replace("hub","leg") || (this.name.endsWith("Center") && arg1 === "dog")) {
       this.positionText.text = "position: " + arg2.forward.toFixed(0) + "  " + arg2.height.toFixed(0) + "  " + arg2.sideways.toFixed(0);
@@ -158,12 +183,36 @@ class Infobox extends StackPanel {
 }
 
 const buildHeading = (meshName: string) => {
-  const heading = new TextBlock();
-  heading.text = meshName;
-  heading.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+  let heading = new Rectangle("headingBackground");
   heading.height = "30px";
-  heading.paddingLeft = "5px";
-  heading.fontSize = 20;
+  heading.thickness = 0;
+  heading.alpha = 0.8;
+  heading.cornerRadius = 5;
+  const block = new TextBlock();
+  block.text = meshName;
+  block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+  block.fontSize = 20;
+  block.paddingLeft = "5px";
+  block.color = "black";
+  heading.addControl(block);
+  const button = Button.CreateSimpleButton("closeButton","x");
+  button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+  button.width = "30px";
+  button.height = "30px";
+  button.paddingRight = "2px";
+  button.paddingTop = "2px";
+  button.color = "black";
+  button.thickness = 0;
+  button.onPointerEnterObservable.add(() => {
+    button.thickness = 1;
+  });
+  button.onPointerOutObservable.add(() => {
+    button.thickness = 0;
+  });
+  button.onPointerClickObservable.add(() => {
+    ipcRenderer.emit("notifyState", "closeEvent", meshName, "online");
+  });
+  heading.addControl(button);
   return heading;
 }
 
@@ -173,6 +222,7 @@ const buildText = (content: string) => {
   block.text = content;
   block.height = "25px";
   block.paddingLeft = "5px";
+  block.color = "black";
   return block;
 }
 
@@ -192,15 +242,17 @@ const getLegRotation = (meshName: string, scene: BABYLON.Scene) => {
 
 const buildAngleSlider = (infobox: Infobox) => {
   const slider = new Slider();
-  slider.height = "30px";
-  slider.color = "transparent";
+  slider.height = "35px";
+  slider.paddingTop = "5px";
+  slider.paddingBottom = "5px";
   slider.thumbColor = "grey";
   slider.borderColor = "black";
+  slider.displayValueBar = false;
   slider.minimum = -Math.PI;
   slider.maximum = Math.PI;
   slider.value = getLegRotation(infobox.name, infobox.scene);
   slider.onValueChangedObservable.add((value) => {
-    infobox.angleText.text = "requested angle: " + (180*slider.value/Math.PI).toFixed(2) + " deg";
+    infobox.angleText.text = "requested angle: " + (180*slider.value/Math.PI).toFixed(1) + " deg";
   });
   slider.onPointerUpObservable.add(() => {
     ipcRenderer.send(infobox.name, "requestRotation", slider.value);
@@ -226,11 +278,12 @@ const buildResetButton = (meshName: string) => {
 const buildCorrectionSlider = (meshName: string, requestName: string) => {
   const slider = new Slider();
   slider.height = "35px";
+  slider.paddingTop = "5px";
   slider.paddingBottom = "5px";
   slider.minimum = -100;
   slider.maximum = 100;
   slider.value = 0;
-  slider.color = "transparent";
+  slider.displayValueBar = false;
   slider.thumbColor = "grey";
   slider.borderColor = "black";
   slider.onValueChangedObservable.add((value) => {
@@ -250,6 +303,7 @@ const buildModeDisplayButton = (guiTexture) => {
   button.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
   button.background = "grey";
   button.color = "black";
+  button.zIndex = 20;
   button.onPointerClickObservable.add(() => {
     if(guiTexture.modeSelection) {
       guiTexture.modeSelection.isVisible = !guiTexture.modeSelection.isVisible;
@@ -262,15 +316,24 @@ const buildModeDisplayButton = (guiTexture) => {
 }
 
 const buildModeSelection = (guiTexture) => {
-  const panel = new StackPanel("modeSelection");
+  const selection = new Container("modeSelection");
+  const rect = new Rectangle("modeBackground");
+  rect.alpha = 0.8;
+  rect.background = "black";
+  selection.addControl(rect);
+  const panel = new StackPanel("modePanel");
   let keys = Object.keys(Modes).filter(k => typeof (Modes as any)[k] === 'number') as any;
   keys.forEach((key) => {
     panel.addControl(buildModeButton(Modes[key], guiTexture));
   });
-  panel.zIndex = 10;
-  panel.isPointerBlocker = true;
-  panel.isVisible = false;
-  return panel;
+  selection.zIndex = 10;
+  selection.isPointerBlocker = true;
+  selection.isVisible = false;
+  selection.addControl(panel);
+  selection.onPointerClickObservable.add(() => {
+    selection.isVisible = false;
+  });
+  return selection;
 }
 
 const buildModeButton = (mode, guiTexture) => {
@@ -282,14 +345,14 @@ const buildModeButton = (mode, guiTexture) => {
   button.color = "darkgrey";
   button.isEnabled = false;
   button.onPointerClickObservable.add(() => {
-    ipcRenderer.send("requestMode", mode); 
+    ipcRenderer.send("dog", "requestMode", mode); 
     guiTexture.modeSelection.isVisible = false;
   });
   ipcRenderer.on('notifyMode', (event, arg) => {
     if(Param.allowSwitch(arg, mode)) {
       button.color = "black";
       button.isEnabled = true;
-    }
+    } 
     else {
       button.color = "darkgrey";
       button.isEnabled = false;

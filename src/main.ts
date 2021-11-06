@@ -91,9 +91,3 @@ app.on("activate", () => {
 ipcMain.on('rendererInitialized', (event, arg) => {
   createDog();
 });
-
-ipcMain.on('requestMode', (event, arg) => {
-  if(dog) {
-    dog.requestMode(arg);
-  }
-});
