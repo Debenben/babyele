@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { MotorAbstraction } from "./interfaces";
-import { MotorName, LegName, Position, fromArray, toArray, cosLaw, invCosLaw } from "./tools";
+import { MotorName, LegName, Position, fromArray, toArray, parsePosition, cosLaw, invCosLaw } from "./tools";
 import { NO_MOVE_MOTOR_ANGLE, TOP_MOTOR_RANGE, BOTTOM_MOTOR_RANGE, MOUNT_MOTOR_RANGE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
 
 export class Leg {
@@ -19,23 +19,8 @@ export class Leg {
     this.legName = legName;
     this.mainWindow = mainWindow;
     ipcMain.on(this.legName, (event, arg1, arg2) => {
-      if(arg1.startsWith("requestMoveSpeed")) {
-	if(arg2 === 0) {
-          this.requestMoveSpeed(null);
-        }
-	else {
-          switch(arg1) {
-            case "requestMoveSpeedForward":
-              this.requestMoveSpeed({forward: arg2, height: 0, sideways: 0});
-	      return;
-            case "requestMoveSpeedHeight":
-              this.requestMoveSpeed({forward: 0, height: arg2, sideways: 0});
-	      return;
-            case "requestMoveSpeedSideways":
-              this.requestMoveSpeed({forward: 0, height: 0, sideways: arg2});
-	      return;
-	  }
-        }
+      if(arg1.startsWith("requestPositionSpeed")) {
+        this.requestMoveSpeed(parsePosition(arg1, arg2));
       }
       else if(arg1 === "getProperties") {
         this.mainWindow.webContents.send('notifyLegPosition', this.legName, this.getPosition());
@@ -66,7 +51,7 @@ export class Leg {
       await motor.resetZero();
       ipcMain.on(legMotorName, (event, arg1, arg2) => {
         switch(arg1) {
-          case "requestPower":
+          case "requestRotationSpeed":
             motor.setPower(arg2);
             if(arg2 === 0) {
               this.destMotorAngles[motorName] = this.motorAngles[motorName];
@@ -80,6 +65,7 @@ export class Leg {
       });
       motor.on('rotate', ({degrees}) => {
         this.motorAngles[motorName] = degrees;
+	ipcMain.emit("dog","rotationEvent","getProperties");
         this.mainWindow.webContents.send('notifyLegRotation', legMotorName, this.getAngle(motorName));
         this.mainWindow.webContents.send('notifyLegPosition', this.legName, this.getPosition());
       });

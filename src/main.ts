@@ -34,8 +34,7 @@ function createWindow() {
 
 function createDog() {
   dog = new Dog(mainWindow);
-  //if(String(process.argv[1]).includes('--simulation')) {
-  if(true) {
+  if(process.argv.includes('--simulation')) {
     console.log("Starting simulation...");
     let simulation = import("./simulation").then( module => {
       dog.addHub(new module.SimulationHub("BeneLego1"));

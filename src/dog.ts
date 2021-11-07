@@ -1,8 +1,8 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, MotorAbstraction } from "./interfaces";
-import { LegName, Position, fromArray, toArray, add, multiply } from "./tools";
-import { Modes, MotorMap, allowSwitch, NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_WIDTH } from "./param";
+import { LegName, Position, fromArray, toArray, parsePosition, add, multiply, getRotation, rotate } from "./tools";
+import { Modes, MotorMap, allowSwitch, NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH } from "./param";
 
 export class Dog {
   mainWindow: BrowserWindow
@@ -12,8 +12,13 @@ export class Dog {
   hubs: Record<string, HubAbstraction> = {}
   leds: Record<string, LEDAbstraction> = {}
   color: number = 0
-  dogPosition: Position = {forward: 0, height: 0, sideways: 0}
-  moveSpeed: Position
+  positionSpeed: Position
+  rotationSpeed: Position
+  defaultLegPositions: Record<LegName, Position> = 
+    {legFrontRight: {forward:LEG_SEPARATION_LENGTH/2, height:0, sideways:LEG_SEPARATION_WIDTH/2},
+     legBackRight: {forward:-LEG_SEPARATION_LENGTH/2, height:0, sideways:LEG_SEPARATION_WIDTH/2},
+     legFrontLeft: {forward:LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2},
+     legBackLeft: {forward:-LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2}}; 
   startMovePositions: Record<LegName, Position>
   moveSpeedIntervalID: NodeJS.Timeout
   stepWidth: number = 80 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
@@ -39,29 +44,20 @@ export class Dog {
       }
     });
     ipcMain.on("dog", (event, arg1, arg2) => {
-      if(arg1.startsWith("requestMoveSpeed")) {
-	if(arg2 === 0) {
-          this.requestMoveSpeed(null);
-        }
-	else {
-          switch(arg1) {
-            case "requestMoveSpeedForward":
-              this.requestMoveSpeed({forward: arg2, height: 0, sideways: 0});
-	      return;
-            case "requestMoveSpeedHeight":
-              this.requestMoveSpeed({forward: 0, height: arg2, sideways: 0});
-	      return;
-            case "requestMoveSpeedSideways":
-              this.requestMoveSpeed({forward: 0, height: 0, sideways: arg2});
-	      return;
-	  }
-        }
+      if(arg1.startsWith("requestPositionSpeed")) {
+        this.positionSpeed = parsePosition(arg1, arg2);
+	this.requestMoveSpeed();
+      }
+      else if(arg1.startsWith("requestRotationSpeed")) {
+        this.rotationSpeed = parsePosition(arg1, arg2);
+	this.requestMoveSpeed();
       }
       else if(arg1 === "requestMode") {
         this.requestMode(arg2);
       }
       else if(arg1 === "getProperties") {
-        this.mainWindow.webContents.send('notifyDogPosition', "dog", this.dogPosition);
+        this.mainWindow.webContents.send('notifyDogPosition', "dog", this.getDogPosition());
+        this.mainWindow.webContents.send('notifyDogRotation', "dog", this.getDogRotation());
       }
     });
   }
@@ -229,6 +225,24 @@ export class Dog {
     return record;
   }
 
+  getDogPosition() {
+    let averagePosition = {forward:0, height:0, sideways:0};
+    for(let id in this.legs) {
+      averagePosition = add(averagePosition, multiply(0.25,(this.legs[id].getPosition())));
+    }
+    return averagePosition;
+  }
+
+  getDogRotation() {
+    let averageRotation = {forward:0, height:0, sideways:0};
+    const dogPosition = this.getDogPosition();
+    for(let id in this.legs) {
+      const absolutePosition = add(this.legs[id].getPosition(), add(this.defaultLegPositions[id], multiply(-1,dogPosition)));
+      averageRotation = add(averageRotation, multiply(0.25, getRotation(absolutePosition)));
+    }
+    return averageRotation;
+  }
+
   motorLoop() {
     const motors = this.buildLegRecord('motors');
     const motorAngles = this.buildLegRecord('motorAngles');
@@ -241,9 +255,8 @@ export class Dog {
     return Promise.all(promises);
   }
 
-  requestMoveSpeed(speed: Position) {
-    this.moveSpeed = speed;
-    if(!speed) {
+  requestMoveSpeed() {
+    if(!this.positionSpeed && !this.rotationSpeed) {
       clearInterval(this.moveSpeedIntervalID);
       this.moveSpeedIntervalID = null;
     }
@@ -251,41 +264,59 @@ export class Dog {
       return;
     }
     else {
-      this.startMovePositions = {legBackLeft: this.legs.legBackLeft.getPosition(), legBackRight: this.legs.legBackRight.getPosition(), legFrontLeft: this.legs.legFrontLeft.getPosition(), legFrontRight: this.legs.legFrontRight.getPosition()};
+      this.startMovePositions = {legBackLeft:this.legs.legBackLeft.getPosition(), legBackRight:this.legs.legBackRight.getPosition(), legFrontLeft:this.legs.legFrontLeft.getPosition(), legFrontRight:this.legs.legFrontRight.getPosition()};
       this.moveSpeedIntervalID = setInterval(() => {
-        let averageDiff = {forward:0, height:0, sideways:0};
-        let averageStart = {forward:0, height:0, sideways:0};
+        /* calculate initial dog position */
+        let startDogPosition = {forward:0, height:0, sideways:0};
         for(let id in this.legs) {
-          averageDiff = add(averageDiff, multiply(0.25,(add(this.legs[id].getPosition(), multiply(-1,this.startMovePositions[id])))))
-          averageStart = add(averageStart, multiply(0.25,this.startMovePositions[id]))
-	}
-	this.dogPosition = add(averageStart, averageDiff);
-        this.mainWindow.webContents.send('notifyDogPosition', "dog", this.dogPosition);
-	for(let id in this.legs) {
-          const diffPosition = add(this.legs[id].getPosition(), multiply(-1,this.startMovePositions[id]));
-	  const syncSpeed = add(averageDiff, multiply(-1,diffPosition));
-          const position = toArray(this.startMovePositions[id]).map((n,i) => {
-            if(toArray(this.moveSpeed)[i] != 0) {
-              return toArray(this.legs[id].getPosition())[i] + toArray(syncSpeed)[i] + toArray(this.moveSpeed)[i]/10;
+          startDogPosition = add(startDogPosition, multiply(0.25,this.startMovePositions[id]))
+        }
+        const averagePositionDiff = add(this.getDogPosition(), multiply(-1,startDogPosition));
+        /* calculate dog rotation with respect to initial position */
+        let startDogRotation = {forward:0, height:0, sideways:0};
+        for(let id in this.legs) {
+          const startAbsolute = add(this.startMovePositions[id], add(this.defaultLegPositions[id], multiply(-1,startDogPosition)));
+          const currentAbsolute = add(this.legs[id].getPosition(), add(this.defaultLegPositions[id], multiply(-1,this.getDogPosition())));
+          const startRotation = getRotation(startAbsolute);
+          const currentRotation = getRotation(currentAbsolute);
+          startDogRotation = add(startDogRotation, multiply(0.25,startRotation));
+        }
+        const averageRotation = add(this.getDogRotation(), multiply(-1,startDogRotation));
+        /* determine new positions */
+        for(let id in this.legs) {
+          const startAbsolute = add(this.startMovePositions[id], add(this.defaultLegPositions[id], multiply(-1,startDogPosition)));
+          let rotationMove = {forward:0, height:0, sideways:0};
+          if(this.rotationSpeed) {
+            for(let i in rotationMove) {
+              if(this.rotationSpeed[i] == 0) rotationMove[i] = 0;
+              else rotationMove[i] = averageRotation[i] + this.rotationSpeed[i]/10000;
             }
-            return n;
-	  });
-          this.legs[id].setPosition(fromArray(position));
-	}
-	return this.motorLoop();
+          }
+          let positionMove = {forward:0, height:0, sideways:0};
+          if(this.positionSpeed) {
+            for(let i in positionMove) {
+              if(this.positionSpeed[i] == 0) positionMove[i] = 0;
+              else positionMove[i] = averagePositionDiff[i] + this.positionSpeed[i]/10;
+            }
+          }
+          const newPosition = add(rotate(startAbsolute, rotationMove), add(startDogPosition, add(multiply(-1,this.defaultLegPositions[id]), positionMove)));
+          this.legs[id].setPosition(newPosition);
+        }
+        return this.motorLoop();
       }, 100);
     }
   }
 
   move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
+    const dogPosition = {forward:0, height:0, sideways:0}; 
     const bl = this.legs['legBackLeft'].setPosition.bind(this.legs['legBackLeft']);
-    const blp = add(this.dogPosition, {forward:backLeftXPos*this.stepWidth, height:backLeftHeight, sideways:0});
+    const blp = add(dogPosition, {forward:backLeftXPos*this.stepWidth, height:backLeftHeight, sideways:0});
     const fl = this.legs['legFrontLeft'].setPosition.bind(this.legs['legFrontLeft']);
-    const flp = add(this.dogPosition, {forward:frontLeftXPos*this.stepWidth, height:frontLeftHeight, sideways:0});
+    const flp = add(dogPosition, {forward:frontLeftXPos*this.stepWidth, height:frontLeftHeight, sideways:0});
     const fr = this.legs['legFrontRight'].setPosition.bind(this.legs['legFrontRight']);
-    const frp = add(this.dogPosition, {forward:frontRightXPos*this.stepWidth, height:frontRightHeight, sideways:0});
+    const frp = add(dogPosition, {forward:frontRightXPos*this.stepWidth, height:frontRightHeight, sideways:0});
     const br = this.legs['legBackRight'].setPosition.bind(this.legs['legBackRight']);
-    const brp = add(this.dogPosition, {forward:backRightXPos*this.stepWidth, height:backRightHeight, sideways:0});
+    const brp = add(dogPosition, {forward:backRightXPos*this.stepWidth, height:backRightHeight, sideways:0});
     Promise.all([ bl(blp), fl(flp), fr(frp), br(brp)]);
     return this.motorLoop();
   }
