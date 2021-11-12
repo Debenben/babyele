@@ -1,5 +1,5 @@
 import * as BABYLON from 'babylonjs';
-import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
+import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel, ScrollViewer, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Modes } from './param';
 import * as Param from './param';
@@ -9,14 +9,17 @@ export class GuiTexture {
   texture: AdvancedDynamicTexture;
   infobox: Infobox;
   modeSelection: Container;
-  modeDisplayButton: Button;
+  topMenu: Grid;
+  dragHelper: DragHelper;
   constructor(scene: BABYLON.Scene) {
     this.scene = scene;
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
-    this.modeDisplayButton = buildModeDisplayButton(this);
-    this.texture.addControl(this.modeDisplayButton);
+    this.topMenu = buildTopMenu(this);
+    this.texture.addControl(this.topMenu);
     this.modeSelection = buildModeSelection(this);
     this.texture.addControl(this.modeSelection);
+    this.dragHelper = new DragHelper();
+    this.texture.addControl(this.dragHelper);
   }
   removeInfobox() {
     if(this.infobox) {
@@ -26,6 +29,10 @@ export class GuiTexture {
     }
   }
   showInfobox(meshName: string, preview: boolean) {
+    if(!meshName) {
+      this.removeInfobox();
+      return;
+    }
     if(this.infobox && this.infobox.name === meshName) {
       this.infobox.setPreview(preview);
       return;
@@ -35,6 +42,78 @@ export class GuiTexture {
     }
     this.infobox = new Infobox(meshName, preview, this.scene);
     this.texture.addControl(this.infobox);
+  }
+}
+
+class DragHelper extends Container {
+  container: Container;
+  startPosition: BABYLON.Vector2;
+  trashIcon: Button
+  constructor() {
+    super();
+    this.isVisible = false;
+    this.isPointerBlocker = true;
+    this.zIndex = 30;
+    this.trashIcon = buildTrashIcon();
+    this.trashIcon.isEnabled = true;
+    this.trashIcon.onPointerEnterObservable.add(() => {
+      this.trashIcon.color = "green";
+    });
+    this.trashIcon.onPointerOutObservable.add(() => {
+      this.trashIcon.color = "gray";
+    });
+    this.trashIcon.isVisible = false;
+    this.addControl(this.trashIcon);
+    this.onPointerMoveObservable.add((vec) => {
+      if(this.container && this.startPosition) {
+        this.container.leftInPixels = vec.x - this.startPosition.x;
+        this.container.topInPixels = vec.y - this.startPosition.y;
+        if(!this.container.isVisible) {
+          this.container.isVisible = true; // switch moveDummy to visible only on Pointer move
+          this.trashIcon.color = "gray";
+        }
+      }
+    });
+    this.onPointerUpObservable.add((vec) => {
+      //only used if stopDrag was not called by container.onPointerUpObservable
+      this.stopDrag();
+    });
+    ipcRenderer.on("startGuiDrag", (object, startPosition, moveDummy) => {
+      if(moveDummy) {
+        const original = object as any;
+        this.startPosition = new BABYLON.Vector2(0.5*original.widthInPixels,0.5*original.heightInPixels);
+        this.container = buildPoseButton(original.textBlock.text, true);
+        this.container.widthInPixels = original.widthInPixels;
+        this.container.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+        this.container.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        this.container.scaleX = 0.9;
+        this.container.scaleY = 0.9;
+        this.container.isVisible = false; //switch to visible after Pointer move
+        this.container.isEnabled = false;
+        this.addControl(this.container);
+        this.trashIcon.isVisible = true;
+      }
+      else {
+        this.startPosition = startPosition;
+        this.container = object as any;
+        this.startPosition.x -= this.container.leftInPixels;
+        this.startPosition.y -= this.container.topInPixels;
+        this.trashIcon.isVisible = false;
+      }
+      this.isVisible = true;
+    });
+    ipcRenderer.on("stopGuiDrag", () => {
+      this.stopDrag();
+    });
+  }
+  stopDrag = () => {
+    if(this.trashIcon.isVisible && this.trashIcon.color == "green") {
+      ipcRenderer.send('deletePose', (this.container as any).textBlock.text);
+    }
+    this.removeControl(this.container);
+    this.container = null;
+    this.isVisible = false;
+    this.trashIcon.color = "#303030";
   }
 }
 
@@ -62,6 +141,7 @@ class Infobox extends Container {
     this.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.fillRectangle = new Rectangle("background");
     this.fillRectangle.alpha = 0.6;
+    this.fillRectangle.color = "black";
     this.fillRectangle.thickness = 0;
     this.fillRectangle.cornerRadius = 5;
     this.isPointerBlocker = true;
@@ -82,7 +162,7 @@ class Infobox extends Container {
     this.heading.background = this.color;
   }
   addControls() {
-    this.heading = buildHeading(this.name);
+    this.heading = buildHeading(this);
     this.panel.addControl(this.heading);
     if(this.name.startsWith("hub")) {
       const grid = new Grid("hubColumn");
@@ -182,18 +262,33 @@ class Infobox extends Container {
   }
 }
 
-const buildHeading = (meshName: string) => {
+const buildHeading = (infobox: Infobox) => {
   let heading = new Rectangle("headingBackground");
   heading.height = "30px";
+  heading.color = "black";
   heading.thickness = 0;
   heading.alpha = 0.8;
   heading.cornerRadius = 5;
   const block = new TextBlock();
-  block.text = meshName;
+  block.text = infobox.name;
   block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   block.fontSize = 20;
   block.paddingLeft = "5px";
   block.color = "black";
+  block.onPointerDownObservable.add((vec) => {
+    ipcRenderer.emit('startGuiDrag', infobox, vec);
+  });
+  block.onPointerUpObservable.add((vec) => {
+    ipcRenderer.emit('stopGuiDrag');
+  });
+  block.onPointerEnterObservable.add(() => {
+    heading.thickness = 1;
+    infobox.fillRectangle.thickness = 1;
+  });
+  block.onPointerOutObservable.add(() => {
+    heading.thickness = 0;
+    infobox.fillRectangle.thickness = 0;
+  });
   heading.addControl(block);
   const button = Button.CreateSimpleButton("closeButton","x");
   button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
@@ -210,7 +305,7 @@ const buildHeading = (meshName: string) => {
     button.thickness = 0;
   });
   button.onPointerClickObservable.add(() => {
-    ipcRenderer.emit("notifyState", "closeEvent", meshName, "online");
+    ipcRenderer.emit("notifyState", "closeEvent", infobox.name, "online");
   });
   heading.addControl(button);
   return heading;
@@ -271,6 +366,7 @@ const buildResetButton = (meshName: string) => {
   button.background = "grey";
   button.onPointerClickObservable.add(() => {
     ipcRenderer.send(meshName, "requestReset");
+    ipcRenderer.emit('correctionRequested');
   });
   return button;
 }
@@ -286,6 +382,9 @@ const buildCorrectionSlider = (meshName: string, requestName: string) => {
   slider.displayValueBar = false;
   slider.thumbColor = "grey";
   slider.borderColor = "black";
+  slider.onPointerDownObservable.add(() => {
+    ipcRenderer.emit('correctionRequested');
+  });
   slider.onValueChangedObservable.add((value) => {
     ipcRenderer.send(meshName, requestName, value);
   });
@@ -295,23 +394,66 @@ const buildCorrectionSlider = (meshName: string, requestName: string) => {
   return slider;
 }
 
-const buildModeDisplayButton = (guiTexture) => {
-  const button = Button.CreateSimpleButton("modeDisplayButton", String(Modes[Modes.OFFLINE]));
-  button.width = "250px";
-  button.paddingTop = "5px"
-  button.height = "35px";
-  button.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  button.background = "grey";
-  button.color = "black";
-  button.zIndex = 20;
-  button.onPointerClickObservable.add(() => {
+const buildTopMenu = (guiTexture) => {
+  const grid = new Grid("topMenu");
+  grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  grid.paddingTop = "5px"
+  grid.zIndex = 20;
+  grid.heightInPixels = 35;
+  grid.widthInPixels = 260;
+  grid.addColumnDefinition(0.5);
+  grid.addColumnDefinition(0.5);
+  const modeDisplayButton = buildTopMenuButton(String(Modes[Modes.OFFLINE]));
+  modeDisplayButton.onPointerClickObservable.add(() => {
     if(guiTexture.modeSelection) {
+      ipcRenderer.send('retrievePoses');
       guiTexture.modeSelection.isVisible = !guiTexture.modeSelection.isVisible;
     }
   });
+  const addPoseButton = buildTopMenuButton("Save Position");
+  addPoseButton.isEnabled = false;
   ipcRenderer.on('notifyMode', (event, arg) => {
-    button.textBlock.text = String(Modes[arg]);
+    modeDisplayButton.textBlock.text = String(Modes[arg]);
+    modeDisplayButton.color = 'black';
+    addPoseButton.isEnabled = false;
+    addPoseButton.color = "darkgrey";
   });
+  ipcRenderer.on('correctionRequested', () => {
+    modeDisplayButton.color = 'red';
+    ipcRenderer.send('retrievePoses');
+  });
+  ipcRenderer.on('storedPoses', (event, arg) => {
+    if(modeDisplayButton.color == 'red') {
+      let num = [];
+      const prefix = modeDisplayButton.textBlock.text.split('-')[0]
+      for(let id in arg) {
+        if(id.split('-')[0] == prefix) {
+          num.push(id.split('-')[1]);
+        }
+      }
+      num.sort((a, b) => {return a-b});
+      let available = 0;
+      for(let i in num) {
+        if(num[i] == available) available++;
+      }
+      modeDisplayButton.textBlock.text = prefix + '-' + available;
+      addPoseButton.isEnabled = true;
+      addPoseButton.color = "black";
+      modeDisplayButton.color = "green";
+    }
+  });
+  addPoseButton.onPointerClickObservable.add(() => {
+    ipcRenderer.send('storePose', modeDisplayButton.textBlock.text);
+  });
+  grid.addControl(addPoseButton, 0, 0);
+  grid.addControl(modeDisplayButton, 0, 1);
+  return grid;
+}
+
+const buildTopMenuButton = (text: string) => {
+  const button = Button.CreateSimpleButton("topMenuButton", text);
+  button.background = "grey";
+  button.color = "black";
   return button;
 }
 
@@ -320,27 +462,51 @@ const buildModeSelection = (guiTexture) => {
   const rect = new Rectangle("modeBackground");
   rect.alpha = 0.8;
   rect.background = "black";
-  selection.addControl(rect);
-  const panel = new StackPanel("modePanel");
-  let keys = Object.keys(Modes).filter(k => typeof (Modes as any)[k] === 'number') as any;
-  keys.forEach((key) => {
-    panel.addControl(buildModeButton(Modes[key], guiTexture));
-  });
-  selection.zIndex = 10;
-  selection.isPointerBlocker = true;
-  selection.isVisible = false;
-  selection.addControl(panel);
-  selection.onPointerClickObservable.add(() => {
+  rect.isPointerBlocker = true;
+  rect.onPointerClickObservable.add(() => {
     selection.isVisible = false;
   });
+  selection.addControl(rect);
+  const grid = new Grid("layout");
+  grid.width = 0.6;
+  grid.addColumnDefinition(0.5);
+  grid.addColumnDefinition(0.5);
+  grid.paddingTop = "50px";
+  grid.paddingBottom = "20px";
+  grid.isPointerBlocker = true;
+  selection.addControl(grid);
+  const modesScroll = new ScrollViewer("modesScroll");
+  modesScroll.color = "#303030";
+  const modesPanel = new StackPanel("modePanel");
+  let keys = Object.keys(Modes).filter(k => typeof (Modes as any)[k] === 'number') as any;
+  keys.forEach((key) => {
+    modesPanel.addControl(buildModeButton(Modes[key], guiTexture));
+  });
+  modesScroll.addControl(modesPanel);
+  grid.addControl(modesScroll, 0, 0);
+  const posesScroll = new ScrollViewer("posesScroll");
+  posesScroll.color = "#303030";
+  const posesPanel = new StackPanel("posesPanel");
+  posesScroll.addControl(posesPanel);
+  grid.addControl(posesScroll, 0, 1);
+  ipcRenderer.on('storedPoses', (event, arg) => {
+    posesPanel.clearControls();
+    for(let id in arg) {
+      posesPanel.addControl(buildPoseButton(id, false));
+    }
+  });
+  selection.addControl(buildTrashIcon());
+  selection.zIndex = 10;
+  selection.isVisible = false;
   return selection;
 }
 
 const buildModeButton = (mode, guiTexture) => {
   const button = Button.CreateSimpleButton("modeButton", String(Modes[mode]));
-  button.width = "180px";
   button.paddingTop = "5px"
-  button.height = "35px";
+  button.paddingRight = "5px"
+  button.paddingLeft = "5px"
+  button.height = "30px";
   button.background = "grey";
   button.color = "darkgrey";
   button.isEnabled = false;
@@ -359,4 +525,39 @@ const buildModeButton = (mode, guiTexture) => {
     }
   });
   return button; 
+}
+
+const buildPoseButton = (text, moveDummy) => {
+  const button = Button.CreateSimpleButton("poseButton", text);
+  button.background = "grey";
+  button.paddingTop = "5px"
+  button.paddingRight = "5px"
+  button.paddingLeft = "5px"
+  button.height = "30px";
+  button.color = "black";
+  button.background = "grey";
+  if(!moveDummy) {
+    button.onPointerDownObservable.add((vec) => {
+      ipcRenderer.emit('startGuiDrag', button, vec, true);
+    });
+    button.onPointerUpObservable.add((vec) => {
+      ipcRenderer.emit('stopGuiDrag', button, vec);
+    });
+  }
+  return button; 
+}
+
+const buildTrashIcon = () => {
+  const button = Button.CreateSimpleButton("trashIcon", "🗑");
+  button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+  button.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  button.paddingRight = "10px";
+  button.topInPixels = 50;
+  button.width = 0.18;
+  button.height = 0.25;
+  button.color = "#303030";
+  button.isEnabled = false;
+  button.textBlock.fontSize = "90%";
+  button.isPointerBlocker = true;
+  return button;
 }

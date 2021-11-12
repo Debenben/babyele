@@ -8,14 +8,15 @@ export default class Renderer {
   canvas: HTMLCanvasElement;
   engine: BABYLON.Engine;
   scene: BABYLON.Scene;
-  actionManager: BABYLON.ActionManager;
-  guiTexture: GuiTexture;
   greyMaterial: BABYLON.StandardMaterial;
   greenMaterial: BABYLON.StandardMaterial;
   pickMaterial: BABYLON.StandardMaterial;
   redMaterial: BABYLON.StandardMaterial;
+  actionManager: BABYLON.ActionManager;
+  gravityLines: BABYLON.LinesMesh;
   selectedItem: string;
   selectedItemIsPreview: boolean;
+  guiTexture: GuiTexture;
 
   createScene(canvas: HTMLCanvasElement, engine: BABYLON.Engine) {
     this.canvas = canvas;
@@ -28,12 +29,6 @@ export default class Renderer {
     glow.intensity = 0.5;
     const background = buildBackground(scene, engine);
     const ground = buildGround(scene, engine);
-    scene.registerBeforeRender(() => {
-      if(!this.selectedItem) {
-        ground.rotation.y += 0.001;
-      }
-      setBodyHeight(scene);
-    });
     this.actionManager = new BABYLON.ActionManager(scene);
     this.guiTexture = new GuiTexture(scene);
 
@@ -51,7 +46,7 @@ export default class Renderer {
     this.greenMaterial.diffuseColor = new BABYLON.Color3(0,1,0);
     this.greenMaterial.specularColor = new BABYLON.Color3(0.1,0.4,0.1);
     this.greenMaterial.emissiveColor = new BABYLON.Color3(0,0.05,0);
-    this.pickMaterial = new BABYLON.StandardMaterial("greenMat", scene);
+    this.pickMaterial = new BABYLON.StandardMaterial("pickMat", scene);
     this.pickMaterial.diffuseColor = new BABYLON.Color3(0,1,0);
     this.pickMaterial.specularColor = new BABYLON.Color3(0,0,0);
     this.pickMaterial.emissiveColor = new BABYLON.Color3(0.1,0.2,0.1);
@@ -93,12 +88,24 @@ export default class Renderer {
     const shadowCaster = new BABYLON.ShadowGenerator(1024, dirLight);
     shadowCaster.addShadowCaster(frontHub);
     shadowCaster.addShadowCaster(backHub);
-    shadowCaster.usePoissonSampling = true;
-    shadowCaster.blurScale = 5;
+    shadowCaster.useCloseExponentialShadowMap = true;
 
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, selectItem));
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, previewItem));
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, unpreviewItem));
+
+    this.gravityLines = buildGravityLines(scene);
+    scene.registerBeforeRender(() => {
+      setBodyHeight(scene);
+      if(!this.selectedItem) {
+        ground.rotation.y += 0.001;
+        this.gravityLines.isVisible = false;
+      }
+      else {
+        this.gravityLines.isVisible = true;
+        this.gravityLines = BABYLON.Mesh.CreateLines(null, getGravityLinesPath(scene), null, null, this.gravityLines);
+      }
+    });
   }
 
   setHubTilt(meshName: string, tilt) {
@@ -130,32 +137,29 @@ export default class Renderer {
         renderer.selectedItemIsPreview = false;
         mesh.material = this.redMaterial;
         mesh.isPickable = true;
-        this.guiTexture.showInfobox(meshName, false);
         break;
       case "offline":
         if(renderer.selectedItem === meshName) {
           renderer.selectedItem = null;
-          this.guiTexture.removeInfobox();
         }
         mesh.material = this.greyMaterial;
-	mesh.isPickable = false;
+        mesh.isPickable = false;
         break;
       case "preview":
         renderer.selectedItem = meshName;
         renderer.selectedItemIsPreview = true;
         mesh.material = this.pickMaterial;
         mesh.isPickable = true;
-        this.guiTexture.showInfobox(meshName, true);
         break;
       case "online":
       default:
         if(renderer.selectedItem === meshName) {
           renderer.selectedItem = null;
-          this.guiTexture.removeInfobox();
         }
         mesh.material = this.greenMaterial;
         mesh.isPickable = true;
     }
+    this.guiTexture.showInfobox(renderer.selectedItem, renderer.selectedItemIsPreview);
   }
 
   initialize(canvas: HTMLCanvasElement) {
@@ -175,17 +179,42 @@ export default class Renderer {
 const setBodyHeight = (scene: BABYLON.Scene) => {
   const frontHub = scene.getMeshByName('hubFrontCenter');
   const backHub = scene.getMeshByName('hubBackCenter');
-  const shift = Math.min(getClearance(scene,'legFrontRightFoot') - 30, getClearance(scene,'legFrontLeftFoot') - 30, getClearance(scene,'legBackRightFoot') - 30, getClearance(scene,'legBackLeftFoot') - 30);
+  const shift = Math.min(getClearance(scene,'legFrontRightFoot'), getClearance(scene,'legFrontLeftFoot'), getClearance(scene,'legBackRightFoot'), getClearance(scene,'legBackLeftFoot'));
   frontHub.position.y -= shift;
   backHub.position.y -= shift;
 }
 
 const getClearance = (scene: BABYLON.Scene, meshName: string) => {
   const mesh = scene.getMeshByName(meshName);
-  const ground = scene.getMeshByName('ground');
   const origin = mesh.position;
   const position = BABYLON.Vector3.TransformCoordinates(mesh.position, mesh.getWorldMatrix());
-  return position.y;
+  return position.y - 30;
+}
+
+const getProjection = (scene: BABYLON.Scene, meshName: string) => {
+  const mesh = scene.getMeshByName(meshName);
+  if(!mesh) {
+    console.log("cannot find " + meshName);
+    return new BABYLON.Vector3(0,0,0);
+  };
+  const origin = mesh.position;
+  let position = BABYLON.Vector3.TransformCoordinates(mesh.position, mesh.getWorldMatrix());
+  position.y = 0;
+  return position;
+}
+
+const getGravityLinesPath = (scene: BABYLON.Scene) => {
+  let path = [];
+  path.push(getProjection(scene, 'legBackLeftFoot'));
+  path.push(getProjection(scene, 'legFrontLeftFoot'));
+  path.push(getProjection(scene, 'legBackRightFoot'));
+  path.push(getProjection(scene, 'legFrontRightFoot'));
+  path.push(getProjection(scene, 'legBackLeftFoot'));
+  path.push(getProjection(scene, 'legBackRightFoot'));
+  path.push(getProjection(scene, 'legFrontLeftFoot'));
+  path.push(getProjection(scene, 'legFrontRightFoot'));
+  path.push(getProjection(scene, 'legBackLeftFoot'));
+  return path;
 }
 
 const selectItem = (event) => {
@@ -248,12 +277,15 @@ const buildGround = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
       varying vec2 vUV;
       void main(void) {
         float distance = (vUV.x - 0.5)*(vUV.x - 0.5) + (vUV.y - 0.5)*(vUV.y - 0.5);
-	if(cos(250.0*(vUV.x - 0.5)) > 0.98 && cos(250.0*(vUV.y - 0.5)) > 0.98) {
-          gl_FragColor = vec4(0.4, 0.6, 0.6, 1.0-5.0*distance);
-	}
-	else {
+	      if(cos(20.0*(vUV.x - 0.5)) * cos(20.0*(vUV.y - 0.5)) > 0.999) {
+          gl_FragColor = vec4(0.8, 0.9, 0.9, 1.0-4.0*distance);
+	      }
+        else if(cos(100.0*(vUV.x - 0.5)) * cos(100.0*(vUV.y - 0.5)) > 0.98) {
+          gl_FragColor = vec4(0.2, 0.4, 0.4, 1.0-5.0*distance);
+	      }
+	      else {
           gl_FragColor = vec4(0.05, 0.1, 0.1, 1.0-70.0*distance*distance);
-	}
+	      }
       }
     `
   });
@@ -272,6 +304,13 @@ const buildGround = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
   ground.receiveShadows = true;
   ground.isPickable = false;
   return ground;
+}
+
+const buildGravityLines = (scene: BABYLON.Scene) => {
+  const lines = BABYLON.Mesh.CreateLines("gravityLines", getGravityLinesPath(scene), scene, true);
+  lines.color = new BABYLON.Color3(0.4, 0.6, 0.6);
+  lines.isVisible = false;
+  return lines;
 }
 
 const buildBody = (scene: BABYLON.Scene, meshName: string) => {
@@ -313,7 +352,18 @@ const buildBone = ({width, height, depth}, scene: BABYLON.Scene) => {
   bottomCyl.rotation.x = Math.PI/2;
   bottomCyl.position.y = -height/2.0;
   bottomCyl.parent = rect;
-  const bone = BABYLON.Mesh.MergeMeshes([rect, topCyl, bottomCyl], true);
+  const topCSG = BABYLON.CSG.FromMesh(topCyl);
+  const bottomCSG = BABYLON.CSG.FromMesh(bottomCyl);
+  let rectCSG = BABYLON.CSG.FromMesh(rect);
+  rectCSG = rectCSG.union(topCSG);
+  rectCSG = rectCSG.union(bottomCSG);
+  topCyl.dispose();
+  rect.dispose();
+  bottomCyl.dispose();
+  scene.removeMesh(topCyl);
+  scene.removeMesh(rect);
+  scene.removeMesh(bottomCyl);
+  const bone = rectCSG.toMesh("bone", null, scene);
   bone.setPivotPoint(new BABYLON.Vector3(0,height/2,0));
   bone.material = renderer.greyMaterial;
   bone.isPickable = false;

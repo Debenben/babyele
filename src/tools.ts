@@ -1,12 +1,16 @@
-export type LegName = 'legFrontRight' | 'legFrontLeft' | 'legBackRight' | 'legBackLeft'
+export const legNames = ['legFrontRight', 'legFrontLeft', 'legBackRight', 'legBackLeft'] as const
+export type LegName = typeof legNames[number];
 
-export type MotorName = 'Top'|'Bottom'|'Mount'
+export const motorNames = ['Top', 'Bottom', 'Mount'] as const
+export type MotorName = typeof motorNames[number];
 
 export type Position = {
   forward: number
   height: number
   sideways: number
 }
+
+export type Pose = Record <LegName, {position: Position, bendForward: boolean}>
 
 export const toArray = (position: Position) => {
   if(position) {
@@ -46,6 +50,7 @@ export const getRotation = (absolute: Position) => {
 }
 
 export const rotate = (position: Position, angles: Position) => {
+  // rotation in Taid-Bryan convention, first forward, then height, then siedeways
   const forward = Math.cos(angles.height)*Math.cos(angles.sideways)*position.forward + Math.cos(angles.height)*Math.sin(angles.sideways)*position.height - Math.sin(angles.height)*position.sideways;
   const height = (Math.sin(angles.forward)*Math.sin(angles.height)*Math.cos(angles.sideways) - Math.cos(angles.forward)*Math.sin(angles.sideways))*position.forward + (Math.sin(angles.forward)*Math.sin(angles.height)*Math.sin(angles.sideways) + Math.cos(angles.forward)*Math.cos(angles.sideways))*position.height + Math.sin(angles.forward)*Math.cos(angles.height)*position.sideways;
   const sideways = (Math.cos(angles.forward)*Math.sin(angles.height)*Math.cos(angles.sideways) + Math.sin(angles.forward)*Math.sin(angles.sideways))*position.forward + (Math.cos(angles.forward)*Math.sin(angles.height)*Math.sin(angles.sideways) - Math.sin(angles.forward)*Math.cos(angles.sideways))*position.height + Math.cos(angles.forward)*Math.cos(angles.height)*position.sideways;

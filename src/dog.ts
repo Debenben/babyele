@@ -1,14 +1,14 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, MotorAbstraction } from "./interfaces";
-import { LegName, Position, fromArray, toArray, parsePosition, add, multiply, getRotation, rotate } from "./tools";
+import { legNames, LegName, motorNames, Position, Pose, fromArray, toArray, parsePosition, add, multiply, getRotation, rotate } from "./tools";
 import { Modes, MotorMap, allowSwitch, NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH } from "./param";
 
 export class Dog {
   mainWindow: BrowserWindow
   mode: Modes = Modes.OFFLINE
   modeQueue: Modes [] = []
-  legs: Record<LegName, Leg>
+  legs: Record<LegName, Leg> = {} as Record<LegName, Leg>
   hubs: Record<string, HubAbstraction> = {}
   leds: Record<string, LEDAbstraction> = {}
   color: number = 0
@@ -21,19 +21,22 @@ export class Dog {
      legBackLeft: {forward:-LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2}}; 
   startMovePositions: Record<LegName, Position>
   moveSpeedIntervalID: NodeJS.Timeout
-  stepWidth: number = 80 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
-  stepHeight: number = Math.sqrt((LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM)**2 - (2*this.stepWidth)**2) - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM) // min height for (pos0) and (pos3)
-  stepLow: number = this.stepHeight - 0.18*LEG_SEPARATION_WIDTH**2/(LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM) // CM moves 0.17*width from center to side
-  stepUp: number = this.stepLow - 20
+  stepForward: number = 80 // (pos0) <-- stepWidth --> (pos1) <-- stepWidth --> (pos2) <-- stepWidth --> (pos3)
+  stepHeight: number = -40 // height when repositioning leg
+  stepSideways: number = 40 // additional separation of legs
+  stepPositionLevel: Position = {forward:(20 - 1.5*this.stepForward), height:-80, sideways:0}; 
+  stepRotationLevel: Position = {forward:0, height:0, sideways:0}
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-    this.legs = {legFrontRight: new Leg('legFrontRight', mainWindow), legFrontLeft: new Leg('legFrontLeft', mainWindow), legBackRight: new Leg('legBackRight', mainWindow), legBackLeft: new Leg('legBackLeft', mainWindow)};
+    for(let id of legNames) {
+      this.legs[id] = new Leg(id, mainWindow);
+    }
     setInterval(() => {
       for(let ledNum in this.leds) {
         if(this.leds[ledNum]) {
           this.leds[ledNum].setColor(((this.mode+7)%10+1)*(this.color%2));
-	}
+        }
       }
       this.color++;
     }, 1000);
@@ -46,11 +49,11 @@ export class Dog {
     ipcMain.on("dog", (event, arg1, arg2) => {
       if(arg1.startsWith("requestPositionSpeed")) {
         this.positionSpeed = parsePosition(arg1, arg2);
-	this.requestMoveSpeed();
+	      this.requestMoveSpeed();
       }
       else if(arg1.startsWith("requestRotationSpeed")) {
         this.rotationSpeed = parsePosition(arg1, arg2);
-	this.requestMoveSpeed();
+	      this.requestMoveSpeed();
       }
       else if(arg1 === "requestMode") {
         this.requestMode(arg2);
@@ -93,7 +96,7 @@ export class Dog {
         this.mainWindow.webContents.send('notifyState', hubName, 'offline');
         this.hubs[hubName] = null;
         this.leds[hubName] = null;
-	this.init();
+	      this.init();
       });
       hub.on("batteryLevel", (level) => {
         return this.mainWindow.webContents.send('notifyBattery', hubName, Number(level.batteryLevel));
@@ -217,17 +220,25 @@ export class Dog {
 
   buildLegRecord = (recordName) => {
     let record = {}
-    for(let legName of Object.keys(this.legs)) {
-      for(let motorName of ['Top', 'Bottom', 'Mount']) {
+    for(let legName of legNames) {
+      for(let motorName of motorNames) {
         record[legName + motorName] = this.legs[legName][recordName][motorName];
       }
     }
     return record;
   }
 
+  getPose() {
+    let pose = {} as Pose;
+    for(let id of legNames) {
+      pose[id] = {position: this.legs[id].getPosition(), bendForward: this.legs[id].bendForward};
+    }
+    return pose;
+  }
+
   getDogPosition() {
     let averagePosition = {forward:0, height:0, sideways:0};
-    for(let id in this.legs) {
+    for(let id of legNames) {
       averagePosition = add(averagePosition, multiply(0.25,(this.legs[id].getPosition())));
     }
     return averagePosition;
@@ -236,7 +247,7 @@ export class Dog {
   getDogRotation() {
     let averageRotation = {forward:0, height:0, sideways:0};
     const dogPosition = this.getDogPosition();
-    for(let id in this.legs) {
+    for(let id of legNames) {
       const absolutePosition = add(this.legs[id].getPosition(), add(this.defaultLegPositions[id], multiply(-1,dogPosition)));
       averageRotation = add(averageRotation, multiply(0.25, getRotation(absolutePosition)));
     }
@@ -264,17 +275,20 @@ export class Dog {
       return;
     }
     else {
-      this.startMovePositions = {legBackLeft:this.legs.legBackLeft.getPosition(), legBackRight:this.legs.legBackRight.getPosition(), legFrontLeft:this.legs.legFrontLeft.getPosition(), legFrontRight:this.legs.legFrontRight.getPosition()};
+      this.startMovePositions = {} as Record<LegName, Position>;
+      for(let id of legNames) {
+        this.startMovePositions[id] = this.legs[id].getPosition();
+      };
       this.moveSpeedIntervalID = setInterval(() => {
         /* calculate initial dog position */
         let startDogPosition = {forward:0, height:0, sideways:0};
-        for(let id in this.legs) {
+        for(let id of legNames) {
           startDogPosition = add(startDogPosition, multiply(0.25,this.startMovePositions[id]))
         }
         const averagePositionDiff = add(this.getDogPosition(), multiply(-1,startDogPosition));
         /* calculate dog rotation with respect to initial position */
         let startDogRotation = {forward:0, height:0, sideways:0};
-        for(let id in this.legs) {
+        for(let id of legNames) {
           const startAbsolute = add(this.startMovePositions[id], add(this.defaultLegPositions[id], multiply(-1,startDogPosition)));
           const currentAbsolute = add(this.legs[id].getPosition(), add(this.defaultLegPositions[id], multiply(-1,this.getDogPosition())));
           const startRotation = getRotation(startAbsolute);
@@ -283,7 +297,7 @@ export class Dog {
         }
         const averageRotation = add(this.getDogRotation(), multiply(-1,startDogRotation));
         /* determine new positions */
-        for(let id in this.legs) {
+        for(let id of legNames) {
           const startAbsolute = add(this.startMovePositions[id], add(this.defaultLegPositions[id], multiply(-1,startDogPosition)));
           let rotationMove = {forward:0, height:0, sideways:0};
           if(this.rotationSpeed) {
@@ -307,119 +321,100 @@ export class Dog {
     }
   }
 
-  move(backLeftHeight, backLeftXPos, frontLeftHeight, frontLeftXPos, frontRightHeight, frontRightXPos, backRightHeight, backRightXPos) {
-    const dogPosition = {forward:0, height:0, sideways:0}; 
+  move(backLeftForward, backLeftHeight, backLeftSideways, frontLeftForward, frontLeftHeight, frontLeftSideways, frontRightForward, frontRightHeight, frontRightSideways, backRightForward, backRightHeight, backRightSideways) {
     const bl = this.legs['legBackLeft'].setPosition.bind(this.legs['legBackLeft']);
-    const blp = add(dogPosition, {forward:backLeftXPos*this.stepWidth, height:backLeftHeight, sideways:0});
+    const blp = add(this.stepPositionLevel, {forward:backLeftForward*this.stepForward, height:backLeftHeight*this.stepHeight, sideways:backLeftSideways*this.stepSideways});
     const fl = this.legs['legFrontLeft'].setPosition.bind(this.legs['legFrontLeft']);
-    const flp = add(dogPosition, {forward:frontLeftXPos*this.stepWidth, height:frontLeftHeight, sideways:0});
+    const flp = add(this.stepPositionLevel, {forward:frontLeftForward*this.stepForward, height:frontLeftHeight*this.stepHeight, sideways:frontLeftSideways*this.stepSideways});
     const fr = this.legs['legFrontRight'].setPosition.bind(this.legs['legFrontRight']);
-    const frp = add(dogPosition, {forward:frontRightXPos*this.stepWidth, height:frontRightHeight, sideways:0});
+    const frp = add(this.stepPositionLevel, {forward:frontRightForward*this.stepForward, height:frontRightHeight*this.stepHeight, sideways:frontRightSideways*this.stepSideways});
     const br = this.legs['legBackRight'].setPosition.bind(this.legs['legBackRight']);
-    const brp = add(dogPosition, {forward:backRightXPos*this.stepWidth, height:backRightHeight, sideways:0});
+    const brp = add(this.stepPositionLevel, {forward:backRightForward*this.stepForward, height:backRightHeight*this.stepHeight, sideways:backRightSideways*this.stepSideways});
     Promise.all([ bl(blp), fl(flp), fr(frp), br(brp)]);
     return this.motorLoop();
   }
 }
 
 const getReady = async (dog: Dog) => {
-  const g = dog.stepHeight + 5;
-  const h = dog.stepHeight;
-  const k = dog.stepLow + 5;
-  const l = dog.stepLow;
-  const u = dog.stepUp;
   await dog.setBendForward();
   if(dog.mode === Modes.STANDING) {
-    await dog.move( 0,   0,   0,   0,       0,   0,   0,   0 );//0
-    await dog.move( g,  -1,   h,  -1,       h,  -1,   g,  -1 );//1
-    await dog.move( k,  -1,   l,  -1,       h,  -1,   g,  -1 );//2
-    await dog.move( k,  -1,   l,  -1,       h,  -1,   u,  -1 );//3
-    await dog.move( k,  -1,   l,  -1,       h,  -1,   g,   0 );//4
-    await dog.move( h,  -1,   h,  -1,       h,  -1,   h,   0 );//5
-    await dog.move( g,  -1,   h,  -1,       l,  -1,   k,   0 );//6
-    await dog.move( u,  -1,   h,  -1,       l,  -1,   k,   0 );//7
-    await dog.move( u,  -2,   h,  -1,       l,  -1,   l,   0 );//8
-    await dog.move( h,  -1,   h,   0,       l,   0,   l,   1 );//9
-    await dog.move( h,  -1,   g,   0,       k,   0,   l,   1 );//10
-    await dog.move( h,  -1,   u,   0,       k,   0,   l,   1 );//11
-    await dog.move( h,  -1,   u,   2,       k,   0,   l,   1 );//12
-    await dog.move( h,  -1,   h,   2,       l,   0,   l,   1 );//13
-    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//14
+    await dog.move(   0,   0,   0,     0,   0,   0,        0,   0,   0,     0,   0,   0 );
+    await dog.move(   0,   0,   1,     0,   0,   1,        0,   0,   1,     0,   1,   1 );
+    await dog.move(   0,   0,   1,     0,   0,   1,        0,   0,   1,     1,   1,   1 );
+    await dog.move(   0,   0,   1,     0,   0,   1,        0,   0,   1,     1,   0,   1 );
+    await dog.move(   0,   0,  -1,     0,   1,  -2,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   0,   0,  -1,     2,   1,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   0,   0,  -1,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   0,   1,  -1,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   3,   1,  -3,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   3,   0,  -3,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
   }
-  await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//20
+  await dog.move(   3,   0,  -1,     2,   0,  -1,        0,   0,   1,     1,   0,   1 );
   dog.mode = Modes.READY0;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
 
 const getStanding = async (dog: Dog) => {
-  const g = dog.stepHeight + 5;
-  const h = dog.stepHeight;
-  const k = dog.stepLow + 5;
-  const l = dog.stepLow;
-  const u = dog.stepUp;
   if(dog.mode === Modes.READY0) {
-    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//20
-    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//14
-    await dog.move( h,  -1,   h,   2,       l,   0,   l,   1 );//13
-    await dog.move( h,  -1,   u,   2,       k,   0,   l,   1 );//12
-    await dog.move( h,  -1,   u,   0,       k,   0,   l,   1 );//11
-    await dog.move( h,  -1,   g,   0,       k,   0,   l,   1 );//10
-    await dog.move( h,  -1,   h,   0,       l,   0,   l,   1 );//9
-    await dog.move( u,  -2,   h,  -1,       l,  -1,   l,   0 );//8
-    await dog.move( u,  -1,   h,  -1,       l,  -1,   k,   0 );//7
-    await dog.move( g,  -1,   h,  -1,       l,  -1,   k,   0 );//6
-    await dog.move( h,  -1,   h,  -1,       h,  -1,   h,   0 );//5
-    await dog.move( k,  -1,   l,  -1,       h,  -1,   g,   0 );//4
-    await dog.move( k,  -1,   l,  -1,       h,  -1,   u,  -1 );//3
-    await dog.move( k,  -1,   l,  -1,       h,  -1,   g,  -1 );//2
-    await dog.move( g,  -1,   h,  -1,       h,  -1,   g,  -1 );//1
+    await dog.move(   3,   0,  -1,     2,   0,  -1,        0,   0,   1,     1,   0,   1 );
+    await dog.move(   3,   0,  -3,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   3,   1,  -3,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   0,   1,  -1,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   0,   0,  -1,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   0,   0,  -1,     2,   1,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   0,   0,  -1,     0,   1,  -2,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   0,   0,   1,     0,   0,   1,        0,   0,   1,     1,   0,   1 );
+    await dog.move(   0,   0,   1,     0,   0,   1,        0,   0,   1,     1,   1,   1 );
+    await dog.move(   0,   0,   1,     0,   0,   1,        0,   0,   1,     0,   1,   1 );
+    await dog.move(   0,   0,   0,     0,   0,   0,        0,   0,   0,     0,   0,   0 );
   }
   await dog.setBendForward();
-  await dog.move( 0,   0,   0,   0,       0,   0,   0,   0 );//0
+  for(let id in dog.legs) {
+    dog.legs[id].setPosition({forward:0, height:0, sideways:0});
+  }
+  await dog.motorLoop();
   dog.mode = Modes.STANDING;
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
 }
 
 const forward = async (dog: Dog) => {
-  const h = dog.stepHeight;
-  const k = dog.stepLow + 5;
-  const l = dog.stepLow;
-  const u = dog.stepUp;
   await dog.setBendForward();
   if(dog.mode === Modes.READY0) {
-    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//20
-    await dog.move( h,-2.5,   h,   0,       l,  -2,   k,  -1 );//21
-    await dog.move( u,  -2,   h,   0,       l,  -2,   k,  -1 );//22
-    await dog.move( u,   0,   h,   0,       l,  -2,   k,  -1 );//23
-    await dog.move( u,   2,   h,   0,       l,  -2,   k,  -1 );//24
-    await dog.move( h,   1,   h,   0,       h,  -2,   h,  -1 );//25
+    await dog.move(   3,   0,  -1,     2,   0,  -1,        0,   0,   1,     1,   0,   1 );
+    await dog.move(   3,   0,  -3,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   3,   1,  -3,     2,   0,  -3,        0,   0,  -1,     1,   0,  -1 );
+    await dog.move(   2,   2,  -3,   2.4,   0,  -3,      0.4,   0,  -1,   1.4,   0,  -1 );
+    await dog.move(   1,   2,  -3,   2.6,   0,  -3,      0.6,   0,  -1,   1.6,   0,  -1 );
+    await dog.move(   0,   1,  -3,     3,   0,  -3,        1,   0,  -1,     2,   0,  -1 );
+    await dog.move(   0,   0,  -3,     3,   0,  -3,        1,   0,  -1,     2,   0,  -1 );
     dog.mode += 1;
   }
   else if(dog.mode === Modes.READY1) {
-    await dog.move( h,   1,   h,   0,       h,  -2,   h,  -1 );//25
-    await dog.move( l,   1,   k,   0,       u,  -2,   h,  -1 );//31
-    await dog.move( l,   1,   k,   0,       u,   0,   h,  -1 );//32
-    await dog.move( l,   1,   k,   0,       u, 1.5,   h,  -1 );//33
-    await dog.move( l,   1,   k,   0,       h,   2,   h,  -1 );//34
-    await dog.move( l,   0,   l,  -1,       h,   1,   h,  -2 );//35
+    await dog.move(   0,   0,  -3,     3,   0,  -3,        1,   0,  -1,     2,   0,  -1 );
+    await dog.move(   0,   0,  -3,     3,   1,  -3,        1,   0,  -1,     2,   0,  -1 );
+    await dog.move( 0.4,   0,  -3,     2,   2,  -3,      1.4,   0,  -1,   2.4,   0,  -1 );
+    await dog.move( 0.6,   0,  -3,     1,   2,  -3,      1.6,   0,  -1,   2.6,   0,  -1 );
+    await dog.move(   1,   0,  -3,     0,   1,  -3,        2,   0,  -1,     3,   0,  -1 );
+    await dog.move(   1,   0,  -1,     0,   0,  -1,        2,   0,   1,     3,   0,   1 );
     dog.mode += 1;
   }
   else if(dog.mode === Modes.READY2) {
-    await dog.move( l,   0,   l,  -1,       h,   1,   h,  -2 );//35
-    await dog.move( k,  -1,   l,  -2,       h,   0,   h,-2.5 );//41
-    await dog.move( k,  -1,   l,  -2,       h,   0,   u,  -2 );//42
-    await dog.move( k,  -1,   l,  -2,       h,   0,   u,   0 );//43
-    await dog.move( k,  -1,   l,  -2,       h,   0,   u,   2 );//44
-    await dog.move( h,  -1,   h,  -2,       h,   0,   h,   1 );//45
+    await dog.move(   1,   0,  -1,     0,   0,  -1,        2,   0,   1,     3,   0,   1 );
+    await dog.move(   1,   0,   1,     0,   0,   1,        2,   0,   3,     3,   0,   3 );
+    await dog.move(   1,   0,   1,     0,   0,   1,        2,   0,   3,     3,   1,   3 );
+    await dog.move( 1.4,   0,   1,   0.4,   0,   1,      2.4,   0,   3,     2,   2,   3 );
+    await dog.move( 1.6,   0,   1,   0.6,   0,   1,      2.6,   0,   3,     1,   2,   3 );
+    await dog.move(   2,   0,   1,     1,   0,   1,        3,   0,   3,     0,   1,   3 );
+    await dog.move(   2,   0,   1,     1,   0,   1,        3,   0,   3,     0,   0,   3 );
     dog.mode += 1;
   }
   else if(dog.mode === Modes.READY3) {
-    await dog.move( h,  -1,   h,  -2,       h,   0,   h,   1 );//45
-    await dog.move( h,  -1,   u,  -2,       k,   0,   l,   1 );//51
-    await dog.move( h,  -1,   u,   0,       k,   0,   l,   1 );//52
-    await dog.move( h,  -1,   u, 1.5,       k,   0,   l,   1 );//53
-    await dog.move( h,  -1,   h,   2,       k,   0,   l,   1 );//54
-    await dog.move( h,  -2,   h,   1,       l,  -1,   l,   0 );//20
+    await dog.move(   2,   0,   1,     1,   0,   1,        3,   0,   3,     0,   0,   3 );
+    await dog.move(   2,   0,   1,     1,   0,   1,        3,   1,   3,     0,   0,   3 );
+    await dog.move( 2.4,   0,   1,   1.4,   0,   1,        2,   2,   3,   0.4,   0,   3 );
+    await dog.move( 2.6,   0,   1,   1.6,   0,   1,        1,   2,   3,   0.6,   0,   3 );
+    await dog.move(   3,   0,   1,     2,   0,   1,        0,   1,   3,     1,   0,   3 );
+    await dog.move(   3,   0,  -1,     2,   0,  -1,        0,   0,   1,     1,   0,   1 );
     dog.mode -= 3;
   }
   return dog.mainWindow.webContents.send('notifyMode', dog.mode);
@@ -435,7 +430,7 @@ const getDown = async (dog: Dog) => {
   dog.legs['legFrontLeft'].bendForward = false;
   dog.legs['legFrontRight'].bendForward = false;
   dog.legs['legBackRight'].bendForward = true;
-  await dog.move( 0,   0,   0,   0,       0,   0,   0,   0 );//0
+  await dog.move( 0,   0, 0,   0,   0,0,       0,   0,0,   0,   0,0 );//0
   await Promise.all([ bl({forward:0.5*d, height:d, sideways:0}), fl({forward:-0.5*d, height:d, sideways:0}), fr({forward:-0.5*d, height:d, sideways:0}), br({forward:0.5*d, height:d, sideways:0}) ]);
   await dog.motorLoop();
   dog.mode = Modes.DOWN;

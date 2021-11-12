@@ -1,0 +1,478 @@
+{
+  "STANDING-0": {
+    "legFrontRight": {
+      "position": {
+        "forward": -0.16103001762385816,
+        "height": -27.519006617600382,
+        "sideways": 0.9361271688026918
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": -0.16102974855336072,
+        "height": -27.463607737646896,
+        "sideways": -0.6239802981596227
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -0.16102921629268963,
+        "height": -27.353737905242497,
+        "sideways": 0
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": -0.16102948144578022,
+        "height": -27.408518312017975,
+        "sideways": -0.31193791368609425
+      },
+      "bendForward": true
+    }
+  },
+  "STANDING-1": {
+    "legFrontRight": {
+      "position": {
+        "forward": -0.10519218764487448,
+        "height": -42.0368867625246,
+        "sideways": 0.999292599359805
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": -0.10519278927738185,
+        "height": -41.96293200179497,
+        "sideways": -0.5950378782523487
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -0.10519398361577714,
+        "height": -41.85944777770851,
+        "sideways": 7.105427357601002e-15
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": -0.10519338793677946,
+        "height": -41.911052250369266,
+        "sideways": -0.29746708748207595
+      },
+      "bendForward": true
+    }
+  },
+  "STANDING-3": {
+    "legFrontRight": {
+      "position": {
+        "forward": -28.25247041931459,
+        "height": -7.608490064277419,
+        "sideways": 29.504772647123986
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": 21.536125011603566,
+        "height": -0.12044444387578324,
+        "sideways": 34.12154869907994
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -21.40532631230026,
+        "height": -0.0011125726647946976,
+        "sideways": -34.78305218088067
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": 28.109201166971467,
+        "height": -7.425551205378156,
+        "sideways": -28.862729814049658
+      },
+      "bendForward": true
+    }
+  },
+  "READY2-0": {
+    "legFrontRight": {
+      "position": {
+        "forward": 59.25473566138855,
+        "height": -134.3032760122853,
+        "sideways": 39.85836898862753
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": -100.65294158101437,
+        "height": -134.71550340622116,
+        "sideways": -39.780611129300084
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": 139.2968295489351,
+        "height": -134.12246664834927,
+        "sideways": 39.89247479841332
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": -20.817081317996838,
+        "height": -134.52776706028592,
+        "sideways": -39.81602356571902
+      },
+      "bendForward": true
+    }
+  },
+  "STANDING-5": {
+    "legFrontRight": {
+      "position": {
+        "forward": -0.34846013076538185,
+        "height": -11.156512591485694,
+        "sideways": 0.9851316605753837
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": -0.3484592874697299,
+        "height": -11.097792125601302,
+        "sideways": -0.6566484624781737
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -0.3484576165624702,
+        "height": -10.981387556371715,
+        "sideways": 0
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": -0.34845844940501536,
+        "height": -11.039417272413573,
+        "sideways": -0.32827122600703973
+      },
+      "bendForward": true
+    }
+  },
+  "STANDING-6": {
+    "legFrontRight": {
+      "position": {
+        "forward": -1.4500588751979038,
+        "height": -10.373914404511424,
+        "sideways": 0.9874754858109185
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": -1.449698172333747,
+        "height": -10.315041823061847,
+        "sideways": -0.6582109275645465
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -1.4489834260997512,
+        "height": -10.198338093540713,
+        "sideways": -7.105427357601002e-15
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": -1.449339690491236,
+        "height": -10.256516545230852,
+        "sideways": -0.32905241503276983
+      },
+      "bendForward": true
+    }
+  },
+  "READY0-1": {
+    "legFrontRight": {
+      "position": {
+        "forward": -100.74517997108809,
+        "height": -114.71016285257105,
+        "sideways": 39.811270465510276
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": 59.18103898262672,
+        "height": -114.27269135517258,
+        "sideways": -39.88685064329715
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -20.883497873557033,
+        "height": -114.50097109879823,
+        "sideways": 39.84741167707659
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": 139.21540382486052,
+        "height": -114.09056973833344,
+        "sideways": -39.918315057005174
+      },
+      "bendForward": true
+    }
+  },
+  "undefined-0": {
+    "legFrontRight": {
+      "position": {
+        "forward": -24.26468592355446,
+        "height": -6.465313880762949,
+        "sideways": 26.224848522078105
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": 19.163835651927144,
+        "height": -0.1204444438756127,
+        "sideways": 29.295718081805266
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -19.08868661431687,
+        "height": -0.0027933047331885064,
+        "sideways": -29.961227081117585
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": 24.139019193449027,
+        "height": -6.290025161704023,
+        "sideways": -25.57531418633181
+      },
+      "bendForward": true
+    }
+  },
+  "undefined-1": {
+    "legFrontRight": {
+      "position": {
+        "forward": -24.48789182594681,
+        "height": -35.354630908231115,
+        "sideways": 26.0837134952277
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": 18.912733679028264,
+        "height": -28.991545268728828,
+        "sideways": 29.140273417971958
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -19.314308348562093,
+        "height": -28.900230658358907,
+        "sideways": -29.799732552640766
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": 23.879758083892,
+        "height": -35.14791894022704,
+        "sideways": -25.440325669528036
+      },
+      "bendForward": true
+    }
+  },
+  "undefined-2": {
+    "legFrontRight": {
+      "position": {
+        "forward": -61.68120744358339,
+        "height": -35.35463090823123,
+        "sideways": 50.99551387602105
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": 34.259017523064855,
+        "height": -28.991545268728885,
+        "sideways": 71.20787235217696
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -34.50566395939722,
+        "height": -28.900230658358907,
+        "sideways": -71.82282477273002
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": 60.91814546832706,
+        "height": -35.1479189402271,
+        "sideways": -50.39663276443707
+      },
+      "bendForward": true
+    }
+  },
+  "undefined-3": {
+    "legFrontRight": {
+      "position": {
+        "forward": -124.54121486896565,
+        "height": -35.89290248111223,
+        "sideways": 50.90683985930369
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": -28.00073062046509,
+        "height": -29.152879743100982,
+        "sideways": 71.17009149927358
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -96.81497948132886,
+        "height": -28.923432903549383,
+        "sideways": -71.81734502225788
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": -0.6831598255131155,
+        "height": -35.10943306942045,
+        "sideways": -50.402895424917105
+      },
+      "bendForward": true
+    }
+  },
+  "undefined-4": {
+    "legFrontRight": {
+      "position": {
+        "forward": -103.92883974025538,
+        "height": -52.36124468529442,
+        "sideways": 39.70155575791655
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": -33.74379168032197,
+        "height": -23.183919240661623,
+        "sideways": 53.29767979075066
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -91.5741390341105,
+        "height": -34.952405667933704,
+        "sideways": -53.30813619480764
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": -17.387201270083622,
+        "height": -21.30020105132894,
+        "sideways": -40.32344476014734
+      },
+      "bendForward": true
+    }
+  },
+  "undefined-5": {
+    "legFrontRight": {
+      "position": {
+        "forward": -96.036353187121,
+        "height": -73.96818138637855,
+        "sideways": 34.53159258458993
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": -43.56276878075714,
+        "height": -31.118960958472144,
+        "sideways": 45.34660945375165
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -84.69826499119523,
+        "height": -118.00379286092613,
+        "sideways": -45.260281753040495
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": -24.987757930378734,
+        "height": -89.18762502222023,
+        "sideways": -35.22566584219143
+      },
+      "bendForward": true
+    }
+  },
+  "undefined-6": {
+    "legFrontRight": {
+      "position": {
+        "forward": -96.03635318712102,
+        "height": -36.59175110259264,
+        "sideways": 28.625796790135283
+      },
+      "bendForward": true
+    },
+    "legFrontLeft": {
+      "position": {
+        "forward": -43.56276878075721,
+        "height": -49.74572514937455,
+        "sideways": 35.593148645841566
+      },
+      "bendForward": true
+    },
+    "legBackRight": {
+      "position": {
+        "forward": -84.69826499119527,
+        "height": -99.50928890602694,
+        "sideways": -37.307970924162184
+      },
+      "bendForward": true
+    },
+    "legBackLeft": {
+      "position": {
+        "forward": -24.987757930378734,
+        "height": -126.43179507000286,
+        "sideways": -27.518720068705022
+      },
+      "bendForward": true
+    }
+  }
+}

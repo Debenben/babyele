@@ -3,9 +3,11 @@ import * as path from "path";
 import * as url from "url";
 import { Dog } from "./dog";
 import { Modes } from "./param"
+import { Storage } from "./storage"
 
 let mainWindow: Electron.BrowserWindow;
 let dog: Dog;
+let storage: Storage;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -89,4 +91,9 @@ app.on("activate", () => {
 
 ipcMain.on('rendererInitialized', (event, arg) => {
   createDog();
+  storage = new Storage(mainWindow);
+});
+
+ipcMain.on('storePose', (event, arg) => {
+  storage.storePose(arg, dog.getPose());
 });

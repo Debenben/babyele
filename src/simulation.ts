@@ -135,22 +135,28 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   }
 
   async motorLoop(token: Token) {
-    while(this.rotation != this.destRotation) {
-      if(token.isCancellationRequested) {
-        console.log("simulation motor rotateByDegree is cancelled");
-        return Promise.resolve();
+    try {
+      while(this.rotation != this.destRotation) {
+        if(token.isCancellationRequested) {
+          console.log("simulation motor rotateByDegree is cancelled");
+          return Promise.resolve();
+        }
+        console.log("simulation motor rotating with speed " + this.speed + " from " + this.rotation + " to " + this.destRotation);
+        if(Math.abs(this.destRotation - this.rotation) < Math.abs(this.speed)) {
+          this.rotation = this.destRotation;
+        }
+        else {
+          this.rotation += this.speed;
+        }
+        await sleep(100);
+        this.emit('rotate', {degrees: this.rotation});
       }
-      console.log("simulation motor rotating with speed " + this.speed + " from " + this.rotation + " to " + this.destRotation);
-      if(Math.abs(this.destRotation - this.rotation) < Math.abs(this.speed)) {
-        this.rotation = this.destRotation;
-      }
-      else {
-        this.rotation += this.speed;
-      }
-      await sleep(100);
-      this.emit('rotate', {degrees: this.rotation});
+      return Promise.resolve();
     }
-    return Promise.resolve();
+    catch(e) {
+      console.log("discard error " + e);
+      return Promise.resolve();
+    }
   }
 }
 
