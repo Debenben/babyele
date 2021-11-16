@@ -12,6 +12,10 @@ export type Position = {
 
 export type Pose = Record <LegName, {position: Position, bendForward: boolean}>
 
+export const allowSwitch = (modePose1, modePose2) => {
+  return true;
+}
+
 export const toArray = (position: Position) => {
   if(position) {
     return [position.forward, position.height, position.sideways];

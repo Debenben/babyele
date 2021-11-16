@@ -1,7 +1,6 @@
 import * as BABYLON from 'babylonjs';
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from "./renderer-gui";
-import { Modes } from './param';
 import * as Param from './param';
 
 export default class Renderer {
@@ -128,6 +127,7 @@ export default class Renderer {
   setState(meshName: string, state: string) {
     const mesh = this.scene.getMeshByName(meshName);
     if(!mesh) {
+      if(meshName === 'dog') return;
       console.log(meshName + " not found");
       return;
     }

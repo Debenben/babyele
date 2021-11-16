@@ -1,8 +1,7 @@
 import * as BABYLON from 'babylonjs';
 import { AdvancedDynamicTexture, Rectangle, Control, Slider, TextBlock, Button, StackPanel, ScrollViewer, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Modes } from './param';
-import * as Param from './param';
+import { allowSwitch } from './tools';
 
 export class GuiTexture {
   scene: BABYLON.Scene;
@@ -351,6 +350,7 @@ const buildAngleSlider = (infobox: Infobox) => {
   });
   slider.onPointerUpObservable.add(() => {
     ipcRenderer.send(infobox.name, "requestRotation", slider.value);
+    ipcRenderer.send("requestMode", "MANUAL"); 
   });
   return slider;
 }
@@ -366,7 +366,7 @@ const buildResetButton = (meshName: string) => {
   button.background = "grey";
   button.onPointerClickObservable.add(() => {
     ipcRenderer.send(meshName, "requestReset");
-    ipcRenderer.emit('correctionRequested');
+    ipcRenderer.send("requestMode", "MANUAL"); 
   });
   return button;
 }
@@ -383,7 +383,7 @@ const buildCorrectionSlider = (meshName: string, requestName: string) => {
   slider.thumbColor = "grey";
   slider.borderColor = "black";
   slider.onPointerDownObservable.add(() => {
-    ipcRenderer.emit('correctionRequested');
+    ipcRenderer.send("requestMode", "MANUAL"); 
   });
   slider.onValueChangedObservable.add((value) => {
     ipcRenderer.send(meshName, requestName, value);
@@ -403,43 +403,25 @@ const buildTopMenu = (guiTexture) => {
   grid.widthInPixels = 260;
   grid.addColumnDefinition(0.5);
   grid.addColumnDefinition(0.5);
-  const modeDisplayButton = buildTopMenuButton(String(Modes[Modes.OFFLINE]));
+  const modeDisplayButton = buildTopMenuButton("OFFLINE");
   modeDisplayButton.onPointerClickObservable.add(() => {
     if(guiTexture.modeSelection) {
-      ipcRenderer.send('retrievePoses');
       guiTexture.modeSelection.isVisible = !guiTexture.modeSelection.isVisible;
     }
   });
   const addPoseButton = buildTopMenuButton("Save Position");
   addPoseButton.isEnabled = false;
-  ipcRenderer.on('notifyMode', (event, arg) => {
-    modeDisplayButton.textBlock.text = String(Modes[arg]);
-    modeDisplayButton.color = 'black';
-    addPoseButton.isEnabled = false;
-    addPoseButton.color = "darkgrey";
-  });
-  ipcRenderer.on('correctionRequested', () => {
-    modeDisplayButton.color = 'red';
-    ipcRenderer.send('retrievePoses');
-  });
-  ipcRenderer.on('storedPoses', (event, arg) => {
-    if(modeDisplayButton.color == 'red') {
-      let num = [];
-      const prefix = modeDisplayButton.textBlock.text.split('-')[0]
-      for(let id in arg) {
-        if(id.split('-')[0] == prefix) {
-          num.push(id.split('-')[1]);
-        }
-      }
-      num.sort((a, b) => {return a-b});
-      let available = 0;
-      for(let i in num) {
-        if(num[i] == available) available++;
-      }
-      modeDisplayButton.textBlock.text = prefix + '-' + available;
-      addPoseButton.isEnabled = true;
+  addPoseButton.color = "darkgrey";
+  ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
+    modeDisplayButton.textBlock.text = modeName;
+    addPoseButton.isEnabled = !isKnown;
+    if(isKnown) {
+      modeDisplayButton.color = 'black';
+      addPoseButton.color = "darkgrey";
+    }
+    else {
+      modeDisplayButton.color = 'green';
       addPoseButton.color = "black";
-      modeDisplayButton.color = "green";
     }
   });
   addPoseButton.onPointerClickObservable.add(() => {
@@ -452,8 +434,21 @@ const buildTopMenu = (guiTexture) => {
 
 const buildTopMenuButton = (text: string) => {
   const button = Button.CreateSimpleButton("topMenuButton", text);
-  button.background = "grey";
   button.color = "black";
+  button.isEnabled = true;
+  button.background = "grey";
+  ipcRenderer.on('noitfyState', (event, arg1, arg2) => {
+    if(arg1 === 'dog') {
+      if(arg2 === 'offline') {
+        button.isEnabled = false;
+        button.color = "darkgrey";
+      }
+      else {
+        button.isEnabled = true;
+        button.color = "black";
+      }
+    }
+  });
   return button;
 }
 
@@ -478,10 +473,10 @@ const buildModeSelection = (guiTexture) => {
   const modesScroll = new ScrollViewer("modesScroll");
   modesScroll.color = "#303030";
   const modesPanel = new StackPanel("modePanel");
-  let keys = Object.keys(Modes).filter(k => typeof (Modes as any)[k] === 'number') as any;
+  /*let keys = Object.keys(Modes).filter(k => typeof (Modes as any)[k] === 'number') as any;
   keys.forEach((key) => {
     modesPanel.addControl(buildModeButton(Modes[key], guiTexture));
-  });
+  });*/
   modesScroll.addControl(modesPanel);
   grid.addControl(modesScroll, 0, 0);
   const posesScroll = new ScrollViewer("posesScroll");
@@ -489,7 +484,7 @@ const buildModeSelection = (guiTexture) => {
   const posesPanel = new StackPanel("posesPanel");
   posesScroll.addControl(posesPanel);
   grid.addControl(posesScroll, 0, 1);
-  ipcRenderer.on('storedPoses', (event, arg) => {
+  ipcRenderer.on('notifyPosesAvailable', (event, arg) => {
     posesPanel.clearControls();
     for(let id in arg) {
       posesPanel.addControl(buildPoseButton(id, false));
@@ -502,7 +497,7 @@ const buildModeSelection = (guiTexture) => {
 }
 
 const buildModeButton = (mode, guiTexture) => {
-  const button = Button.CreateSimpleButton("modeButton", String(Modes[mode]));
+  const button = Button.CreateSimpleButton("modeButton", mode);
   button.paddingTop = "5px"
   button.paddingRight = "5px"
   button.paddingLeft = "5px"
@@ -511,11 +506,11 @@ const buildModeButton = (mode, guiTexture) => {
   button.color = "darkgrey";
   button.isEnabled = false;
   button.onPointerClickObservable.add(() => {
-    ipcRenderer.send("dog", "requestMode", mode); 
+    ipcRenderer.send("requestMode", mode); 
     guiTexture.modeSelection.isVisible = false;
   });
-  ipcRenderer.on('notifyMode', (event, arg) => {
-    if(Param.allowSwitch(arg, mode)) {
+  ipcRenderer.on('notifyMode', (event, arg1, arg2) => {
+    if(allowSwitch(arg1, mode)) {
       button.color = "black";
       button.isEnabled = true;
     } 
@@ -542,6 +537,9 @@ const buildPoseButton = (text, moveDummy) => {
     });
     button.onPointerUpObservable.add((vec) => {
       ipcRenderer.emit('stopGuiDrag', button, vec);
+    });
+    button.onPointerClickObservable.add(() => {
+      ipcRenderer.send('requestMode', text);
     });
   }
   return button; 

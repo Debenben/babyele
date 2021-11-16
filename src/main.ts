@@ -2,12 +2,11 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import * as path from "path";
 import * as url from "url";
 import { Dog } from "./dog";
-import { Modes } from "./param"
-import { Storage } from "./storage"
+import { MoveController } from "./movecontroller"
 
 let mainWindow: Electron.BrowserWindow;
 let dog: Dog;
-let storage: Storage;
+let controller: MoveController;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -67,11 +66,7 @@ app.on("ready", createWindow);
 // Quit when all windows are closed.
 app.on("window-all-closed", () => {
   try {
-    if(dog) {
-      for(var hubNum in dog.hubs) {
-        dog.hubs[hubNum].shutdown();
-      }
-    }
+    dog.shutdown();
   }
   catch(e) {
     console.log("discard error " + e + " during shutdown");
@@ -91,9 +86,6 @@ app.on("activate", () => {
 
 ipcMain.on('rendererInitialized', (event, arg) => {
   createDog();
-  storage = new Storage(mainWindow);
+  controller = new MoveController(mainWindow, dog);
 });
 
-ipcMain.on('storePose', (event, arg) => {
-  storage.storePose(arg, dog.getPose());
-});
