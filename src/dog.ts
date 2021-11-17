@@ -145,7 +145,7 @@ export class Dog {
   getPose() {
     let pose = {} as Pose;
     for(let id of legNames) {
-      pose[id] = {position: this.legs[id].getPosition(), bendForward: this.legs[id].bendForward};
+      pose[id] = this.legs[id].motorAngles;
     }
     return pose;
   }
@@ -237,8 +237,7 @@ export class Dog {
 
   requestPose(pose: Pose) {
     for(let id of legNames) {
-      this.legs[id].bendForward = pose[id].bendForward;
-      this.legs[id].setPosition(pose[id].position);
+      this.legs[id].destMotorAngles = pose[id];
     }
     return this.motorLoop();
   }

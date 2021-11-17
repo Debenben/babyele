@@ -6,10 +6,10 @@ import { NO_MOVE_MOTOR_ANGLE, TOP_MOTOR_RANGE, BOTTOM_MOTOR_RANGE, MOUNT_MOTOR_R
 export class Leg {
   legName: LegName
   mainWindow: BrowserWindow
-  motors: Record<MotorName, MotorAbstraction> = {Top: null, Bottom: null, Mount: null}
-  motorRanges: Record<MotorName, number> = {Top: TOP_MOTOR_RANGE, Bottom: BOTTOM_MOTOR_RANGE, Mount: MOUNT_MOTOR_RANGE}
-  motorAngles: Record<MotorName, number> = {Top: 0, Bottom: 0, Mount: 0}
-  destMotorAngles: Record<MotorName, number> = {Top: 0, Bottom: 0, Mount: 0}
+  motors: Record<MotorName, MotorAbstraction> = {top: null, bottom: null, mount: null}
+  motorRanges: Record<MotorName, number> = {top: TOP_MOTOR_RANGE, bottom: BOTTOM_MOTOR_RANGE, mount: MOUNT_MOTOR_RANGE}
+  motorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
+  destMotorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
   bendForward: boolean = true
   moveSpeed: Position
   startMovePosition: Position
@@ -32,7 +32,7 @@ export class Leg {
     if(!legMotorName.startsWith(this.legName)) {
       return true;
     }
-    const motorName = legMotorName.replace(this.legName, "");
+    const motorName = legMotorName.replace(this.legName, "").toLowerCase();
     if(!motor) {
       this.mainWindow.webContents.send("notifyState", legMotorName, "offline");
       ipcMain.removeAllListeners(legMotorName);
@@ -84,13 +84,13 @@ export class Leg {
   }
 
   requestRotation(motorName: string, angle: number) {
-    if(!(motorName === 'Mount')) {
+    if(!(motorName === 'mount')) {
       this.destMotorAngles[motorName] = angle*this.motorRanges[motorName]/Math.PI;
       return this.motorLoop();
     }
     else {
       const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, angle+Math.PI/2);
-      this.destMotorAngles['Mount'] = (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges['Mount'];
+      this.destMotorAngles['mount'] = (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges['mount'];
       return this.motorLoop();
     }
   }
@@ -104,7 +104,7 @@ export class Leg {
     const mHeight = Math.sqrt(Math.abs(mLength**2 - LEG_MOUNT_WIDTH**2));
     const destMountAngle = mAngle - Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, destMountAngle+Math.PI/2);
-    this.destMotorAngles['Mount'] = (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges['Mount'];
+    this.destMotorAngles['mount'] = (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges['mount'];
     const tbHeight = mHeight + LEG_MOUNT_HEIGHT
     const tbLength = Math.sqrt(tbHeight**2 + position.forward**2);
     const phi = Math.atan2(position.forward, tbHeight);
@@ -115,8 +115,8 @@ export class Leg {
       destTopAngle = phi - alpha;
       destBottomAngle *= -1;
     }
-    this.destMotorAngles['Top'] = destTopAngle*this.motorRanges['Top']/Math.PI;
-    this.destMotorAngles['Bottom'] = destBottomAngle*this.motorRanges['Bottom']/Math.PI;
+    this.destMotorAngles['top'] = destTopAngle*this.motorRanges['top']/Math.PI;
+    this.destMotorAngles['bottom'] = destBottomAngle*this.motorRanges['bottom']/Math.PI;
   }
 
   requestPosition(position: Position) {
@@ -148,21 +148,21 @@ export class Leg {
   }
 
   getAngle(motorName: string) {
-    if(!(motorName === 'Mount')) {
+    if(!(motorName === 'mount')) {
       return Math.PI*this.motorAngles[motorName]/this.motorRanges[motorName];
     }
     else {
-      const pistonLength = LEG_PISTON_LENGTH + this.motorAngles['Mount']/this.motorRanges['Mount'];
+      const pistonLength = LEG_PISTON_LENGTH + this.motorAngles['mount']/this.motorRanges['mount'];
       return invCosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, pistonLength)-Math.PI/2;
     }
   }
 
   getPosition() {
-    const tAngle = this.getAngle('Top');
-    const bAngle = this.getAngle('Bottom') + tAngle;
+    const tAngle = this.getAngle('top');
+    const bAngle = this.getAngle('bottom') + tAngle;
     const forward = (LEG_LENGTH_TOP*Math.sin(tAngle) + LEG_LENGTH_BOTTOM*Math.sin(bAngle));
     const mHeight = LEG_LENGTH_TOP*Math.cos(tAngle) + LEG_LENGTH_BOTTOM*Math.cos(bAngle) - LEG_MOUNT_HEIGHT;
-    const mAngle = this.getAngle('Mount') + Math.atan2(LEG_MOUNT_WIDTH, mHeight);
+    const mAngle = this.getAngle('mount') + Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const mLength = Math.sqrt(Math.abs(mHeight**2 + LEG_MOUNT_WIDTH**2));
     const height = mLength*Math.cos(mAngle) + LEG_MOUNT_HEIGHT - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM);
     let sideways = mLength*Math.sin(mAngle) - LEG_MOUNT_WIDTH;

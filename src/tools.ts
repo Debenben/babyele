@@ -1,16 +1,18 @@
 export const legNames = ['legFrontRight', 'legFrontLeft', 'legBackRight', 'legBackLeft'] as const
 export type LegName = typeof legNames[number];
 
-export const motorNames = ['Top', 'Bottom', 'Mount'] as const
+export const motorNames = ['top', 'bottom', 'mount'] as const
 export type MotorName = typeof motorNames[number];
+
+export type Pose = Record <LegName, Record<MotorName, number>>
+
+export type Move = string[]
 
 export type Position = {
   forward: number
   height: number
   sideways: number
 }
-
-export type Pose = Record <LegName, {position: Position, bendForward: boolean}>
 
 export const allowSwitch = (modePose1, modePose2) => {
   return true;
