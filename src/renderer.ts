@@ -1,6 +1,6 @@
 import * as BABYLON from 'babylonjs';
 import { ipcRenderer } from 'electron';
-import { GuiTexture } from "./renderer-gui";
+import { GuiTexture } from "./guitexture";
 import * as Param from './param';
 
 export default class Renderer {

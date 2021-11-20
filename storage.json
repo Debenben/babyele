@@ -110,28 +110,6 @@
         "mount": -1147.7793238262336
       }
     },
-    "DELETETEST-2": {
-      "legFrontRight": {
-        "top": 1187.3811794500964,
-        "bottom": -4451.566837299629,
-        "mount": -1145.4997690450655
-      },
-      "legFrontLeft": {
-        "top": 13.887440708843755,
-        "bottom": -1089.862597105054,
-        "mount": 1630.4942716120904
-      },
-      "legBackRight": {
-        "top": 1296.5934152009327,
-        "bottom": -4824.864232571085,
-        "mount": -1544.1890595255672
-      },
-      "legBackLeft": {
-        "top": 1438.1248425802896,
-        "bottom": -5122.131771957262,
-        "mount": 1502.7351469788925
-      }
-    },
     "DELETETEST-7": {
       "legFrontRight": {
         "top": 1775.4702964618252,
@@ -452,7 +430,6 @@
       "ergerstg-1"
     ],
     "DELETETEST": [
-      "DELETETEST-2",
       "DELETETEST-3",
       "DELETETEST-4",
       "DELETETEST-7",
