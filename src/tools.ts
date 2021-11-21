@@ -14,8 +14,8 @@ export type Position = {
   sideways: number
 }
 
-export const allowSwitch = (modePose1, modePose2) => {
-  return true;
+export const deepCopy = (val: Record<MotorName, number>) => {
+  return {top: val.top, bottom: val.bottom, mount: val.mount};
 }
 
 export const toArray = (position: Position) => {

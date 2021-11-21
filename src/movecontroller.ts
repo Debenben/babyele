@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import * as fs from 'fs';
 import { Dog } from "./dog"
-import { Pose, Move, allowSwitch } from "./tools";
+import { Pose, Move } from "./tools";
 
 export class MoveController {
   mainWindow: BrowserWindow
@@ -64,23 +64,21 @@ export class MoveController {
       if(this.moves.hasOwnProperty(prefix)) {
         this.moves[prefix].splice(this.moves[prefix].indexOf(prefix + '-' + (num - 1)) + 1, 0, poseName);
       }
-      return this.storeData().then(() => {
-        this.mainWindow.webContents.send('notifyMode', poseName, true);
-      });
+      this.storeData();
+      this.mainWindow.webContents.send('notifyMode', poseName, true);
     });
 
     ipcMain.on('storeMove', (event, moveName, content) => {
       let newMove = [];
       for(let modeName of content) {
-        if(this.poses.hasOwnProperty(modeName)) {
+        if(this.poses.hasOwnProperty(modeName) || modeName == "OFFLINE") {
           newMove.push(modeName);
         }
         else if (this.moves.hasOwnProperty(modeName)) {
           newMove.push(...this.moves[modeName]);
         }
         else {
-          console.log("new move " + moveName + " cannot be stored, incorrect content " + modeName);
-          return;
+          console.log("move " + moveName + " not storing incorrect content " + modeName);
         }
       }
       if(content) {
@@ -97,35 +95,42 @@ export class MoveController {
     });
   };
 
-  retrieveData() {
+  retrieveData = () => {
     fs.readFile('storage.json', (err, data) => {
       if(err) {
         console.log("error reading file: " + err);
-        this.mainWindow.webContents.send('notifyPosesAvailable', this.poses);
-        this.mainWindow.webContents.send('notifyMovesAvailable', this.moves);
-        return Promise.resolve();
+        this.notifyAvailability();
+        return;
       }
       const object = JSON.parse(data.toString());
       this.poses = object['poses'];
       this.moves = object['moves'];
-      this.mainWindow.webContents.send('notifyPosesAvailable', this.poses);
-      this.mainWindow.webContents.send('notifyMovesAvailable', this.moves);
+      this.notifyAvailability();
     });
   }
 
-  storeData = async () => {
-    let data = JSON.stringify({poses: this.poses, moves: this.moves}, null, 2);
+  storeData = () => {
+    const data = JSON.stringify({poses: this.poses, moves: this.moves}, null, 2);
     return fs.writeFile('storage.json', data, (err) => {
       if(err) {
         console.log("error writing file: " + err);
-        return Promise.resolve();
+        return;
       }
-      this.mainWindow.webContents.send('notifyPosesAvailable', this.poses);
-      this.mainWindow.webContents.send('notifyMovesAvailable', this.moves);
+      this.notifyAvailability();
     });
   }
 
-  getNewPoseName() {
+  notifyAvailability = () => {
+    const lastMode = this.modeQueue.length ? this.modeQueue[this.modeQueue.length-1] : this.mode;
+    let enabled: Record<string, boolean> = {};
+    for(let id in this.moves) {
+      enabled[id] = this.allowSwitch(lastMode, id);
+    }
+    this.mainWindow.webContents.send('notifyPosesAvailable', Object.keys(this.poses));
+    this.mainWindow.webContents.send('notifyMovesAvailable', this.moves, enabled);
+  }
+
+  getNewPoseName = () => {
     let num = [];
     const prefix = this.mode.split('-')[0]
     for(let id in this.poses) {
@@ -141,11 +146,12 @@ export class MoveController {
     return prefix + '-' + available;
   }
 
-  requestMode(destMode: string) {
+  requestMode = (destMode: string) => {
     /* special predefined mode requests */
     if(destMode === "OFFLINE") {
       this.modeQueue = [];
       this.dog.shutdown();
+      this.notifyAvailability();
       return;
     }
     else if (this.mode === "OFFLINE") { // prevent predefined mode handling below
@@ -154,6 +160,7 @@ export class MoveController {
     }
     else if (destMode === "MANUAL") {
       this.modeQueue = [];
+      this.notifyAvailability();
       this.mainWindow.webContents.send('notifyMode', this.getNewPoseName(), false);
       return;
     }
@@ -164,50 +171,69 @@ export class MoveController {
     /* individual pose requests */
     else if (this.poses.hasOwnProperty(destMode)) {
       this.modeQueue = [ destMode ];
+      this.notifyAvailability();
       this.modeLoop();
       return Promise.resolve();
     }
+    /* allow switching to empty modes */
     else if (this.moves.hasOwnProperty(destMode)) {
       if(this.moves[destMode].length == 0) {
         this.modeQueue = [];
         this.mode = destMode;
+        this.notifyAvailability();
         this.mainWindow.webContents.send('notifyMode', this.getNewPoseName(), false);
+        return Promise.resolve();
       }
     }
     /* normal mode requests */
-    if(this.modeQueue.length && allowSwitch(this.modeQueue[this.modeQueue.length-1], destMode)) {
-      return this.modeQueue.push(destMode);
-    }
-    else if(allowSwitch(this.mode, destMode)) {
+    if(this.modeQueue.length && this.allowSwitch(this.modeQueue[this.modeQueue.length-1], destMode)) {
       this.modeQueue.push(destMode);
+      this.notifyAvailability();
+    }
+    else if(this.modeQueue.length == 0 && this.allowSwitch(this.mode, destMode)) {
+      this.modeQueue.push(destMode);
+      this.notifyAvailability();
       this.modeLoop();
-      return Promise.resolve();
     }
     else {
-      console.log("Cannot switch from " + this.mode + " to " + destMode);
-      return;
+      console.log("Cannot switch from " + this.modeQueue.length ? this.modeQueue[this.modeQueue.length-1] : this.mode + " to " + destMode);
     }
   }
 
   async modeLoop() {
     while(this.modeQueue.length) {
       let dest = this.modeQueue[0];
-      console.log("@@@@@@@@@@@@ modequeue dest " + dest);
-      if(this.mode === dest) {
-        this.modeQueue.shift();
-        continue;
-      }
       if(this.poses.hasOwnProperty(dest)) {
         await this.dog.requestPose(this.poses[dest]);
         this.mode = dest;
         this.mainWindow.webContents.send('notifyMode', dest, true);
-        continue;
+        this.modeQueue.shift();
+      }
+      else if(this.moves.hasOwnProperty(dest)) {
+        for(let poseId of this.moves[dest]) {
+          await this.dog.requestPose(this.poses[poseId]);
+          this.mode = poseId;
+          this.mainWindow.webContents.send('notifyMode', poseId, true);
+        }
+        if(this.modeQueue.length == 1 && this.allowSwitch(dest, dest)) continue;
+        this.modeQueue.shift();
       }
       else {
-        console.log("@@@@@@@@@@@@ modequeue SHIFTING RUGBBISCH");
+        console.log("Move or pose " + dest + " is unknown, discarding");
         this.modeQueue.shift();
       }
     }
     return Promise.resolve();
+  }
+
+  allowSwitch = (origin, destination) => {
+    if(origin == "OFFLINE") return false;
+    if(destination == "OFFLINE") return true;
+    if(origin == "WAITING") return true;
+    if(this.poses.hasOwnProperty(destination)) return true;
+    if(this.moves.hasOwnProperty(destination) && this.moves[destination].length == 0) return true;
+    if(this.poses.hasOwnProperty(origin) && this.moves.hasOwnProperty(destination)) return (origin == this.moves[destination][0]);
+    if(this.moves.hasOwnProperty(origin) && this.moves.hasOwnProperty(destination)) return (this.moves[origin][this.moves[origin].length-1] == this.moves[destination][0]);
+    return false;
   }
 }

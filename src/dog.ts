@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, MotorAbstraction } from "./interfaces";
-import { legNames, LegName, motorNames, Position, Pose, fromArray, toArray, parsePosition, add, multiply, getRotation, rotate } from "./tools";
+import { legNames, LegName, motorNames, Position, Pose, deepCopy, fromArray, toArray, parsePosition, add, multiply, getRotation, rotate } from "./tools";
 import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH } from "./param";
 
 export class Dog {
@@ -145,7 +145,7 @@ export class Dog {
   getPose() {
     let pose = {} as Pose;
     for(let id of legNames) {
-      pose[id] = this.legs[id].motorAngles;
+      pose[id] = deepCopy(this.legs[id].motorAngles);
     }
     return pose;
   }

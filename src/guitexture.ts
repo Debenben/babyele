@@ -14,10 +14,13 @@ export class GuiTexture {
   constructor(scene: BABYLON.Scene) {
     this.scene = scene;
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
-    this.topMenu = buildTopMenu(this);
+    this.topMenu = buildTopMenu();
     this.texture.addControl(this.topMenu);
-    this.modeSelection = new ModeSelection(this);
+    this.modeSelection = new ModeSelection();
     this.dragHelper = new DragHelper(this);
+    ipcRenderer.on("toggleModeSelectionVisibility", () => {
+      this.toggleModeSelectionVisibility();
+    });
   }
   removeInfobox() {
     if(this.infobox) {
@@ -72,8 +75,10 @@ class DragHelper extends Container {
         }
       }
     });
-    this.onPointerUpObservable.add((vec) => {
-      //only used if stopDrag was not called by container.onPointerUpObservable
+    this.onPointerDownObservable.add((vec) => {
+      // used if stopDrag was not called by container.onPointerUpObservable
+      // when dragging poses from moves, "dropClickEvent" does not delete pose
+      ipcRenderer.emit('stopGuiDrag', 'dropClickEvent', this.container, vec);
       this.stopDrag();
     });
     ipcRenderer.on("startGuiDrag", (event, original, startPosition, moveDummy) => {
@@ -111,12 +116,11 @@ class DragHelper extends Container {
   stopDrag = () => {
     this.removeControl(this.container);
     this.isVisible = false;
-    this.container = null;
     this.guiTexture.texture.removeControl(this);
   }
 }
 
-const buildTopMenu = (guiTexture: GuiTexture) => {
+const buildTopMenu = () => {
   const grid = new Grid("topMenu");
   grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
   grid.paddingTop = "5px"
@@ -127,7 +131,7 @@ const buildTopMenu = (guiTexture: GuiTexture) => {
   grid.addColumnDefinition(0.5);
   const modeDisplayButton = buildTopMenuButton("OFFLINE");
   modeDisplayButton.onPointerClickObservable.add(() => {
-    guiTexture.toggleModeSelectionVisibility();
+    ipcRenderer.emit("toggleModeSelectionVisibility");
   });
   const addPoseButton = buildTopMenuButton("Save Position");
   addPoseButton.isEnabled = false;
