@@ -8,7 +8,11 @@
       "baseUrl": ".",
       "paths": {
         "*": ["node_modules/*"]
-      }
+      },
+      "types": [
+        "babylonjs",
+        "babylonjs-gui"
+      ]
     },
     "include": [
       "src/**/*"
