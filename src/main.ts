@@ -22,7 +22,7 @@ function createWindow() {
   }));
 
   mainWindow.removeMenu();
-  //mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 
   // Emitted when the window is closed.
   mainWindow.on("closed", () => {
@@ -33,29 +33,31 @@ function createWindow() {
   });
 }
 
-function createDog() {
+async function createDog() {
   dog = new Dog(mainWindow);
+  let poweredUP;
   if(process.argv.includes('--simulation')) {
     console.log("Starting simulation...");
-    let simulation = import("./simulation").then( module => {
-      dog.addHub(new module.SimulationHub("BeneLego1"));
-      dog.addHub(new module.SimulationHub("BeneLego2"));
-      dog.addHub(new module.SimulationHub("BeneLego3"));
-      dog.addHub(new module.SimulationHub("BeneLego4"));
-      dog.addHub(new module.SimulationHub("BeneLego5"));
-      dog.addHub(new module.SimulationHub("BeneLego6"));
-    });
+    let library = await import("./simulation");
+    poweredUP = new library.SimulationPowered();
   }
   else {
-    let poweredUP = import("node-poweredup").then( module => {
-      let poweredUP = new module.PoweredUP();
-      poweredUP.on('discover', (hub) => {
-	dog.addHub(hub);
-      });
-      poweredUP.scan();
-      console.log("Looking for Hubs...");
-    });
+    let library = await import("node-poweredup");
+    poweredUP = new library.PoweredUP();
   }
+  poweredUP.on('discover', (hub) => {
+    dog.addHub(hub);
+  });
+  ipcMain.on('notifyState', (event, arg1, arg2) => {
+    if(arg1 === "dog" && arg2 === "online") {
+      poweredUP.stop();
+    }
+    else if (arg1 === "dog" && arg2 === "offline") {
+      poweredUP.scan();
+    }
+  });
+  poweredUP.scan();
+  console.log("Looking for Hubs...");
 }
 
 // This method will be called when Electron has finished
@@ -88,4 +90,3 @@ ipcMain.on('rendererInitialized', (event, arg) => {
   createDog();
   controller = new MoveController(mainWindow, dog);
 });
-

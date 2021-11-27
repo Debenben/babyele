@@ -1,5 +1,21 @@
 import { EventEmitter } from "events";
-import { HubAbstraction, LEDAbstraction, MotorAbstraction } from "./interfaces";
+import { PoweredAbstraction, HubAbstraction, LEDAbstraction, MotorAbstraction } from "./interfaces";
+
+export class SimulationPowered extends EventEmitter implements PoweredAbstraction {
+  hubList: string[] = ["BeneLego1", "BeneLego2", "BeneLego3", "BeneLego4", "differentHub", "BeneLego5", "BeneLego6"]
+  restart: boolean = true
+  public async scan() {
+    if(!this.restart) return;
+    console.log("scanning for simulation hubs");
+    for(let hubName of this.hubList) {
+      this.emit('discover', new SimulationHub(hubName));
+    }
+  }
+  public stop() {
+    console.log("stop scanning for simulation hubs");
+    this.restart = false;
+  }
+}
 
 export class SimulationHub extends EventEmitter implements HubAbstraction {
   name: string

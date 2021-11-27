@@ -1,4 +1,10 @@
 import { EventEmitter } from "events";
+
+export interface PoweredAbstraction extends EventEmitter {
+  scan: () => any;
+  stop: () => any;
+}
+
 export interface HubAbstraction extends EventEmitter {
   readonly name: string;
   readonly batteryLevel: number;

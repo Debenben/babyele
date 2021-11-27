@@ -10,20 +10,24 @@ export class Leg {
   motorRanges: Record<MotorName, number> = {top: TOP_MOTOR_RANGE, bottom: BOTTOM_MOTOR_RANGE, mount: MOUNT_MOTOR_RANGE}
   motorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
   destMotorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
-  bendForward: boolean = true
-  moveSpeed: Position
+  bendForward: boolean = false
+  positionSpeed: Position
   startMovePosition: Position
-  moveSpeedIntervalID: NodeJS.Timeout
+  positionSpeedIntervalID: NodeJS.Timeout
 
   constructor(legName: LegName, mainWindow: BrowserWindow) {
     this.legName = legName;
     this.mainWindow = mainWindow;
     ipcMain.on(this.legName, (event, arg1, arg2) => {
       if(arg1.startsWith("requestPositionSpeed")) {
-        this.requestMoveSpeed(parsePosition(arg1, arg2));
+        this.requestPositionSpeed(parsePosition(arg1, arg2));
+      }
+      else if(arg1 == "setBendForward") {
+        this.bendForward = arg2;
       }
       else if(arg1 === "getProperties") {
         this.mainWindow.webContents.send('notifyLegPosition', this.legName, this.getPosition());
+        this.mainWindow.webContents.send('notifyBendForward', this.legName, this.bendForward);
       }
     });
   }
@@ -52,11 +56,7 @@ export class Leg {
       ipcMain.on(legMotorName, (event, arg1, arg2) => {
         switch(arg1) {
           case "requestRotationSpeed":
-            motor.setPower(arg2);
-            if(arg2 === 0) {
-              this.destMotorAngles[motorName] = this.motorAngles[motorName];
-            }
-            break;
+            return this.requestRotationSpeed(motorName, arg2);
           case "requestRotation":
             return this.requestRotation(motorName, arg2);
           case "requestReset":
@@ -95,6 +95,13 @@ export class Leg {
     }
   }
 
+  requestRotationSpeed(motorName: string, speed: number) {
+    this.motors[motorName].setPower(speed);
+    if(speed === 0) {
+      this.destMotorAngles[motorName] = this.motorAngles[motorName];
+    }
+  }
+
   setPosition(position: Position) {
     if(this.legName.endsWith("Left")) {
       position.sideways *= -1;
@@ -124,21 +131,21 @@ export class Leg {
     return this.motorLoop();
   }
 
-  requestMoveSpeed(speed: Position) {
-    this.moveSpeed = speed;
+  requestPositionSpeed(speed: Position) {
+    this.positionSpeed = speed;
     if(!speed) {
-      clearInterval(this.moveSpeedIntervalID);
-      this.moveSpeedIntervalID = null;
+      clearInterval(this.positionSpeedIntervalID);
+      this.positionSpeedIntervalID = null;
     }
-    else if(this.moveSpeedIntervalID) {
+    else if(this.positionSpeedIntervalID) {
       return;
     }
     else {
       this.startMovePosition = this.getPosition();
-      this.moveSpeedIntervalID = setInterval(() => {
+      this.positionSpeedIntervalID = setInterval(() => {
         const position = toArray(this.startMovePosition).map((n,i) => {
-          if(toArray(this.moveSpeed)[i] != 0) {
-            return toArray(this.getPosition())[i] + toArray(this.moveSpeed)[i]/10;
+          if(toArray(this.positionSpeed)[i] != 0) {
+            return toArray(this.getPosition())[i] + toArray(this.positionSpeed)[i]/10;
 	  }
 	  return n;
 	});

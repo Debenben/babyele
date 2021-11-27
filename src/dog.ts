@@ -18,6 +18,7 @@ export class Dog {
      legBackLeft: {forward:-LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2}}; 
   startMovePositions: Record<LegName, Position>
   moveSpeedIntervalID: NodeJS.Timeout
+  isComplete: boolean = false
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -117,13 +118,11 @@ export class Dog {
       }
     }
     try {
-      if(hubComplete && deviceComplete) {
-        this.mainWindow.webContents.send('notifyState', 'dog', 'online');
-        ipcMain.emit('notifyState', 'internal', 'dog', 'online');
-      }
-      else {
-        this.mainWindow.webContents.send('notifyState', 'dog', 'offline');
-        ipcMain.emit('notifyState', 'internal', 'dog', 'offline');
+      if(this.isComplete != (hubComplete && deviceComplete)) {
+        this.isComplete = (hubComplete && deviceComplete);
+        const state = this.isComplete ? "online" : "offline";
+        this.mainWindow.webContents.send('notifyState', 'dog', state);
+        ipcMain.emit('notifyState', 'internal', 'dog', state);
       }
     }
     catch(e) {
@@ -240,6 +239,13 @@ export class Dog {
       this.legs[id].destMotorAngles = pose[id];
     }
     return this.motorLoop();
+  }
+
+  stop() {
+    const motors = this.buildLegRecord('motors');
+    for(let i in motors) {
+      motors[i].setPower(0);
+    }
   }
 
   shutdown() {

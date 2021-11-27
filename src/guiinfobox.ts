@@ -1,5 +1,5 @@
 import * as BABYLON from 'babylonjs';
-import { Rectangle, Control, Slider, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
+import { Rectangle, Control, Slider, Checkbox, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 
 export class Infobox extends Container {
@@ -13,6 +13,7 @@ export class Infobox extends Container {
   rotationText: TextBlock;
   positionText: TextBlock;
   angleText: TextBlock;
+  bendForward: StackPanel;
   constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
     super(name);
     this.scene = scene;
@@ -79,6 +80,9 @@ export class Infobox extends Container {
       else {
         sliderDest = this.name.replace("hub","leg");
         ipcRenderer.on('notifyLegPosition', this.updatePosition);
+        this.bendForward = buildCheckBox(sliderDest, "setBendForward");
+        this.panel.addControl(this.bendForward);
+        ipcRenderer.on('notifyBendForward', this.updateBendForward);
       }
       this.positionText = buildText("position: --");
       this.panel.addControl(this.positionText);
@@ -108,6 +112,7 @@ export class Infobox extends Container {
         ipcRenderer.removeListener('notifyDogRotation', this.updateRotation);
       }
       else {
+        ipcRenderer.removeListener('notifyBendForward', this.updateBendForward);
         ipcRenderer.removeListener('notifyLegPosition', this.updatePosition);
       }
     }
@@ -123,6 +128,11 @@ export class Infobox extends Container {
   updateRssi = (event, arg1, arg2) => {
     if(arg1 === this.name) {
       this.rssiText.text = "rssi: " + String(arg2);
+    }
+  }
+  updateBendForward = (event, arg1, arg2) => {
+    if(arg1 === this.name.replace("hub","leg")) {
+      (this.bendForward.getChildByName("bendForwardBox") as Checkbox).isChecked = arg2;
     }
   }
   updateTilt = (event, arg1, arg2) => {
@@ -278,4 +288,24 @@ const buildCorrectionSlider = (meshName: string, requestName: string) => {
     slider.value = 0;
   });
   return slider;
+}
+
+const buildCheckBox = (meshName: string, requestName: string) => {
+  const panel = new StackPanel();
+  panel.isVertical = false;
+  panel.height = "25px";
+  panel.paddingLeft = "5px";
+  panel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+  const box = new Checkbox("bendForwardBox");
+  box.width = "20px";
+  box.height = "20px";
+  box.color = "grey";
+  box.onIsCheckedChangedObservable.add((checked) => {
+    ipcRenderer.send(meshName, requestName, checked);
+  });
+  panel.addControl(box);
+  var label = buildText(requestName);
+  label.width = "200px";
+  panel.addControl(label);
+  return panel;
 }

@@ -160,12 +160,27 @@ export class MoveController {
     }
     else if (destMode === "MANUAL") {
       this.modeQueue = [];
+      // do not stop, manual request might be in progress already
       this.notifyAvailability();
       this.mainWindow.webContents.send('notifyMode', this.getNewPoseName(), false);
       return;
     }
     else if (destMode === "BUTTON") {
-      console.log("request mode change by button push");
+      if(this.modeQueue.length) {
+        this.modeQueue = [];
+        this.dog.stop();
+        this.notifyAvailability();
+      }
+      else {
+        for(let moveName in this.moves) {
+          if(this.allowSwitch(this.mode, moveName)) {
+            this.modeQueue.push(moveName);
+            this.notifyAvailability();
+            this.modeLoop();
+            return;
+          }
+        }
+      }
       return;
     }
     /* individual pose requests */
@@ -210,6 +225,7 @@ export class MoveController {
         this.modeQueue.shift();
       }
       else if(this.moves.hasOwnProperty(dest)) {
+        if(!this.moves[dest].length) return Promise.resolve();
         for(let poseId of this.moves[dest]) {
           await this.dog.requestPose(this.poses[poseId]);
           this.mode = poseId;

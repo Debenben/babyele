@@ -13,6 +13,7 @@ export class GuiTexture {
   dragHelper: DragHelper;
   constructor(scene: BABYLON.Scene) {
     this.scene = scene;
+    this.scene.onKeyboardObservable.add(onKeyPress);
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
     this.topMenu = buildTopMenu();
     this.texture.addControl(this.topMenu);
@@ -174,4 +175,40 @@ const buildTopMenuButton = (text: string) => {
     }
   });
   return button;
+}
+
+const onKeyPress = (kbInfo: BABYLON.KeyboardInfo) => {
+  switch (kbInfo.type) {
+    case BABYLON.KeyboardEventTypes.KEYDOWN:
+    case BABYLON.KeyboardEventTypes.KEYUP:
+      const value = kbInfo.type == BABYLON.KeyboardEventTypes.KEYDOWN ? 100 : 0
+      switch (kbInfo.event.key) {
+        case " ":
+          ipcRenderer.send('requestMode', "BUTTON");
+          break;
+        case "a":
+        case "A":
+          ipcRenderer.send("dog", "requestPositionSpeedSideways", -value);
+          break;
+        case "d":
+        case "D":
+          ipcRenderer.send("dog", "requestPositionSpeedSideways", value);
+          break;
+        case "w":
+        case "W":
+          ipcRenderer.send("dog", "requestPositionSpeedForward", value);
+          break;
+        case "s":
+        case "S":
+          ipcRenderer.send("dog", "requestPositionSpeedForward", -value);
+          break;
+        case "CapsLock":
+          ipcRenderer.send("dog", "requestPositionSpeedHeight", value);
+          break;
+        case "Shift":
+          ipcRenderer.send("dog", "requestPositionSpeedHeight", -value);
+          break;
+      }
+      break;
+  }
 }
