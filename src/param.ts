@@ -1,6 +1,7 @@
 export const MotorMap = {
   "BeneLego3": {
     "name": "hubFrontCenter",
+    "tilt": {forward:0, height:0, sideways:0},
     "A"   : "legFrontRightTop",
     "C"   : "legFrontRightBottom",
     "B"   : "legFrontLeftTop",
@@ -9,6 +10,7 @@ export const MotorMap = {
   },
   "BeneLego2": {
     "name": "hubBackCenter",
+    "tilt": {forward:Math.PI, height:0, sideways:Math.PI},
     "B"   : "legBackRightTop",
     "D"   : "legBackRightBottom",
     "A"   : "legBackLeftTop",
@@ -16,18 +18,22 @@ export const MotorMap = {
   },
   "BeneLego1": {
     "name": "hubFrontLeft",
+    "tilt": {forward:Math.PI/2, height:0, sideways:Math.PI/2},
     "test": "legFrontLeftMount",
     "tess": "legBackLeftMount",
     "tese": "legBackRightMount",
   },
   "BeneLego4": {
     "name": "hubFrontRight",
+    "tilt": {forward:-Math.PI/2, height:0, sideways:Math.PI/2},
   },
   "BeneLego5": {
     "name": "hubBackRight",
+    "tilt": {forward:-Math.PI/2, height:0, sideways:Math.PI/2},
   },
   "BeneLego6": {
     "name": "hubBackLeft",
+    "tilt": {forward:Math.PI/2, height:0, sideways:Math.PI/2},
   },
 }
 

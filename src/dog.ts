@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, MotorAbstraction } from "./interfaces";
 import { legNames, LegName, motorNames, Position, Pose, deepCopy, fromArray, toArray, parsePosition, add, multiply, getRotation, rotate } from "./tools";
-import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH } from "./param";
+import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH } from "./param";
 
 export class Dog {
   mainWindow: BrowserWindow
@@ -17,6 +17,7 @@ export class Dog {
      legFrontLeft: {forward:LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2},
      legBackLeft: {forward:-LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2}}; 
   startMovePositions: Record<LegName, Position>
+  tilts: Record<string, Position> = {}
   moveSpeedIntervalID: NodeJS.Timeout
   isComplete: boolean = false
 
@@ -70,6 +71,7 @@ export class Dog {
         this.mainWindow.webContents.send('notifyState', hubName, 'offline');
         this.hubs[hubName] = null;
         this.leds[hubName] = null;
+        this.tilts[hubName] = null;
 	      this.init();
       });
       hub.on("batteryLevel", (level) => {
@@ -78,20 +80,12 @@ export class Dog {
       hub.on("rssi", (rssi) => {
         return this.mainWindow.webContents.send('notifyRssi', hubName, Number(rssi.rssi));
       });
-      if(hubName === 'hubBackCenter') {
+      if(MotorMap[hub.name]["tilt"]) {
         hub.on('tilt', (device, tilt) => {
-          const x = tilt.x;
-          const y = tilt.z;
-          const z = tilt.y;
-          return this.mainWindow.webContents.send('notifyTilt', hubName, { x, y, z });
-        });
-      }
-      else if(hubName === 'hubFrontCenter') {
-        hub.on('tilt', (device, tilt) => {
-          const x = -tilt.x;
-          const y = tilt.z;
-          const z = -tilt.y;
-          return this.mainWindow.webContents.send('notifyTilt', hubName, { x, y, z });
+          let val = {forward:Math.PI*tilt.x/180, height:Math.PI*tilt.z/180, sideways:Math.PI*tilt.y/180};
+          this.tilts[hubName] = rotate(val, MotorMap[hub.name]["tilt"]);
+          this.mainWindow.webContents.send('notifyTilt', hubName, val);
+          this.notifyTilts();
         });
       }
       this.init();
@@ -108,7 +102,9 @@ export class Dog {
       for(let portNum in MotorMap[hubNum]) {
         for(let legNum in this.legs) {
           try {
-            deviceComplete = await this.legs[legNum].addMotor(MotorMap[hubNum][portNum], this.hubs[MotorMap[hubNum]["name"]].getDeviceAtPort(portNum)) && deviceComplete;
+            if(portNum !== "name" && portNum != "tilt") {
+              deviceComplete = await this.legs[legNum].addMotor(MotorMap[hubNum][portNum], this.hubs[MotorMap[hubNum]["name"]].getDeviceAtPort(portNum)) && deviceComplete;
+            }
           }
           catch(e) {
             hubComplete = false;
@@ -131,6 +127,19 @@ export class Dog {
     }
   }
 
+  notifyTilts = () => {
+    const dogTilt = this.getDogTilt();
+    this.mainWindow.webContents.send('notifyTilt', "dog", dogTilt);
+    for(let id in this.tilts) {
+      if(id.endsWith("Center")) continue;
+      const prefix = id.replace("hub", "leg");
+      const mountTilt = dogTilt.forward - this.tilts[id].forward;
+      const topTilt = dogTilt.sideways - this.tilts[id].sideways;
+      this.mainWindow.webContents.send('notifyTilt', prefix + "Mount", mountTilt);
+      this.mainWindow.webContents.send('notifyTilt', prefix + "Top", topTilt);
+    }
+  }
+
   buildLegRecord = (recordName) => {
     let record = {}
     for(let legName of legNames) {
@@ -147,6 +156,23 @@ export class Dog {
       pose[id] = deepCopy(this.legs[id].motorAngles);
     }
     return pose;
+  }
+
+  getDogTilt() {
+    let averageTilt = {forward:0, height:0, sideways:0};
+    let count = 0;
+    for(let id in this.tilts) {
+      averageTilt.height += this.tilts[id].height;
+      if(id.endsWith("Center")) {
+        count++;
+        averageTilt.forward += this.tilts[id].forward;
+        averageTilt.sideways += this.tilts[id].sideways;
+      }
+    }
+    averageTilt.forward /= count;
+    averageTilt.height /= Object.keys(this.tilts).length;
+    averageTilt.sideways /= count;
+    return averageTilt;
   }
 
   getDogPosition() {

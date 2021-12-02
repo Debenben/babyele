@@ -54,15 +54,17 @@ export default class Renderer {
     this.redMaterial.specularColor = new BABYLON.Color3(0,0,0);
     this.redMaterial.emissiveColor = new BABYLON.Color3(0.3,0.1,0.1);
 
+    const dog = buildBody(scene, "dog");
+    dog.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
+    dog.parent = ground;
+
     const frontHub = buildBody(scene, "hubFrontCenter");
-    frontHub.parent = ground;
+    frontHub.parent = dog;
     frontHub.position.x = Param.LEG_SEPARATION_LENGTH/2;
-    frontHub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
     frontHub.setPivotPoint(frontHub.position.negate());
     const backHub = buildBody(scene, "hubBackCenter");
-    backHub.parent = ground;
+    backHub.parent = dog;
     backHub.position.x = -Param.LEG_SEPARATION_LENGTH/2;
-    backHub.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
     backHub.setPivotPoint(backHub.position.negate());
 
     const legFrontLeft = buildLeg(scene, "legFrontLeft");
@@ -85,8 +87,7 @@ export default class Renderer {
     legBackRight.parent = backHub;
 
     const shadowCaster = new BABYLON.ShadowGenerator(1024, dirLight);
-    shadowCaster.addShadowCaster(frontHub);
-    shadowCaster.addShadowCaster(backHub);
+    shadowCaster.addShadowCaster(dog);
     shadowCaster.useCloseExponentialShadowMap = true;
 
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, selectItem));
@@ -107,11 +108,11 @@ export default class Renderer {
     });
   }
 
-  setHubTilt(meshName: string, tilt) {
+  setTilt(meshName: string, tilt) {
     const mesh = this.scene.getMeshByName(meshName);
-    mesh.rotation.z = Math.PI*tilt.z/180;
-    mesh.rotation.y = Math.PI*tilt.y/180;
-    mesh.rotation.x = Math.PI*tilt.x/180;
+    mesh.rotation.x = tilt.forward;
+    mesh.rotation.y = tilt.height;
+    mesh.rotation.z = tilt.sideways;
   }
 
   setLegRotation(meshName: string, rotation: number) {
@@ -127,7 +128,6 @@ export default class Renderer {
   setState(meshName: string, state: string) {
     const mesh = this.scene.getMeshByName(meshName);
     if(!mesh) {
-      if(meshName === 'dog') return;
       console.log(meshName + " not found");
       return;
     }
@@ -177,11 +177,9 @@ export default class Renderer {
 }
 
 const setBodyHeight = (scene: BABYLON.Scene) => {
-  const frontHub = scene.getMeshByName('hubFrontCenter');
-  const backHub = scene.getMeshByName('hubBackCenter');
+  const dog = scene.getMeshByName('dog');
   const shift = Math.min(getClearance(scene,'legFrontRightFoot'), getClearance(scene,'legFrontLeftFoot'), getClearance(scene,'legBackRightFoot'), getClearance(scene,'legBackLeftFoot'));
-  frontHub.position.y -= shift;
-  backHub.position.y -= shift;
+  dog.position.y -= shift;
 }
 
 const getClearance = (scene: BABYLON.Scene, meshName: string) => {
@@ -409,6 +407,8 @@ ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
   renderer.setLegRotation(arg1, arg2);
 });
 ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
-  renderer.setHubTilt(arg1, arg2);
+  if(arg1 === "dog") {
+    renderer.setTilt(arg1, arg2);
+  }
 });
 ipcRenderer.send("rendererInitialized");

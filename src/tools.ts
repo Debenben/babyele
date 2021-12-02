@@ -25,6 +25,22 @@ export const toArray = (position: Position) => {
   return null;
 }
 
+export const toDegree = (rad: Position) => {
+  return {forward: 180*rad.forward/Math.PI, height: 180*rad.height/Math.PI, sideways: 180*rad.sideways/Math.PI};
+}
+
+export const pad = (str: string, size: number) => {
+  let s = "          " + str;
+  return s.substr(s.length - size);
+}
+export const printPosition = (pos: Position) => {
+  return pad(pos.forward.toFixed(0), 5) + pad(pos.height.toFixed(0), 5) + pad(pos.sideways.toFixed(0), 5);
+}
+
+export const printDegree = (rad: number) => {
+  return pad((180*rad/Math.PI).toFixed(2), 8) + "°";
+}
+
 export const fromArray = (array: number[]) => {
   return {forward:array[0], height:array[1], sideways:array[2]};
 }

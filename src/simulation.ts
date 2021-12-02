@@ -21,6 +21,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   name: string
   batteryLevel: number
   rssi: number
+  tiltIntervalID: NodeJS.Timeout
 
   constructor(hubName: string) {
     super();
@@ -28,6 +29,17 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     this.batteryLevel = Math.floor(100 * Math.random());
     this.rssi = Math.floor(100 * Math.random() - 80);
     console.log("creating simulation hub " + this.name);
+    let time = 0;
+    this.tiltIntervalID = setInterval(() => {
+      try {
+        time++;
+        this.emit('tilt', 'device', {x: 30*Math.sin(time/100), y: 20*Math.sin(time/90), z: 10*Math.sin(time/80)});
+      }
+      catch(e) {
+        console.log("discard error " + e);
+        return;
+      }
+    }, 50);
   }
   connect() {
     console.log("connecting to simulation hub " + this.name);
@@ -40,6 +52,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   }
   shutdown() {
     console.log("shutdown simulation hub " + this.name);
+    clearInterval(this.tiltIntervalID);
     this.emit('disconnect');
     return Promise.resolve();
   }
@@ -50,18 +63,18 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
         switch(portName) {
           case "A":
           case "B":
-	  case "C":
-	  case "D":
-	  case "test":
+	        case "C":
+	        case "D":
+	        case "test":
             console.log("simulation hub " + this.name + " returns motor at port " + portName);
-	    return new SimulationMotor();
+	          return new SimulationMotor();
         }
       case "BeneLego1":
       case "BeneLego4":
         switch(portName) {
-	  case "test":
-	  case "tess":
-	  case "tese":
+	        case "test":
+	        case "tess":
+	        case "tese":
             console.log("simulation hub " + this.name + " returns motor at port " + portName);
 	    return new SimulationMotor();
         }

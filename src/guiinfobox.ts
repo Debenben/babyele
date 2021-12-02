@@ -1,6 +1,7 @@
 import * as BABYLON from 'babylonjs';
 import { Rectangle, Control, Slider, Checkbox, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
+import { toDegree, printPosition, printDegree } from './tools';
 
 export class Infobox extends Container {
   scene: BABYLON.Scene;
@@ -17,7 +18,7 @@ export class Infobox extends Container {
   constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
     super(name);
     this.scene = scene;
-    this.widthInPixels = window.innerWidth > 650 ? 0.4*window.innerWidth : 260;
+    this.widthInPixels = window.innerWidth > 750 ? 0.4*window.innerWidth : 300;
     this.adaptHeightToChildren = true;
     this.paddingLeft = 10; 
     this.paddingRight = 10; 
@@ -63,37 +64,41 @@ export class Infobox extends Container {
       ipcRenderer.on('notifyRssi', this.updateRssi);
       grid.addControl(this.rssiText, 0, 1);
       this.panel.addControl(grid);
+      ipcRenderer.send("getHubProperties");
+    }
+    if(this.name.startsWith("hub") || this.name.endsWith("Mount") || this.name.endsWith("Top") || this.name === "dog") {
       this.tiltText = buildText("tilt: --");
       ipcRenderer.on('notifyTilt', this.updateTilt);
       this.panel.addControl(this.tiltText);
-      let sliderDest;
-      if(this.name.endsWith("Center")) {
-        sliderDest = "dog";
-        this.rotationText = buildText("rotation: --");
-        this.panel.addControl(this.rotationText);
-        ipcRenderer.on('notifyDogRotation', this.updateRotation);
-        ipcRenderer.on('notifyDogPosition', this.updatePosition);
-        this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedForward"));
-        this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedHeight"));
-        this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedSideways"));
-      }
-      else {
-        sliderDest = this.name.replace("hub","leg");
-        ipcRenderer.on('notifyLegPosition', this.updatePosition);
-        this.bendForward = buildCheckBox(sliderDest, "setBendForward");
-        this.panel.addControl(this.bendForward);
-        ipcRenderer.on('notifyBendForward', this.updateBendForward);
-      }
-      this.positionText = buildText("position: --");
+    }
+    let sliderDest;
+    if(this.name === "dog") {
+      sliderDest = "dog";
+      this.rotationText = buildText("rot.: --");
+      this.panel.addControl(this.rotationText);
+      ipcRenderer.on('notifyDogRotation', this.updateRotation);
+      ipcRenderer.on('notifyDogPosition', this.updatePosition);
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedForward"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedHeight"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedSideways"));
+    }
+    if(this.name.startsWith("hub") && !this.name.endsWith("Center")) {
+      sliderDest = this.name.replace("hub","leg");
+      ipcRenderer.on('notifyLegPosition', this.updatePosition);
+      this.bendForward = buildCheckBox(sliderDest, "setBendForward");
+      this.panel.addControl(this.bendForward);
+      ipcRenderer.on('notifyBendForward', this.updateBendForward);
+    }
+    if(sliderDest) {
+      this.positionText = buildText("pos.: --");
       this.panel.addControl(this.positionText);
       this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedForward"));
       this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedHeight"));
       this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedSideways"));
       ipcRenderer.send(sliderDest, "getProperties");
-      ipcRenderer.send("getHubProperties");
     }
-    else {
-      this.angleText = buildText("current angle: " + (180*getLegRotation(this.name, this.scene)/Math.PI).toFixed(2) + "°");
+    if(this.name.startsWith("leg")) {
+      this.angleText = buildText("rot. angle:" + printDegree(getLegRotation(this.name, this.scene)));
       ipcRenderer.on('notifyLegRotation', this.updateAngle);
       this.panel.addControl(this.angleText);
       this.panel.addControl(buildAngleSlider(this));
@@ -103,22 +108,14 @@ export class Infobox extends Container {
     }
   }
   removeControls() {
-    if(this.name.startsWith("hub")) {
-      ipcRenderer.removeListener('notifyBattery', this.updateBattery);
-      ipcRenderer.removeListener('notifyRssi', this.updateRssi);
-      ipcRenderer.removeListener('notifyTilt', this.updateTilt);
-      if(this.name.endsWith("Center")) {
-        ipcRenderer.removeListener('notifyDogPosition', this.updatePosition);
-        ipcRenderer.removeListener('notifyDogRotation', this.updateRotation);
-      }
-      else {
-        ipcRenderer.removeListener('notifyBendForward', this.updateBendForward);
-        ipcRenderer.removeListener('notifyLegPosition', this.updatePosition);
-      }
-    }
-    else {
-      ipcRenderer.removeListener('notifyLegRotation', this.updateAngle);
-    }
+    ipcRenderer.removeListener('notifyBattery', this.updateBattery);
+    ipcRenderer.removeListener('notifyRssi', this.updateRssi);
+    ipcRenderer.removeListener('notifyTilt', this.updateTilt);
+    ipcRenderer.removeListener('notifyDogPosition', this.updatePosition);
+    ipcRenderer.removeListener('notifyDogRotation', this.updateRotation);
+    ipcRenderer.removeListener('notifyBendForward', this.updateBendForward);
+    ipcRenderer.removeListener('notifyLegPosition', this.updatePosition);
+    ipcRenderer.removeListener('notifyLegRotation', this.updateAngle);
   }
   updateBattery = (event, arg1, arg2) => {
     if(arg1 === this.name) {
@@ -131,28 +128,33 @@ export class Infobox extends Container {
     }
   }
   updateBendForward = (event, arg1, arg2) => {
-    if(arg1 === this.name.replace("hub","leg")) {
+    if(arg1 === this.name.replace("hub", "leg")) {
       (this.bendForward.getChildByName("bendForwardBox") as Checkbox).isChecked = arg2;
     }
   }
   updateTilt = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.tiltText.text = "tilt: " + arg2.x + "  " + arg2.y + "  " + arg2.z;
+      if(this.name.endsWith("Mount") || this.name.endsWith("Top")) {
+        this.tiltText.text = "tilt angle:" + printDegree(arg2);;
+      }
+      else {
+        this.tiltText.text = "tilt:" + printPosition(toDegree(arg2));
+      }
     }
   }
   updateRotation = (event, arg1, arg2) => {
-    if(arg1 === "dog") {
-      this.rotationText.text = "rotation: " + (180*arg2.forward/Math.PI).toFixed(0) + "  " + (180*arg2.height/Math.PI).toFixed(0) + "  " + (180*arg2.sideways/Math.PI).toFixed(0);
+    if(arg1 === this.name) {
+      this.rotationText.text = "rot.:" + printPosition(toDegree(arg2));
     } 
   }
   updatePosition = (event, arg1, arg2) => {
-    if(arg1 === this.name.replace("hub","leg") || (this.name.endsWith("Center") && arg1 === "dog")) {
-      this.positionText.text = "position: " + arg2.forward.toFixed(0) + "  " + arg2.height.toFixed(0) + "  " + arg2.sideways.toFixed(0);
+    if(arg1 === this.name || arg1 === this.name.replace("hub", "leg")) {
+      this.positionText.text = "pos.:" + printPosition(arg2);
     }
   }
   updateAngle = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.angleText.text = "current angle: " + (180*arg2/Math.PI).toFixed(2) + "°";
+      this.angleText.text = "rot. angle:" + printDegree(arg2);
     }
   }
 }
@@ -168,6 +170,7 @@ const buildHeading = (infobox: Infobox) => {
   block.text = infobox.name;
   block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   block.fontSize = 20;
+  block.fontFamily = "monospace";
   block.paddingLeft = "5px";
   block.color = "black";
   block.onPointerDownObservable.add((vec) => {
@@ -210,6 +213,7 @@ const buildText = (content: string) => {
   const block = new TextBlock();
   block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   block.text = content;
+  block.fontFamily = "monospace";
   block.height = "25px";
   block.paddingLeft = "5px";
   block.color = "black";
@@ -242,7 +246,7 @@ const buildAngleSlider = (infobox: Infobox) => {
   slider.maximum = Math.PI;
   slider.value = getLegRotation(infobox.name, infobox.scene);
   slider.onValueChangedObservable.add((value) => {
-    infobox.angleText.text = "requested angle: " + (180*slider.value/Math.PI).toFixed(2) + "°";
+    infobox.angleText.text = "req. angle:" + printDegree(slider.value);
   });
   slider.onPointerUpObservable.add(() => {
     ipcRenderer.send(infobox.name, "requestRotation", slider.value);
