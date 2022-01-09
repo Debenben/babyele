@@ -1,0 +1,31 @@
+{
+  "poses": {
+    "test-0": {
+      "legFrontRight": {
+        "top": -1140.7286552973405,
+        "bottom": 3986.591673333433,
+        "mount": 0
+      },
+      "legFrontLeft": {
+        "top": -1140.7286552973405,
+        "bottom": 3986.591673333433,
+        "mount": 0
+      },
+      "legBackRight": {
+        "top": -1140.7286552973405,
+        "bottom": 3986.591673333433,
+        "mount": 0
+      },
+      "legBackLeft": {
+        "top": -1140.7286552973405,
+        "bottom": 3986.591673333433,
+        "mount": 0
+      }
+    }
+  },
+  "moves": {
+    "test": [
+      "test-0"
+    ]
+  }
+}

@@ -1,11 +1,11 @@
 {
   "name": "babyele",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "program to control lego walker",
   "main": "./app/main.js",
   "scripts": {
-    "build": "tsc",
-    "start": "electron-forge start",
+    "build": "tsc && electron-rebuild",
+    "start": "sudo setcap cap_net_raw+eip ./node_modules/electron/dist/electron && sudo bash -c 'echo $(pwd)/node_modules/electron/dist > /etc/ld.so.conf.d/electron-node.conf' && electron-forge start",
     "test": "tsc && electron-forge start -- --simulation",
     "package": "electron-forge package",
     "make": "electron-forge make"

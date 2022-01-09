@@ -64,13 +64,11 @@ export class Infobox extends Container {
       ipcRenderer.on('notifyRssi', this.updateRssi);
       grid.addControl(this.rssiText, 0, 1);
       this.panel.addControl(grid);
-      ipcRenderer.send("getHubProperties");
+      ipcRenderer.send(this.name, "getProperties");
     }
-    if(this.name.startsWith("hub") || this.name.endsWith("Mount") || this.name.endsWith("Top") || this.name === "dog") {
-      this.tiltText = buildText("tilt: --");
-      ipcRenderer.on('notifyTilt', this.updateTilt);
-      this.panel.addControl(this.tiltText);
-    }
+    this.tiltText = buildText("tilt: --");
+    ipcRenderer.on('notifyTilt', this.updateTilt);
+    this.panel.addControl(this.tiltText);
     let sliderDest;
     if(this.name === "dog") {
       sliderDest = "dog";
@@ -102,9 +100,19 @@ export class Infobox extends Container {
       ipcRenderer.on('notifyLegRotation', this.updateAngle);
       this.panel.addControl(this.angleText);
       this.panel.addControl(buildAngleSlider(this));
-      this.panel.addControl(buildResetButton(this.name));
+      const syncButton = buildButton(this.name, "requestSync", "synchronize");
+      const resetButton = buildButton(this.name, "requestReset", "reset");
+      const grid = new Grid("hubColumn");
+      grid.heightInPixels = syncButton.heightInPixels;
+      grid.widthInPixels = this.widthInPixels - 20;
+      grid.addColumnDefinition(0.5);
+      grid.addColumnDefinition(0.5);
+      grid.addControl(syncButton, 0, 0);
+      grid.addControl(resetButton, 0, 1);
+      this.panel.addControl(grid);
       this.panel.addControl(buildText("power:"));
       this.panel.addControl(buildCorrectionSlider(this.name, "requestRotationSpeed"));
+      ipcRenderer.send(this.name.replace("Top","").replace("Bottom","").replace("Mount",""), "getProperties");
     }
   }
   removeControls() {
@@ -134,7 +142,7 @@ export class Infobox extends Container {
   }
   updateTilt = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      if(this.name.endsWith("Mount") || this.name.endsWith("Top")) {
+      if(this.name.startsWith("leg")) {
         this.tiltText.text = "tilt angle:" + printDegree(arg2);;
       }
       else {
@@ -255,9 +263,8 @@ const buildAngleSlider = (infobox: Infobox) => {
   return slider;
 }
 
-const buildResetButton = (meshName: string) => {
-  const button = Button.CreateSimpleButton("resetButton", "reset angle");
-  button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+const buildButton = (meshName: string, requestName: string, buttonText: string) => {
+  const button = Button.CreateSimpleButton("button", buttonText);
   button.paddingTop = "5px";
   button.paddingRight = "5px";
   button.width = "120px";
@@ -265,7 +272,7 @@ const buildResetButton = (meshName: string) => {
   button.color = "black";
   button.background = "grey";
   button.onPointerClickObservable.add(() => {
-    ipcRenderer.send(meshName, "requestReset");
+    ipcRenderer.send(meshName, requestName);
     ipcRenderer.send("requestMode", "MANUAL"); 
   });
   return button;

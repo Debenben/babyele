@@ -19,7 +19,7 @@ export class MoveController {
     setInterval(() => {
       for(let ledNum in this.dog.leds) {
         if(this.dog.leds[ledNum]) {
-          this.dog.leds[ledNum].setColor((Number(this.mode)%10+1)*(this.color%2));
+          this.dog.leds[ledNum].send(Buffer.from([0x81, 0x32, 0x10, 0x51, 0x00, this.color%2]));
         }
       }
       this.color++;

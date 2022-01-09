@@ -5,6 +5,5 @@ Usage:
 ```
 npm install
 npm run build
-./node_modules/.bin/electron-rebuild
-sudo npm start 
+npm start 
 ```
