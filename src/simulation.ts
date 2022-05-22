@@ -66,20 +66,20 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
           console.log("simulation hub " + this.name + " returns motor at port " + portName);
           return new SimulationMotor(portName);
         }
-	else {
+        else {
           console.log("simulation hub " + this.name + " returns distance sensor at port " + portName);
           return new SimulationDistanceSensor(portName);
-	}
+        }
       case "BeneLego3":
       case "BeneLego5":
         if(portName === "D") {
           console.log("simulation hub " + this.name + " returns motor at port " + portName);
           return new SimulationMotor(portName);
         }
-	else {
+        else {
           console.log("simulation hub " + this.name + " returns distance sensor at port " + portName);
           return new SimulationDistanceSensor(portName);
-	}
+        }
       default:
         console.log("simulation hub " + this.name + " returns null at port " + portName);
         return null;

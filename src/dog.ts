@@ -34,11 +34,11 @@ export class Dog {
     ipcMain.on("dog", (event, arg1, arg2) => {
       if(arg1.startsWith("requestPositionSpeed")) {
         this.positionSpeed = parsePosition(arg1, arg2);
-	      this.requestMoveSpeed();
+        this.requestMoveSpeed();
       }
       else if(arg1.startsWith("requestRotationSpeed")) {
         this.rotationSpeed = parsePosition(arg1, arg2);
-	      this.requestMoveSpeed();
+        this.requestMoveSpeed();
       }
       else if(arg1 === "getProperties") {
         this.mainWindow.webContents.send('notifyDogPosition', "dog", this.getDogPosition());
@@ -77,7 +77,7 @@ export class Dog {
         this.mainWindow.webContents.send('notifyState', hubName, 'offline');
         delete this.hubs[hubName];
         delete this.leds[hubName];
-	delete this.tilts[hubName];
+        delete this.tilts[hubName];
         this.init();
       });
       hub.removeAllListeners("batteryLevel");
@@ -92,21 +92,21 @@ export class Dog {
       accelerometer.on('accel', (accel) => {
         const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
         if(abs < 950 || abs > 1050) return;
-	if(hubName.endsWith("Center")) {
-	  this.tilts[hubName] = {forward: -Math.atan2(accel.y, accel.z), height: 0, sideways: Math.atan2(accel.x, Math.sqrt(accel.y**2 + accel.z**2))};
-	}
-	else {
-	  this.tilts[hubName] = {forward: Math.atan2(accel.y, -accel.x), height: 0, sideways: Math.atan2(accel.z, Math.sqrt(accel.x**2 + accel.y**2))};
-	}
-	this.notifyTiltChange(hubName);
+        if(hubName.endsWith("Center")) {
+          this.tilts[hubName] = {forward: -Math.atan2(accel.y, accel.z), height: 0, sideways: Math.atan2(accel.x, Math.sqrt(accel.y**2 + accel.z**2))};
+        }
+        else {
+          this.tilts[hubName] = {forward: Math.atan2(accel.y, -accel.x), height: 0, sideways: Math.atan2(accel.z, Math.sqrt(accel.x**2 + accel.y**2))};
+        }
+        this.notifyTiltChange(hubName);
       });
       ipcMain.on(hubName, (event, arg1) => {
         if(arg1 === "getProperties") {
-	  this.mainWindow.webContents.send('notifyBattery', hubName, hub.batteryLevel); // battery is only emitted on change
+          this.mainWindow.webContents.send('notifyBattery', hubName, hub.batteryLevel); // battery is only emitted on change
           setHubProperty(hub, 0x05, 0x05); // request rssi update
           setHubProperty(hub, 0x06, 0x05); // request battery update
-	  accelerometer.requestUpdate();
-	}
+          accelerometer.requestUpdate();
+        }
       });
       accelerometer.send(Buffer.from([0x41, 0x61, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribing again with larger delta interval
       setHubProperty(hub, 0x05, 0x03); // disable rssi update
@@ -126,24 +126,24 @@ export class Dog {
         if(portNum === "name") continue;
         for(let legNum in this.legs) {
           const deviceName = MotorMap[hubNum][portNum]["name"].toString();
-	  if(deviceName.startsWith(legNum)) {
+          if(deviceName.startsWith(legNum)) {
             const hub = this.hubs[MotorMap[hubNum]["name"]];
-	    let device = null;
-	    if(hub) {
+            let device = null;
+            if(hub) {
               device = hub.getDeviceAtPort(portNum);
-	    }
-	    else {
+            }
+            else {
               hubComplete = false;
-	    }
-	    if(deviceName.endsWith("Distance")) {
+            }
+            if(deviceName.endsWith("Distance")) {
               deviceComplete = await this.legs[legNum].addDistanceSensor(device) && deviceComplete;
-	    }
-	    else {
+            }
+            else {
               const range = MotorMap[hubNum][portNum]["range"];
               deviceComplete = await this.legs[legNum].addMotor(deviceName, device, range) && deviceComplete;
-	    }
+            }
           }
-	}
+        }
       }
     }
     try {

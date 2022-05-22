@@ -37,12 +37,12 @@ export class Leg {
       }
       else if(arg1 === "getProperties") {
         this.mainWindow.webContents.send('notifyBendForward', this.legName, this.bendForward);
-	for(let id in this.motors) {
+        for(let id in this.motors) {
           if(this.motors[id]) this.motors[id].requestUpdate();
-	}
-	if(this.distanceSensor) {
+        }
+        if(this.distanceSensor) {
           this.distanceSensor.requestUpdate();
-	}
+        }
         this.mainWindow.webContents.send('notifyTilt', this.legName + "Mount", this.tilts.mount);
         this.mainWindow.webContents.send('notifyTilt', this.legName + "Top", this.tilts.top);
       }
@@ -58,7 +58,7 @@ export class Leg {
     sensor.removeAllListeners('distance');
     sensor.on("distance", ({distance}) => {
       if(this.distance == 0xfe) { // discard initial values
-	return;
+        return;
       }
       this.distance = Math.ceil(10*distance/254); // 25.4 as integer division
       const min = DistanceAngleMap[this.distance]["min"]*Math.PI/180;
@@ -102,7 +102,7 @@ export class Leg {
       motor.removeAllListeners('rotate');
       motor.on('rotate', ({degrees}) => {
         this.motorAngles[motorName] = degrees;
-	ipcMain.emit("dog", "rotationEvent", "getProperties");
+        ipcMain.emit("dog", "rotationEvent", "getProperties");
         this.mainWindow.webContents.send('notifyLegRotation', deviceName, this.getAngle(motorName));
         this.mainWindow.webContents.send('notifyLegPosition', this.legName, this.getPosition());
       });
@@ -226,9 +226,9 @@ export class Leg {
         const position = toArray(this.startMovePosition).map((n,i) => {
           if(toArray(this.positionSpeed)[i] != 0) {
             return toArray(this.getPosition())[i] + toArray(this.positionSpeed)[i]/10;
-	  }
-	  return n;
-	});
+          }
+          return n;
+        });
         this.requestPosition(fromArray(position));
       }, 300);
     }

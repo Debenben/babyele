@@ -277,15 +277,15 @@ const buildGround = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
       varying vec2 vUV;
       void main(void) {
         float distance = (vUV.x - 0.5)*(vUV.x - 0.5) + (vUV.y - 0.5)*(vUV.y - 0.5);
-	      if(cos(20.0*(vUV.x - 0.5)) * cos(20.0*(vUV.y - 0.5)) > 0.999) {
+        if(cos(20.0*(vUV.x - 0.5)) * cos(20.0*(vUV.y - 0.5)) > 0.999) {
           gl_FragColor = vec4(0.8, 0.9, 0.9, 1.0-4.0*distance);
-	      }
+        }
         else if(cos(100.0*(vUV.x - 0.5)) * cos(100.0*(vUV.y - 0.5)) > 0.98) {
           gl_FragColor = vec4(0.2, 0.4, 0.4, 1.0-5.0*distance);
-	      }
-	      else {
+        }
+        else {
           gl_FragColor = vec4(0.05, 0.1, 0.1, 1.0-70.0*distance*distance);
-	      }
+        }
       }
     `
   });
