@@ -74,7 +74,7 @@ class MoveButton extends Container {
       ipcRenderer.send('requestMode', modeName);
     });
     this.addControl(this.moveButton);
-    this.expandButton = Button.CreateSimpleButton("expandMove","v");
+    this.expandButton = Button.CreateSimpleButton("expandMove","▼"); 
     this.expandButton.width = "25px";
     this.expandButton.height = "25px";
     this.expandButton.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
@@ -99,7 +99,7 @@ class MoveButton extends Container {
   showExpandView = () => {
     ipcRenderer.on('notifyGuiDrag', this.expandView.onNotifyGuiDrag);
     ipcRenderer.on('stopGuiDrag', this.expandView.onStopGuiDrag);
-    this.expandButton.textBlock.text = "ʌ";
+    this.expandButton.textBlock.text = "▲";
     this.expandButton.color = "green";
     this.addControl(this.expandView);
   }
@@ -107,7 +107,7 @@ class MoveButton extends Container {
   removeExpandView = () => {
     ipcRenderer.removeListener('notifyGuiDrag', this.expandView.onNotifyGuiDrag);
     ipcRenderer.removeListener('stopGuiDrag', this.expandView.onStopGuiDrag);
-    this.expandButton.textBlock.text = "v";
+    this.expandButton.textBlock.text = "▼";
     this.expandButton.color = "black";
     this.removeControl(this.expandView);
   }
@@ -168,20 +168,23 @@ class ExpandView extends StackPanel {
   }
 
   onStopGuiDrag = (event, control) => {
+    let storeChanges = false;
     for(let item of this.children) {
       if(item.color == "red" && item.name != "spacer") {
+        storeChanges = true;
         this.removeControl(item);
       }
     }
     let poses = [];
     if(control && control.textBlock && this.background == "green") {
+      storeChanges = true;
       poses = this.children.map(e => e.name == "spacer" ? control.textBlock.text : e.name);
     }
     else {
       poses = this.children.map(e => e.name);
       poses = poses.filter(e => e != "spacer");
     }
-    ipcRenderer.send('storeMove', this.moveName, poses);
+    if(storeChanges) ipcRenderer.send('storeMove', this.moveName, poses);
     this.background = "#303030";
     this.spacer.background = "transparent";
   }
@@ -211,20 +214,16 @@ const updatePosesPanel = (panel: StackPanel, poseNames: string[]) => {
 }
 
 const updateMovesPanel = (panel: StackPanel, moves: Record<string, Move>, enabled: Record<string, boolean>) => {
-  for(let control of panel.children) {
-    if(!moves.hasOwnProperty(control.name)) {
-      if(control.name == "input") {
-        panel.removeControl(control);
-      }
-      else {
-        let move = control as MoveButton;
-        move.removeExpandView();
-        move.expandView = null;
-        panel.removeControl(move);
-        move = null;
-      }
-    }
-  }
+  const input = panel.children.filter(e => e.name == "input");
+  input.forEach(e => panel.removeControl(e));
+  const deleted = panel.children.filter(e => !moves.hasOwnProperty(e.name));
+  deleted.forEach(e => {
+    let move = e as MoveButton
+    move.removeExpandView();
+    move.expandView = null;
+    panel.removeControl(move);
+    move = null;
+  });
   for(let id in moves) {
     const move = panel.getChildByName(id);
     if(move) {
@@ -283,13 +282,13 @@ const buildPoseButton = (poseName: string) => {
 
 const buildInput = () => {
   const input = new InputText("input");
-  input.height = "55px";
+  input.height = "50px";
   input.width = 1;
-  input.paddingTop = "20px";
+  input.paddingTop = "15px";
   input.paddingRight = "5px";
   input.paddingLeft = "5px";
   input.paddingBottom = "10px";
-  input.placeholderText = "+++ ADD NEW +++";
+  input.placeholderText = "🞣";
   input.background = "grey";
   input.color = "black";
   input.placeholderColor = "black";
@@ -299,6 +298,12 @@ const buildInput = () => {
       ipcRenderer.send("storeMove", input.text, []);
       input.text = "";
     }
+  });
+  input.onPointerEnterObservable.add(() => {
+    input.alpha = 0.9;
+  });
+  input.onPointerOutObservable.add(() => {
+    input.alpha = 1.0;
   });
   return input;
 }

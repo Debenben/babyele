@@ -14,6 +14,7 @@ export class Infobox extends Container {
   rotationText: TextBlock;
   positionText: TextBlock;
   angleText: TextBlock;
+  angleSlider: Slider;
   bendForward: StackPanel;
   constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
     super(name);
@@ -76,9 +77,9 @@ export class Infobox extends Container {
       this.panel.addControl(this.rotationText);
       ipcRenderer.on('notifyDogRotation', this.updateRotation);
       ipcRenderer.on('notifyDogPosition', this.updatePosition);
-      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedForward"));
-      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedHeight"));
-      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedSideways"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedForward", "⮊"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedHeight", "🗘"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestRotationSpeedSideways", "⮉"));
     }
     if(this.name.startsWith("hub") && !this.name.endsWith("Center")) {
       sliderDest = this.name.replace("hub","leg");
@@ -90,16 +91,17 @@ export class Infobox extends Container {
     if(sliderDest) {
       this.positionText = buildText("pos.: --");
       this.panel.addControl(this.positionText);
-      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedForward"));
-      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedHeight"));
-      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedSideways"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedForward", "⮿"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedHeight", "⭥"));
+      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedSideways", "⭤"));
       ipcRenderer.send(sliderDest, "getProperties");
     }
     if(this.name.startsWith("leg")) {
       this.angleText = buildText("rot. angle:" + printDegree(getLegRotation(this.name, this.scene)));
       ipcRenderer.on('notifyLegRotation', this.updateAngle);
       this.panel.addControl(this.angleText);
-      this.panel.addControl(buildAngleSlider(this));
+      this.angleSlider = buildAngleSlider(this);
+      this.panel.addControl(this.angleSlider);
       const syncButton = buildButton(this.name, "requestSync", "synchronize");
       const resetButton = buildButton(this.name, "requestReset", "reset");
       const grid = new Grid("hubColumn");
@@ -111,7 +113,7 @@ export class Infobox extends Container {
       grid.addControl(resetButton, 0, 1);
       this.panel.addControl(grid);
       this.panel.addControl(buildText("power:"));
-      this.panel.addControl(buildCorrectionSlider(this.name, "requestRotationSpeed"));
+      this.panel.addControl(buildCorrectionSlider(this.name, "requestRotationSpeed", "⌁"));
       ipcRenderer.send(this.name.replace("Top","").replace("Bottom","").replace("Mount",""), "getProperties");
     }
   }
@@ -162,7 +164,10 @@ export class Infobox extends Container {
   }
   updateAngle = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.angleText.text = "rot. angle:" + printDegree(arg2);
+      if(!this.angleSlider.displayValueBar) {
+        this.angleText.text = "rot. angle:" + printDegree(arg2);
+        this.angleSlider.value = arg2;
+      }
     }
   }
 }
@@ -253,12 +258,17 @@ const buildAngleSlider = (infobox: Infobox) => {
   slider.minimum = -Math.PI;
   slider.maximum = Math.PI;
   slider.value = getLegRotation(infobox.name, infobox.scene);
-  slider.onValueChangedObservable.add((value) => {
-    infobox.angleText.text = "req. angle:" + printDegree(slider.value);
+  slider.onPointerDownObservable.add(() => {
+    slider.displayValueBar = true;
   });
   slider.onPointerUpObservable.add(() => {
-    ipcRenderer.send(infobox.name, "requestRotation", slider.value);
-    ipcRenderer.send("requestMode", "MANUAL"); 
+    slider.displayValueBar = false;
+  });
+  slider.onValueChangedObservable.add((value) => {
+    if(slider.displayValueBar) {
+      infobox.angleText.text = "req. angle:" + printDegree(slider.value);
+      ipcRenderer.send(infobox.name, "requestRotation", slider.value);
+    }
   });
   return slider;
 }
@@ -273,32 +283,38 @@ const buildButton = (meshName: string, requestName: string, buttonText: string) 
   button.background = "grey";
   button.onPointerClickObservable.add(() => {
     ipcRenderer.send(meshName, requestName);
-    ipcRenderer.send("requestMode", "MANUAL"); 
   });
   return button;
 }
 
-const buildCorrectionSlider = (meshName: string, requestName: string) => {
+const buildCorrectionSlider = (meshName: string, requestName: string, buttonText: string) => {
+  const grid = new Grid("sliderGrid");
+  grid.width = 1;
+  grid.height = "35px";
+  grid.paddingTop = "5px";
+  grid.paddingBottom = "5px";
   const slider = new Slider();
-  slider.height = "35px";
-  slider.paddingTop = "5px";
-  slider.paddingBottom = "5px";
+  slider.displayValueBar = false;
+  slider.borderColor = "black";
+  slider.thumbColor = "grey";
   slider.minimum = -100;
   slider.maximum = 100;
   slider.value = 0;
-  slider.displayValueBar = false;
-  slider.thumbColor = "grey";
-  slider.borderColor = "black";
-  slider.onPointerDownObservable.add(() => {
-    ipcRenderer.send("requestMode", "MANUAL"); 
-  });
+  grid.addControl(slider);
+  const sliderThumb = Button.CreateSimpleButton("sliderThumb", buttonText);
+  sliderThumb.widthInPixels = slider.thumbWidthInPixels;
+  sliderThumb.thickness = 0;
+  sliderThumb.isEnabled = false;
+  sliderThumb.color = "black";
+  grid.addControl(sliderThumb);
   slider.onValueChangedObservable.add((value) => {
+    sliderThumb.leftInPixels = value/(slider.maximum - slider.minimum)*(slider.widthInPixels - slider.thumbWidthInPixels);
     ipcRenderer.send(meshName, requestName, value);
   });
   slider.onPointerUpObservable.add(() => {
     slider.value = 0;
   });
-  return slider;
+  return grid;
 }
 
 const buildCheckBox = (meshName: string, requestName: string) => {

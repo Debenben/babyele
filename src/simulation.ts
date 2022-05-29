@@ -172,6 +172,8 @@ export class SimulationDistanceSensor extends EventEmitter implements DistanceSe
 
 export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   portId: number
+  useAccelerationProfile: boolean
+  useDecelerationProfile: boolean
   rotation: number
   destRotation: number
   speed: number
@@ -207,10 +209,14 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     this.emit('rotate', {degrees: this.rotation});
     return Promise.resolve();
   }
-  setPower(power: number) {
-    console.log("simulation motor setting power to " + this.speed);
-    this.speed = power;
-    if(power === 0) {
+  setSpeed(speed: number, time: number | undefined) {
+    console.log("simulation motor setting speed to " + this.speed);
+    this.speed = speed;
+    if(this.token) {
+      this.token.isCancellationRequested = true;
+      this.token = null;
+    }
+    if(speed === 0) {
       clearInterval(this.speedIntervalID);
       this.speedIntervalID = null;
       return Promise.resolve();
@@ -218,19 +224,15 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     if(this.speedIntervalID) {
       return Promise.resolve();
     }
-    if(this.token) {
-      this.token.isCancellationRequested = true;
-      this.token = null;
-    }
     this.speedIntervalID = setInterval(() => {
       this.rotation += this.speed;
       this.emit('rotate', {degrees: this.rotation});
-    }, 100);
+    }, 50);
     return Promise.resolve();
   }
   send(message: Buffer) {
     if(message.length == 6 && message[0] == 0x81 && message[1] == this.portId && message[3] == 0x51 && message[4] == 0x00) {
-      return this.setPower(message.readInt8(5));
+      return this.setSpeed(message.readInt8(5), undefined);
     }
     else if(message.length == 9 && message[0] == 0x81 && message[1] == this.portId && message[3] == 0x51 && message[4] == 0x02) {
       return this.resetZero(message.readInt32LE(5));
@@ -242,7 +244,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   }
   rotateByDegrees(degrees: number, speed: number) {
     if(this.speedIntervalID) {
-      this.setPower(0);
+      this.setSpeed(0, undefined);
     }
     if(this.token) {
       this.token.isCancellationRequested = true;
@@ -256,6 +258,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   async motorLoop(token: Token) {
     try {
       while(this.rotation != this.destRotation) {
+        await sleep(50);
         if(token.isCancellationRequested) {
           console.log("simulation motor rotateByDegree is cancelled");
           return Promise.resolve();
@@ -267,7 +270,6 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
         else {
           this.rotation += this.speed;
         }
-        await sleep(100);
         this.emit('rotate', {degrees: this.rotation});
       }
       return Promise.resolve();

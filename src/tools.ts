@@ -14,10 +14,6 @@ export type Position = {
   sideways: number
 }
 
-export const deepCopy = (val: Record<MotorName, number>) => {
-  return {top: val.top, bottom: val.bottom, mount: val.mount};
-}
-
 export const toArray = (position: Position) => {
   if(position) {
     return [position.forward, position.height, position.sideways];

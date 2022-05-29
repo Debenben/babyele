@@ -155,7 +155,6 @@ export class MoveController {
       return;
     }
     else if (this.mode === "OFFLINE") { // prevent predefined mode handling below
-      console.log("Cannot switch from " + this.mode + " to " + destMode);
       return;
     }
     else if (destMode === "MANUAL") {
@@ -227,7 +226,7 @@ export class MoveController {
       else if(this.moves.hasOwnProperty(dest)) {
         if(!this.moves[dest].length) return Promise.resolve();
         for(let poseId of this.moves[dest]) {
-          await this.dog.requestPose(this.poses[poseId]);
+          await Promise.all([this.dog.requestPose(this.poses[poseId]), new Promise(res => setTimeout(res, 10))]);
           this.mode = poseId;
           this.mainWindow.webContents.send('notifyMode', poseId, true);
         }

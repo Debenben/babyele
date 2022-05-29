@@ -24,14 +24,6 @@ function createWindow() {
 
   mainWindow.removeMenu();
   //mainWindow.webContents.openDevTools();
-
-  // Emitted when the window is closed.
-  mainWindow.on("closed", () => {
-    // Dereference the window object, usually you would store windows
-    // in an array if your app supports multi windows, this is the time
-    // when you should delete the corresponding element.
-    mainWindow = null;
-  });
 }
 
 async function createDog() {
@@ -66,25 +58,17 @@ async function createDog() {
 // Some APIs can only be used after this event occurs.
 app.on("ready", createWindow);
 
-// Quit when all windows are closed.
 app.on("window-all-closed", () => {
   try {
-    dog.shutdown();
+    controller.requestMode("OFFLINE");
   }
   catch(e) {
     console.log("discard error " + e + " during shutdown");
   }
   dog = null;
+  controller = null;
   mainWindow = null;
   app.quit();
-});
-
-app.on("activate", () => {
-  // On OS X it"s common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (mainWindow === null) {
-    createWindow();
-  }
 });
 
 ipcMain.on('rendererInitialized', (event, arg) => {

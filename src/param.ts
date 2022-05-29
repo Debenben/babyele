@@ -10,7 +10,6 @@ export const LEG_PISTON_LENGTH = 175.0; // length of piston when leg is vertical
 
 export const NO_MOVE_MOTOR_ANGLE = 16;
 const TOP_MOTOR_RANGE = 12272; // motor rotation in degree needed for rotation of top leg segment by pi
-const TOP_MOTOR_RANGE_BACK = 9439;
 const BOTTOM_MOTOR_RANGE = 22486; // motor rotation in degree needed for rotation of bottom leg segment by pi
 const MOUNT_MOTOR_RANGE = 433; // motor rotation in degree needed for one millimeter piston extension
 
@@ -19,8 +18,8 @@ export const MotorMap = {
     "name": "hubBackCenter",
     "A"   : {"name": "legBackLeftMount", "range": MOUNT_MOTOR_RANGE},
     "B"   : {"name": "legBackRightMount", "range": -MOUNT_MOTOR_RANGE},
-    "C"   : {"name": "legBackRightTop", "range": TOP_MOTOR_RANGE_BACK},
-    "D"   : {"name": "legBackLeftTop", "range": -TOP_MOTOR_RANGE_BACK},
+    "C"   : {"name": "legBackRightTop", "range": TOP_MOTOR_RANGE},
+    "D"   : {"name": "legBackLeftTop", "range": -TOP_MOTOR_RANGE},
   },
   "BeneLego4": {
     "name": "hubFrontCenter",

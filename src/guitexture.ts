@@ -124,17 +124,18 @@ class DragHelper extends Container {
 const buildTopMenu = () => {
   const grid = new Grid("topMenu");
   grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  grid.paddingTop = "5px"
+  grid.paddingTop = "5px";
   grid.zIndex = 20;
   grid.heightInPixels = 35;
   grid.widthInPixels = 260;
-  grid.addColumnDefinition(0.5);
-  grid.addColumnDefinition(0.5);
+  grid.addColumnDefinition(0.8);
+  grid.addColumnDefinition(0.2);
+  grid.isPointerBlocker = true;
   const modeDisplayButton = buildTopMenuButton("OFFLINE");
   modeDisplayButton.onPointerClickObservable.add(() => {
     ipcRenderer.emit("toggleModeSelectionVisibility");
   });
-  const addPoseButton = buildTopMenuButton("Save Position");
+  const addPoseButton = buildTopMenuButton("🖫");
   addPoseButton.isEnabled = false;
   addPoseButton.color = "darkgrey";
   ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
@@ -152,8 +153,8 @@ const buildTopMenu = () => {
   addPoseButton.onPointerClickObservable.add(() => {
     ipcRenderer.send('storePose', modeDisplayButton.textBlock.text);
   });
-  grid.addControl(addPoseButton, 0, 0);
-  grid.addControl(modeDisplayButton, 0, 1);
+  grid.addControl(modeDisplayButton, 0, 0);
+  grid.addControl(addPoseButton, 0, 1);
   return grid;
 }
 

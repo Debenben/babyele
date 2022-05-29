@@ -13,6 +13,7 @@ export default class Renderer {
   redMaterial: BABYLON.StandardMaterial;
   actionManager: BABYLON.ActionManager;
   gravityLines: BABYLON.LinesMesh;
+  displacementLines: BABYLON.LinesMesh;
   selectedItem: string;
   selectedItemIsPreview: boolean;
   guiTexture: GuiTexture;
@@ -31,8 +32,9 @@ export default class Renderer {
     this.actionManager = new BABYLON.ActionManager(scene);
     this.guiTexture = new GuiTexture(scene);
 
-    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/2.5, 1200, new BABYLON.Vector3(0,250,0), scene);
+    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/3, Math.PI/3, 1200, new BABYLON.Vector3(0,250,0), scene);
     camera.attachControl(canvas, true);
+    camera.wheelPrecision = 0.2;
     const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(1000, -2000, 1000), scene);
     dirLight.intensity = 0.2;
     const hemLight = new BABYLON.HemisphericLight("hemLight", new BABYLON.Vector3(0, 1, 0), scene);
@@ -95,14 +97,20 @@ export default class Renderer {
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, unpreviewItem));
 
     this.gravityLines = buildGravityLines(scene);
+    this.displacementLines = buildDisplacementLines(scene);
+    this.displacementLines.parent = ground;
     scene.registerBeforeRender(() => {
       setBodyHeight(scene);
       if(!this.selectedItem) {
         ground.rotation.y += 0.001;
         this.gravityLines.isVisible = false;
+        this.displacementLines.isVisible = false;
       }
       else {
-        this.gravityLines.isVisible = true;
+        if(!this.selectedItemIsPreview) {
+          this.gravityLines.isVisible = true;
+          this.displacementLines.isVisible = true;
+        }
         this.gravityLines = BABYLON.Mesh.CreateLines(null, getGravityLinesPath(scene), null, null, this.gravityLines);
       }
     });
@@ -217,6 +225,21 @@ const getGravityLinesPath = (scene: BABYLON.Scene) => {
   return path;
 }
 
+const getDisplacementLinesPath = () => {
+  let path = [];
+  for (let x=-120; x<=120; x+=30) {
+    path.push(new BABYLON.Vector3(Param.LEG_SEPARATION_LENGTH/2 + x,0,0));
+    path.push(new BABYLON.Vector3(Param.LEG_SEPARATION_LENGTH/2 + x,0,Param.LEG_SEPARATION_WIDTH/2));
+    path.push(new BABYLON.Vector3(Param.LEG_SEPARATION_LENGTH/2 + x,0,-Param.LEG_SEPARATION_WIDTH/2));
+    path.push(new BABYLON.Vector3(Param.LEG_SEPARATION_LENGTH/2 + x,0,0));
+    path.push(new BABYLON.Vector3(-Param.LEG_SEPARATION_LENGTH/2 + x,0,0));
+    path.push(new BABYLON.Vector3(-Param.LEG_SEPARATION_LENGTH/2 + x,0,Param.LEG_SEPARATION_WIDTH/2));
+    path.push(new BABYLON.Vector3(-Param.LEG_SEPARATION_LENGTH/2 + x,0,-Param.LEG_SEPARATION_WIDTH/2));
+    path.push(new BABYLON.Vector3(-Param.LEG_SEPARATION_LENGTH/2 + x,0,0));
+  }
+  return path;
+}
+
 const selectItem = (event) => {
   if(renderer.selectedItem) {
     if(event.meshUnderPointer.name === renderer.selectedItem && !renderer.selectedItemIsPreview) {
@@ -248,7 +271,7 @@ const unpreviewItem = (event) => {
 }
 
 const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
-  const backTexture = new BABYLON.RenderTargetTexture("backgroundTexture", 200, scene)
+  const backTexture = new BABYLON.RenderTargetTexture("backgroundTexture", 400, scene)
   const background = new BABYLON.Layer("background", null, scene);
   background.isBackground = true;
   background.texture = backTexture;
@@ -257,7 +280,8 @@ const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
     fragmentShader: `
       varying vec2 vUV;
       void main(void) {
-        gl_FragColor = vec4(0.1*vUV.x, 0.1*vUV.y, 0.2*vUV.y, 1.0);
+        float rnd = abs(fract(sin(vUV.x)*sin(vUV.y)*9999999.9));
+        gl_FragColor = vec4(vec3(0.5*vUV.x, 0.5*vUV.y, 1.0*vUV.y)*(0.2 + 0.02*rnd), 1.0);
       }
     `
   });
@@ -276,16 +300,16 @@ const buildGround = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
     fragmentShader: `
       varying vec2 vUV;
       void main(void) {
-        float distance = (vUV.x - 0.5)*(vUV.x - 0.5) + (vUV.y - 0.5)*(vUV.y - 0.5);
-        if(cos(20.0*(vUV.x - 0.5)) * cos(20.0*(vUV.y - 0.5)) > 0.999) {
-          gl_FragColor = vec4(0.8, 0.9, 0.9, 1.0-4.0*distance);
-        }
-        else if(cos(100.0*(vUV.x - 0.5)) * cos(100.0*(vUV.y - 0.5)) > 0.98) {
-          gl_FragColor = vec4(0.2, 0.4, 0.4, 1.0-5.0*distance);
-        }
-        else {
-          gl_FragColor = vec4(0.05, 0.1, 0.1, 1.0-70.0*distance*distance);
-        }
+        float cx = vUV.x - 0.5;
+        float cy = vUV.y - 0.5;
+        float d = cx*cx + cy*cy;
+        float lf = 20.0;
+        float hf = 100.0;
+        float rnd = abs(fract(sin(vUV.x)*sin(vUV.y)*9999999.9));
+        vec4 lv = pow(cos(lf*cx)*cos(lf*cy), 800.0)*vec4(0.8, 0.8, 1.0, 1.0) * (1.0 - 16.0*d*d);
+        vec4 hv = pow(cos(hf*cx)*cos(hf*cy), 80.0)*vec4(0.5, 0.6, 0.4, 1.0) * (1.0 - 16.0*d*d);
+        vec4 gr = vec4(0.05, 0.1, 0.1, 1.0) * (1.0 - 0.1*rnd - 70.0*d*d);
+        gl_FragColor = max(max(lv, hv), gr);
       }
     `
   });
@@ -308,6 +332,13 @@ const buildGround = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
 
 const buildGravityLines = (scene: BABYLON.Scene) => {
   const lines = BABYLON.Mesh.CreateLines("gravityLines", getGravityLinesPath(scene), scene, true);
+  lines.color = new BABYLON.Color3(0.8, 0.2, 0.2);
+  lines.isVisible = false;
+  return lines;
+}
+
+const buildDisplacementLines = (scene: BABYLON.Scene) => {
+  const lines = BABYLON.Mesh.CreateLines("displacementLines", getDisplacementLinesPath(), scene, true);
   lines.color = new BABYLON.Color3(0.4, 0.6, 0.6);
   lines.isVisible = false;
   return lines;
@@ -334,7 +365,7 @@ const buildBody = (scene: BABYLON.Scene, meshName: string) => {
 }
 
 const buildHub = (scene: BABYLON.Scene, meshName: string) => {
-  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:120, height:90, depth:80}, scene);
+  const hub = BABYLON.MeshBuilder.CreateBox(meshName, {width:80, height:120, depth:80}, scene);
   hub.material = renderer.greyMaterial;
   hub.isPickable = false;
   hub.receiveShadows = true;
@@ -372,17 +403,37 @@ const buildBone = ({width, height, depth}, scene: BABYLON.Scene) => {
   return bone;
 }
 
-const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
-  const leg = new BABYLON.Mesh(meshName, scene);
-  const mount = BABYLON.MeshBuilder.CreateBox(meshName + "Mount", {width:135, height:2*Param.LEG_MOUNT_HEIGHT, depth:Param.LEG_MOUNT_WIDTH}, scene);
-  mount.parent = leg;
-  mount.setPivotPoint(new BABYLON.Vector3(0,-Param.LEG_MOUNT_HEIGHT,Param.LEG_MOUNT_WIDTH/2));
-  mount.position.z = Param.LEG_MOUNT_WIDTH/2;
+const buildMount = (scene: BABYLON.Scene, meshName: string) => {
+  const inner = BABYLON.MeshBuilder.CreateBox(meshName + "Inner", {width:140, height:125, depth:180}, scene);
+  const outer = BABYLON.MeshBuilder.CreateBox(meshName + "Outer", {width:160, height:160, depth:160}, scene);
+  outer.position.z = 60;
+  const innerCSG = BABYLON.CSG.FromMesh(inner);
+  const outerCSG = BABYLON.CSG.FromMesh(outer);
+  outer.rotation.x = Math.PI/6;
+  outer.position.z = -30;
+  const rotCSG = BABYLON.CSG.FromMesh(outer);
+  let mountCSG = innerCSG.intersect(outerCSG);
+  mountCSG = mountCSG.intersect(rotCSG);
+  const mount = mountCSG.toMesh(meshName, null, scene);
+  inner.dispose();
+  outer.dispose();
+  scene.removeMesh(inner);
+  scene.removeMesh(outer);
   mount.material = renderer.greyMaterial;
   mount.isPickable = false;
   mount.receiveShadows = true;
   mount.actionManager = renderer.actionManager;
-  const topLeg = buildBone({width:100, height:Param.LEG_LENGTH_TOP, depth:70}, scene);
+  return mount;
+}
+
+const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
+  const leg = new BABYLON.Mesh(meshName, scene);
+  const mount = buildMount(scene, meshName);
+  mount.name = meshName + "Mount";
+  mount.parent = leg;
+  mount.position.z = Param.LEG_MOUNT_WIDTH/2;
+  mount.setPivotPoint(new BABYLON.Vector3(0,-Param.LEG_MOUNT_HEIGHT,Param.LEG_MOUNT_WIDTH/2));
+  const topLeg = buildBone({width:110, height:Param.LEG_LENGTH_TOP, depth:60}, scene);
   topLeg.name = meshName + "Top";
   topLeg.parent = mount;
   topLeg.position.z = -Param.LEG_MOUNT_WIDTH/2;

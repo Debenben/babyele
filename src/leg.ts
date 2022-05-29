@@ -30,6 +30,7 @@ export class Leg {
     this.mainWindow = mainWindow;
     ipcMain.on(this.legName, (event, arg1, arg2) => {
       if(arg1.startsWith("requestPositionSpeed")) {
+        ipcMain.emit('requestMode', 'internal', 'MANUAL');
         this.requestPositionSpeed(parsePosition(arg1, arg2));
       }
       else if(arg1 == "setBendForward") {
@@ -83,15 +84,17 @@ export class Leg {
     this.motorRanges[motorName] = motorRange;
     if(motor) {
       motor.setBrakingStyle(127); //Consts.BrakingStyle.BRAKE
-      motor.setAccelerationTime(200);
-      motor.setDecelerationTime(200);
+      motor.useAccelerationProfile = false;
+      motor.useDecelerationProfile = false;
       await this.requestRotationSpeed(motorName, 0);
       await setMotorAngle(motor, this.motorAngles[motorName]);
       ipcMain.on(deviceName, (event, arg1, arg2) => {
         switch(arg1) {
           case "requestRotationSpeed":
+            ipcMain.emit('requestMode', 'internal', 'MANUAL');
             return this.requestRotationSpeed(motorName, arg2);
           case "requestRotation":
+            ipcMain.emit('requestMode', 'internal', 'MANUAL');
             return this.requestRotation(motorName, arg2);
           case "requestSync":
             return this.synchronize(motorName);
@@ -159,7 +162,7 @@ export class Leg {
     motorNames = motorNames.filter(n => this.motors[n] && Math.abs(this.destMotorAngles[n] - this.motorAngles[n]) > NO_MOVE_MOTOR_ANGLE);
     const diffMotorAngles = motorNames.map(n => (this.destMotorAngles[n] - this.motorAngles[n]));
     const motorSpeeds = diffMotorAngles.map(diff => (10*Math.sign(diff) + 90*diff/Math.max.apply(null, diffMotorAngles.map(Math.abs))));
-    const promises = motorNames.map((n,i) => this.motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), motorSpeeds[i]));
+    const promises = motorNames.map((n,i) => this.motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), motorSpeeds[i], true));
     return Promise.all(promises);
   }
 
@@ -176,10 +179,11 @@ export class Leg {
   }
 
   requestRotationSpeed(motorName: string, speed: number) {
-    this.motors[motorName].send(Buffer.from([0x81, this.motors[motorName].portId, 0x10, 0x51, 0x00, speed]));
-    if(speed === 0) {
-      this.destMotorAngles[motorName] = this.motorAngles[motorName];
-    }
+    return this.motors[motorName].setSpeed(speed, undefined, true).then((ret) => {
+      if(speed === 0) {
+        this.destMotorAngles[motorName] = this.motorAngles[motorName];
+      }
+    });
   }
 
   setPosition(position: Position) {
@@ -230,7 +234,7 @@ export class Leg {
           return n;
         });
         this.requestPosition(fromArray(position));
-      }, 300);
+      }, 100);
     }
   }
 

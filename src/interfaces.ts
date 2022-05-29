@@ -29,11 +29,14 @@ export interface AccelerometerAbstraction {
 
 export interface MotorAbstraction extends EventEmitter {
   readonly portId: number;
+  useAccelerationProfile: boolean;
+  useDecelerationProfile: boolean;
   setBrakingStyle: (style: number) => Promise<void>;
   setAccelerationTime: (time: number) => Promise<void>;
   setDecelerationTime: (time: number) => Promise<void>;
   send: (message: Buffer) => Promise<void>;
-  rotateByDegrees: (degrees: number, speed: number) => Promise<void>;
+  setSpeed: (speed: number, time: number | undefined, interrupt: boolean) => Promise<void>;
+  rotateByDegrees: (degrees: number, speed: number, interrupt: boolean) => Promise<void>;
   requestUpdate: () => Promise<void>;
 }
 
