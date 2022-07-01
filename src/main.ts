@@ -59,12 +59,7 @@ async function createDog() {
 app.on("ready", createWindow);
 
 app.on("window-all-closed", () => {
-  try {
-    controller.requestMode("OFFLINE");
-  }
-  catch(e) {
-    console.log("discard error " + e + " during shutdown");
-  }
+  controller.requestMode("OFFLINE");
   dog = null;
   controller = null;
   mainWindow = null;

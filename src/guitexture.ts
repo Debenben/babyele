@@ -3,6 +3,7 @@ import { AdvancedDynamicTexture, Rectangle, Control, TextBlock, Button, Grid, Co
 import { ipcRenderer } from 'electron';
 import { Infobox } from './guiinfobox';
 import { ModeSelection } from './guimodeselection';
+import { reservedNames } from './tools';
 
 export class GuiTexture {
   scene: BABYLON.Scene;
@@ -110,9 +111,7 @@ class DragHelper extends Container {
       this.isVisible = true;
       this.guiTexture.texture.addControl(this);
     });
-    ipcRenderer.on("stopGuiDrag", () => {
-      this.stopDrag();
-    });
+    ipcRenderer.on("stopGuiDrag", () => this.stopDrag());
   }
   stopDrag = () => {
     this.removeControl(this.container);
@@ -123,70 +122,79 @@ class DragHelper extends Container {
 
 const buildTopMenu = () => {
   const grid = new Grid("topMenu");
-  grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  grid.paddingTop = "5px";
-  grid.zIndex = 20;
   grid.heightInPixels = 35;
-  grid.widthInPixels = 260;
-  grid.addColumnDefinition(0.8);
-  grid.addColumnDefinition(0.2);
+  grid.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 500);
+  window.addEventListener('resize', () => {
+    grid.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 500);
+  });
+  grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  grid.zIndex = 20;
+  grid.paddingTop = "5px";
   grid.isPointerBlocker = true;
-  const modeDisplayButton = buildTopMenuButton("OFFLINE");
+  grid.addColumnDefinition(35, true);
+  grid.addColumnDefinition(1.0);
+  grid.addColumnDefinition(35, true);
+  grid.color = "white";
+  const modeDisplayButton = buildTopMenuButton(currentMode);
   modeDisplayButton.onPointerClickObservable.add(() => {
     ipcRenderer.emit("toggleModeSelectionVisibility");
   });
-  const addPoseButton = buildTopMenuButton("🖫");
-  addPoseButton.isEnabled = false;
-  addPoseButton.color = "darkgrey";
+  const storePoseButton = buildTopMenuButton("🖫");
+  const deletePoseButton = buildTopMenuButton("🗑");
   ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
+    currentMode = modeName;
     modeDisplayButton.textBlock.text = modeName;
-    addPoseButton.isEnabled = !isKnown;
-    if(isKnown) {
-      modeDisplayButton.color = 'black';
-      addPoseButton.color = "darkgrey";
-    }
-    else {
-      modeDisplayButton.color = 'green';
-      addPoseButton.color = "black";
-    }
+    storePoseButton.isVisible = !isKnown;
+    deletePoseButton.isVisible = isKnown && !reservedNames.includes(modeName);
+    if(isKnown) grid.color = "white"
+    else grid.color = "green";
   });
-  addPoseButton.onPointerClickObservable.add(() => {
-    ipcRenderer.send('storePose', modeDisplayButton.textBlock.text);
+  storePoseButton.onPointerClickObservable.add(() => {
+    ipcRenderer.send('storePose', currentMode);
   });
-  grid.addControl(modeDisplayButton, 0, 0);
-  grid.addControl(addPoseButton, 0, 1);
+  deletePoseButton.onPointerClickObservable.add(() => {
+    ipcRenderer.send('deleteMode', currentMode);
+  });
+  deletePoseButton.onPointerEnterObservable.add(() => grid.color = "red");
+  deletePoseButton.onPointerOutObservable.add(() => grid.color = "white");
+  storePoseButton.isVisible = false;
+  deletePoseButton.isVisible = false;
+  grid.addControl(modeDisplayButton, 0, 1);
+  grid.addControl(storePoseButton, 0, 2);
+  grid.addControl(deletePoseButton, 0, 2);
   return grid;
 }
 
-const buildTopMenuButton = (text: string) => {
-  const button = Button.CreateSimpleButton("topMenuButton", text);
-  button.color = "black";
-  button.isEnabled = true;
-  button.background = "grey";
-  ipcRenderer.on('noitfyState', (event, arg1, arg2) => {
-    if(arg1 === 'dog') {
-      if(arg2 === 'offline') {
-        button.isEnabled = false;
-        button.color = "darkgrey";
-      }
-      else {
-        button.isEnabled = true;
-        button.color = "black";
-      }
-    }
-  });
+const buildTopMenuButton = (displayText: string) => {
+  const button = Button.CreateSimpleButton("topMenuButton", displayText);
+  button.fontSize = "80%";
+  button.thickness = 0;
+  button.onPointerEnterObservable.add(() => button.thickness = 1);
+  button.onPointerOutObservable.add(() => button.thickness = 0);
   return button;
 }
 
 const onKeyPress = (kbInfo: BABYLON.KeyboardInfo) => {
   switch (kbInfo.type) {
     case BABYLON.KeyboardEventTypes.KEYDOWN:
-    case BABYLON.KeyboardEventTypes.KEYUP:
-      const value = kbInfo.type == BABYLON.KeyboardEventTypes.KEYDOWN ? 100 : 0
       switch (kbInfo.event.key) {
         case " ":
           ipcRenderer.send('requestMode', "BUTTON");
           break;
+        case "PrintScreen":
+          ipcRenderer.send('storePose', currentMode);
+          break;
+        case "Delete":
+          ipcRenderer.send('deleteMode', currentMode);
+          break;
+        case "m":
+        case "M":
+          ipcRenderer.emit("toggleModeSelectionVisibility");
+          break;
+      }
+    case BABYLON.KeyboardEventTypes.KEYUP:
+      const value = kbInfo.type == BABYLON.KeyboardEventTypes.KEYDOWN ? 100 : 0
+      switch (kbInfo.event.key) {
         case "a":
         case "A":
           ipcRenderer.send("dog", "requestPositionSpeedSideways", -value);
@@ -213,3 +221,5 @@ const onKeyPress = (kbInfo: BABYLON.KeyboardInfo) => {
       break;
   }
 }
+
+let currentMode = "OFFLINE";

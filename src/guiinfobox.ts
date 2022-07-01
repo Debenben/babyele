@@ -19,7 +19,7 @@ export class Infobox extends Container {
   constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
     super(name);
     this.scene = scene;
-    this.widthInPixels = window.innerWidth > 750 ? 0.4*window.innerWidth : 300;
+    this.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 600);
     this.adaptHeightToChildren = true;
     this.paddingLeft = 10; 
     this.paddingRight = 10; 
@@ -29,23 +29,18 @@ export class Infobox extends Container {
     this.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.fillRectangle = new Rectangle("background");
     this.fillRectangle.alpha = 0.6;
-    this.fillRectangle.color = "black";
     this.fillRectangle.thickness = 0;
     this.fillRectangle.cornerRadius = 5;
     this.isPointerBlocker = true;
     this.addControl(this.fillRectangle);
-    this.panel = new StackPanel();
+    this.panel = new StackPanel("infoboxPanel");
     this.addControl(this.panel);
     this.addControls();
     this.setPreview(preview);
   }
   setPreview(preview: boolean) {
-    if(preview) {
-      this.color = "rgb(60,215,60)";
-    }
-    else {
-      this.color = "rgb(255,110,90)";
-    }
+    if(preview) this.color = "rgb(60,215,60)"
+    else this.color = "rgb(255,110,90)"
     this.fillRectangle.background = this.color;
     this.heading.background = this.color;
   }
@@ -163,11 +158,9 @@ export class Infobox extends Container {
     }
   }
   updateAngle = (event, arg1, arg2) => {
-    if(arg1 === this.name) {
-      if(!this.angleSlider.displayValueBar) {
-        this.angleText.text = "rot. angle:" + printDegree(arg2);
-        this.angleSlider.value = arg2;
-      }
+    if(arg1 === this.name && !this.angleSlider.displayValueBar) {
+      this.angleText.text = "rot. angle:" + printDegree(arg2);
+      this.angleSlider.value = arg2;
     }
   }
 }
@@ -175,11 +168,10 @@ export class Infobox extends Container {
 const buildHeading = (infobox: Infobox) => {
   let heading = new Rectangle("headingBackground");
   heading.height = "30px";
-  heading.color = "black";
   heading.thickness = 0;
   heading.alpha = 0.8;
   heading.cornerRadius = 5;
-  const block = new TextBlock();
+  const block = new TextBlock("headingText");
   block.text = infobox.name;
   block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   block.fontSize = 20;
@@ -201,7 +193,7 @@ const buildHeading = (infobox: Infobox) => {
     infobox.fillRectangle.thickness = 0;
   });
   heading.addControl(block);
-  const button = Button.CreateSimpleButton("closeButton","x");
+  const button = Button.CreateSimpleButton("closeButton","🗙");
   button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
   button.width = "30px";
   button.height = "30px";
@@ -209,12 +201,8 @@ const buildHeading = (infobox: Infobox) => {
   button.paddingTop = "2px";
   button.color = "black";
   button.thickness = 0;
-  button.onPointerEnterObservable.add(() => {
-    button.thickness = 1;
-  });
-  button.onPointerOutObservable.add(() => {
-    button.thickness = 0;
-  });
+  button.onPointerEnterObservable.add(() => button.thickness = 1);
+  button.onPointerOutObservable.add(() => button.thickness = 0);
   button.onPointerClickObservable.add(() => {
     ipcRenderer.emit("notifyState", "closeEvent", infobox.name, "online");
   });
@@ -223,7 +211,7 @@ const buildHeading = (infobox: Infobox) => {
 }
 
 const buildText = (content: string) => {
-  const block = new TextBlock();
+  const block = new TextBlock("infoText");
   block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   block.text = content;
   block.fontFamily = "monospace";
@@ -247,44 +235,34 @@ const getLegRotation = (meshName: string, scene: BABYLON.Scene) => {
   }
 }
 
-const buildAngleSlider = (infobox: Infobox) => {
-  const slider = new Slider();
-  slider.height = "35px";
-  slider.paddingTop = "5px";
-  slider.paddingBottom = "5px";
-  slider.thumbColor = "grey";
-  slider.borderColor = "black";
-  slider.displayValueBar = false;
-  slider.minimum = -Math.PI;
-  slider.maximum = Math.PI;
-  slider.value = getLegRotation(infobox.name, infobox.scene);
-  slider.onPointerDownObservable.add(() => {
-    slider.displayValueBar = true;
-  });
-  slider.onPointerUpObservable.add(() => {
-    slider.displayValueBar = false;
-  });
-  slider.onValueChangedObservable.add((value) => {
-    if(slider.displayValueBar) {
-      infobox.angleText.text = "req. angle:" + printDegree(slider.value);
-      ipcRenderer.send(infobox.name, "requestRotation", slider.value);
-    }
-  });
-  return slider;
-}
-
 const buildButton = (meshName: string, requestName: string, buttonText: string) => {
   const button = Button.CreateSimpleButton("button", buttonText);
   button.paddingTop = "5px";
   button.paddingRight = "5px";
   button.width = "120px";
   button.height = "30px";
-  button.color = "black";
-  button.background = "grey";
-  button.onPointerClickObservable.add(() => {
-    ipcRenderer.send(meshName, requestName);
-  });
+  button.background = "black";
+  button.onPointerClickObservable.add(() => ipcRenderer.send(meshName, requestName));
   return button;
+}
+
+const buildAngleSlider = (infobox: Infobox) => {
+  const slider = new Slider("angleSlider");
+  slider.height = "35px";
+  slider.paddingTop = "5px";
+  slider.paddingBottom = "5px";
+  slider.minimum = -Math.PI;
+  slider.maximum = Math.PI;
+  slider.value = getLegRotation(infobox.name, infobox.scene);
+  slider.displayValueBar = false;
+  slider.onPointerDownObservable.add(() => slider.displayValueBar = true);
+  slider.onPointerUpObservable.add(() => slider.displayValueBar = false);
+  slider.onValueChangedObservable.add((value) => {
+    if(!slider.displayValueBar) return;
+    infobox.angleText.text = "req. angle:" + printDegree(value);
+    ipcRenderer.send(infobox.name, "requestRotation", value);
+  });
+  return slider;
 }
 
 const buildCorrectionSlider = (meshName: string, requestName: string, buttonText: string) => {
@@ -293,10 +271,7 @@ const buildCorrectionSlider = (meshName: string, requestName: string, buttonText
   grid.height = "35px";
   grid.paddingTop = "5px";
   grid.paddingBottom = "5px";
-  const slider = new Slider();
-  slider.displayValueBar = false;
-  slider.borderColor = "black";
-  slider.thumbColor = "grey";
+  const slider = new Slider("correctionSlider");
   slider.minimum = -100;
   slider.maximum = 100;
   slider.value = 0;
@@ -305,20 +280,17 @@ const buildCorrectionSlider = (meshName: string, requestName: string, buttonText
   sliderThumb.widthInPixels = slider.thumbWidthInPixels;
   sliderThumb.thickness = 0;
   sliderThumb.isEnabled = false;
-  sliderThumb.color = "black";
   grid.addControl(sliderThumb);
   slider.onValueChangedObservable.add((value) => {
     sliderThumb.leftInPixels = value/(slider.maximum - slider.minimum)*(slider.widthInPixels - slider.thumbWidthInPixels);
     ipcRenderer.send(meshName, requestName, value);
   });
-  slider.onPointerUpObservable.add(() => {
-    slider.value = 0;
-  });
+  slider.onPointerUpObservable.add(() => slider.value = 0);
   return grid;
 }
 
 const buildCheckBox = (meshName: string, requestName: string) => {
-  const panel = new StackPanel();
+  const panel = new StackPanel("checkBoxPanel");
   panel.isVertical = false;
   panel.height = "25px";
   panel.paddingLeft = "5px";
@@ -326,7 +298,7 @@ const buildCheckBox = (meshName: string, requestName: string) => {
   const box = new Checkbox("bendForwardBox");
   box.width = "20px";
   box.height = "20px";
-  box.color = "grey";
+  box.color = "lightgrey";
   box.onIsCheckedChangedObservable.add((checked) => {
     ipcRenderer.send(meshName, requestName, checked);
   });

@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import * as fs from 'fs';
 import { Dog } from "./dog"
-import { Pose, Move } from "./tools";
+import { Pose, Move, reservedNames } from "./tools";
 
 export class MoveController {
   mainWindow: BrowserWindow
@@ -31,20 +31,19 @@ export class MoveController {
       if(arg1 === 'dog') {
         if(arg2 === 'offline') {
           this.mode = "OFFLINE";
-          this.mainWindow.webContents.send('notifyMode', this.mode, true);
+          this.send('notifyMode', this.mode, true);
+          this.notifyAvailability();
         }
         else if (this.mode === "OFFLINE") {
           this.mode = "WAITING";
-          this.mainWindow.webContents.send('notifyMode', this.mode, true);
+          this.send('notifyMode', this.mode, true);
+          this.notifyAvailability();
         }
       }
     });
 
     ipcMain.on('deleteMode', (event, modeName) => {
-      if(modeName === "OFFLINE") {
-        console.log("deleting pose " + modeName + " not allowed");
-        return;
-      }
+      if(reservedNames.includes(modeName)) return;
       if(this.moves.hasOwnProperty(modeName)) {
         delete this.moves[modeName];
       }
@@ -53,11 +52,13 @@ export class MoveController {
         for(let id in this.moves) {
           this.moves[id] = this.moves[id].filter(el => el != modeName);
         }
+        this.send('notifyMode', modeName, false);
       }
       return this.storeData();
     });
 
     ipcMain.on('storePose', (event, poseName) => {
+      if(reservedNames.includes(poseName)) return;
       this.poses[poseName] = this.dog.getPose();
       const prefix = poseName.split('-')[0];
       const num = poseName.split('-')[1];
@@ -65,10 +66,11 @@ export class MoveController {
         this.moves[prefix].splice(this.moves[prefix].indexOf(prefix + '-' + (num - 1)) + 1, 0, poseName);
       }
       this.storeData();
-      this.mainWindow.webContents.send('notifyMode', poseName, true);
+      this.send('notifyMode', poseName, true);
     });
 
     ipcMain.on('storeMove', (event, moveName, content) => {
+      if(reservedNames.includes(moveName)) return;
       let newMove = [];
       for(let modeName of content) {
         if(this.poses.hasOwnProperty(modeName) || modeName == "OFFLINE") {
@@ -126,8 +128,8 @@ export class MoveController {
     for(let id in this.moves) {
       enabled[id] = this.allowSwitch(lastMode, id);
     }
-    this.mainWindow.webContents.send('notifyPosesAvailable', Object.keys(this.poses));
-    this.mainWindow.webContents.send('notifyMovesAvailable', this.moves, enabled);
+    this.send('notifyPosesAvailable', Object.keys(this.poses));
+    this.send('notifyMovesAvailable', this.moves, enabled);
   }
 
   getNewPoseName = () => {
@@ -161,7 +163,7 @@ export class MoveController {
       this.modeQueue = [];
       // do not stop, manual request might be in progress already
       this.notifyAvailability();
-      this.mainWindow.webContents.send('notifyMode', this.getNewPoseName(), false);
+      this.send('notifyMode', this.getNewPoseName(), false);
       return;
     }
     else if (destMode === "BUTTON") {
@@ -195,7 +197,7 @@ export class MoveController {
         this.modeQueue = [];
         this.mode = destMode;
         this.notifyAvailability();
-        this.mainWindow.webContents.send('notifyMode', this.getNewPoseName(), false);
+        this.send('notifyMode', this.getNewPoseName(), false);
         return Promise.resolve();
       }
     }
@@ -220,7 +222,7 @@ export class MoveController {
       if(this.poses.hasOwnProperty(dest)) {
         await this.dog.requestPose(this.poses[dest]);
         this.mode = dest;
-        this.mainWindow.webContents.send('notifyMode', dest, true);
+        this.send('notifyMode', dest, true);
         this.modeQueue.shift();
       }
       else if(this.moves.hasOwnProperty(dest)) {
@@ -228,7 +230,7 @@ export class MoveController {
         for(let poseId of this.moves[dest]) {
           await Promise.all([this.dog.requestPose(this.poses[poseId]), new Promise(res => setTimeout(res, 10))]);
           this.mode = poseId;
-          this.mainWindow.webContents.send('notifyMode', poseId, true);
+          this.send('notifyMode', poseId, true);
         }
         if(this.modeQueue.length == 1 && this.allowSwitch(dest, dest)) continue;
         this.modeQueue.shift();
@@ -250,5 +252,9 @@ export class MoveController {
     if(this.poses.hasOwnProperty(origin) && this.moves.hasOwnProperty(destination)) return (origin == this.moves[destination][0]);
     if(this.moves.hasOwnProperty(origin) && this.moves.hasOwnProperty(destination)) return (this.moves[origin][this.moves[origin].length-1] == this.moves[destination][0]);
     return false;
+  }
+
+  send = (arg1, arg2, arg3 = null) => {
+    if(!this.mainWindow.isDestroyed()) return this.mainWindow.webContents.send(arg1, arg2, arg3);
   }
 }

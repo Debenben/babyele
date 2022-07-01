@@ -14,6 +14,8 @@ export type Position = {
   sideways: number
 }
 
+export const reservedNames = ["OFFLINE", "WAITING", "MANUAL", "BUTTON"] as const
+
 export const toArray = (position: Position) => {
   if(position) {
     return [position.forward, position.height, position.sideways];
@@ -85,3 +87,4 @@ export const invCosLaw = (rSide: number, lSide: number, oSide: number) => {
   const cosVal = (rSide**2 + lSide**2 - oSide**2)/(2*rSide*lSide);
   return Math.acos(cosVal > 1.0 ? 1.0 : (cosVal < -1.0 ? -1.0 : cosVal));  
 }
+

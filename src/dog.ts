@@ -43,9 +43,9 @@ export class Dog {
         this.requestMoveSpeed();
       }
       else if(arg1 === "getProperties") {
-        this.mainWindow.webContents.send('notifyDogPosition', "dog", this.getDogPosition());
-        this.mainWindow.webContents.send('notifyDogRotation', "dog", this.getDogRotation());
-        this.mainWindow.webContents.send('notifyDogTilt', "dog", this.getDogTilt());
+        this.send('notifyDogPosition', "dog", this.getDogPosition());
+        this.send('notifyDogRotation', "dog", this.getDogRotation());
+        this.send('notifyDogTilt', "dog", this.getDogTilt());
       }
     });
   }
@@ -58,7 +58,7 @@ export class Dog {
       this.hubs[hubName] = hub;
       this.leds[hubName] = await hub.waitForDeviceByType(23); //Consts.DeviceType.HUB_LED
       const accelerometer = await hub.waitForDeviceByType(57); //Consts.DeviceType.TECHNIC_MEDIUM_HUB_ACCELEROMETER
-      this.mainWindow.webContents.send('notifyState', hubName, 'online');
+      this.send('notifyState', hubName, 'online');
       hub.removeAllListeners("attach");
       hub.on("attach", (device) => {
         this.init();
@@ -76,7 +76,7 @@ export class Dog {
       hub.removeAllListeners("disconnect");
       hub.on("disconnect", () => {
         ipcMain.removeAllListeners(hubName);
-        this.mainWindow.webContents.send('notifyState', hubName, 'offline');
+        this.send('notifyState', hubName, 'offline');
         delete this.hubs[hubName];
         delete this.leds[hubName];
         delete this.tilts[hubName];
@@ -84,11 +84,11 @@ export class Dog {
       });
       hub.removeAllListeners("batteryLevel");
       hub.on("batteryLevel", (level) => {
-        return this.mainWindow.webContents.send('notifyBattery', hubName, Number(level.batteryLevel));
+        return this.send('notifyBattery', hubName, Number(level.batteryLevel));
       });
       hub.removeAllListeners("rssi");
       hub.on("rssi", (rssi) => {
-        return this.mainWindow.webContents.send('notifyRssi', hubName, Number(rssi.rssi));
+        return this.send('notifyRssi', hubName, Number(rssi.rssi));
       });
       accelerometer.removeAllListeners("accel");
       accelerometer.on('accel', (accel) => {
@@ -104,7 +104,7 @@ export class Dog {
       });
       ipcMain.on(hubName, (event, arg1) => {
         if(arg1 === "getProperties") {
-          this.mainWindow.webContents.send('notifyBattery', hubName, hub.batteryLevel); // battery is only emitted on change
+          this.send('notifyBattery', hubName, hub.batteryLevel); // battery is only emitted on change
           setHubProperty(hub, 0x05, 0x05); // request rssi update
           setHubProperty(hub, 0x06, 0x05); // request battery update
           accelerometer.requestUpdate();
@@ -152,7 +152,7 @@ export class Dog {
       if(this.isComplete != (hubComplete && deviceComplete)) {
         this.isComplete = (hubComplete && deviceComplete);
         const state = this.isComplete ? "online" : "offline";
-        this.mainWindow.webContents.send('notifyState', 'dog', state);
+        this.send('notifyState', 'dog', state);
         ipcMain.emit('notifyState', 'internal', 'dog', state);
       }
     }
@@ -163,11 +163,11 @@ export class Dog {
   }
 
   notifyTiltChange = (hubName: string) => {
-    this.mainWindow.webContents.send('notifyTilt', hubName, this.tilts[hubName]);
+    this.send('notifyTilt', hubName, this.tilts[hubName]);
     const dogTilt = this.getDogTilt();
     let legNameList = [];
     if(hubName.endsWith("Center")) {
-      this.mainWindow.webContents.send('notifyTilt', "dog", dogTilt);
+      this.send('notifyTilt', "dog", dogTilt);
       legNameList.push(...legNames);
     }
     else {
@@ -307,5 +307,9 @@ export class Dog {
     for(let hubNum in this.hubs) {
       this.hubs[hubNum].shutdown();
     }
+  }
+
+  send = (arg1, arg2, arg3) => {
+    if(!this.mainWindow.isDestroyed()) return this.mainWindow.webContents.send(arg1, arg2, arg3);
   }
 }

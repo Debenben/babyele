@@ -17,7 +17,7 @@ export class Leg {
   distance: number = 0xfe
   tilts: Record<MotorName, number> = {top: null, bottom: null, mount: null}
   motors: Record<MotorName, MotorAbstraction> = {top: null, bottom: null, mount: null}
-  motorRanges: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
+  motorRanges: Record<MotorName, number> = {top: 10, bottom: 10, mount: 10}
   motorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
   destMotorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
   bendForward: boolean = true
@@ -37,15 +37,15 @@ export class Leg {
         this.bendForward = arg2;
       }
       else if(arg1 === "getProperties") {
-        this.mainWindow.webContents.send('notifyBendForward', this.legName, this.bendForward);
+        this.send('notifyBendForward', this.legName, this.bendForward);
         for(let id in this.motors) {
           if(this.motors[id]) this.motors[id].requestUpdate();
         }
         if(this.distanceSensor) {
           this.distanceSensor.requestUpdate();
         }
-        this.mainWindow.webContents.send('notifyTilt', this.legName + "Mount", this.tilts.mount);
-        this.mainWindow.webContents.send('notifyTilt', this.legName + "Top", this.tilts.top);
+        this.send('notifyTilt', this.legName + "Mount", this.tilts.mount);
+        this.send('notifyTilt', this.legName + "Top", this.tilts.top);
       }
     });
   }
@@ -63,7 +63,7 @@ export class Leg {
       }
       this.distance = Math.ceil(10*distance/254); // 25.4 as integer division
       const min = DistanceAngleMap[this.distance]["min"]*Math.PI/180;
-      this.mainWindow.webContents.send('notifyTilt', this.legName + 'Bottom', min);
+      this.send('notifyTilt', this.legName + 'Bottom', min);
     });
     setTimeout(() => {this.distance = 0x0ff; sensor.requestUpdate();}, 5000);
     return true;
@@ -72,7 +72,7 @@ export class Leg {
   async addMotor(deviceName: string, motor: MotorAbstraction, motorRange: number) {
     const motorName = deviceName.replace(this.legName, "").toLowerCase();
     if(!motor) {
-      this.mainWindow.webContents.send("notifyState", deviceName, "offline");
+      this.send("notifyState", deviceName, "offline");
       ipcMain.removeAllListeners(deviceName);
       this.motors[motorName] = null;
       return false;
@@ -106,11 +106,11 @@ export class Leg {
       motor.on('rotate', ({degrees}) => {
         this.motorAngles[motorName] = degrees;
         ipcMain.emit("dog", "rotationEvent", "getProperties");
-        this.mainWindow.webContents.send('notifyLegRotation', deviceName, this.getAngle(motorName));
-        this.mainWindow.webContents.send('notifyLegPosition', this.legName, this.getPosition());
+        this.send('notifyLegRotation', deviceName, this.getAngle(motorName));
+        this.send('notifyLegPosition', this.legName, this.getPosition());
       });
       motor.send(Buffer.from([0x41, motor.portId, 0x02, 0x30, 0x00, 0x00, 0x00, 0x01])); // subscribe again with delta interval 48 instead of 1
-      this.mainWindow.webContents.send("notifyState", deviceName, "online");
+      this.send("notifyState", deviceName, "online");
       return true;
     }
   }
@@ -130,8 +130,8 @@ export class Leg {
       this.tilts.top = null;
       this.tilts.mount = null;
     }
-    this.mainWindow.webContents.send('notifyTilt', this.legName + "Mount", this.tilts.mount);
-    this.mainWindow.webContents.send('notifyTilt', this.legName + "Top", this.tilts.top);
+    this.send('notifyTilt', this.legName + "Mount", this.tilts.mount);
+    this.send('notifyTilt', this.legName + "Top", this.tilts.top);
   }
 
   async synchronize(motorName: string) {
@@ -261,5 +261,9 @@ export class Leg {
       sideways *= -1;
     }
     return {forward:forward, height:height, sideways:sideways};
-  } 
+  }
+
+  send = (arg1, arg2, arg3) => {
+    if(!this.mainWindow.isDestroyed()) return this.mainWindow.webContents.send(arg1, arg2, arg3);
+  }
 }

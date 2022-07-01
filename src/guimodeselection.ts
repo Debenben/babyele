@@ -10,6 +10,7 @@ export class ModeSelection extends Container {
 
   constructor() {
     super();
+    this.name = "modeSelection"
     this.modalBlocker = buildModalBlocker();
     this.modalBlocker.onPointerClickObservable.add(() => {
       ipcRenderer.emit("toggleModeSelectionVisibility");
@@ -29,7 +30,15 @@ class ModesScroll extends ScrollViewer {
 
   constructor(isMovePanel: boolean) {
     super();
+    this.name = "modesScroll";
+    this.thickness = 0;
     this.color = "#303030";
+    this.barColor = "#222222";
+    this.verticalBar.onPointerEnterObservable.add(() => this.color = "grey");
+    this.verticalBar.onPointerMoveObservable.add(() => this.color = "grey");
+    this.verticalBar.onPointerOutObservable.add(() => this.color= "#303030");
+    this.verticalBar.onPointerUpObservable.add(() => this.color= "#303030");
+    if(isMovePanel) this.paddingBottom = "40px";
     this.panel = new StackPanel("modesPanel");
     this.addControl(this.panel);
     const channelName = isMovePanel? 'notifyMovesAvailable' : 'notifyPosesAvailable';
@@ -87,12 +96,8 @@ class MoveButton extends Container {
     this.addControl(this.expandButton);
     this.expandButton.onPointerClickObservable.add(() => {
       this.expandView.isVisible = !this.expandView.isVisible;
-      if(this.expandView.isVisible) {
-        this.showExpandView();
-      }
-      else {
-        this.removeExpandView();
-      }
+      if(this.expandView.isVisible) this.showExpandView()
+      else this.removeExpandView();
     });
   }
 
@@ -135,6 +140,7 @@ class ExpandView extends StackPanel {
 
   constructor(moveName: string) {
     super();
+    this.name = "expandView";
     this.moveName = moveName;
     this.paddingTop = "25px";
     this.background = "#303030";
@@ -214,8 +220,6 @@ const updatePosesPanel = (panel: StackPanel, poseNames: string[]) => {
 }
 
 const updateMovesPanel = (panel: StackPanel, moves: Record<string, Move>, enabled: Record<string, boolean>) => {
-  const input = panel.children.filter(e => e.name == "input");
-  input.forEach(e => panel.removeControl(e));
   const deleted = panel.children.filter(e => !moves.hasOwnProperty(e.name));
   deleted.forEach(e => {
     let move = e as MoveButton
@@ -233,19 +237,23 @@ const updateMovesPanel = (panel: StackPanel, moves: Record<string, Move>, enable
       panel.addControl(new MoveButton(id, moves[id], enabled[id]));
     }
   }
-  panel.addControl(buildInput());
 }
 
 const buildLayoutGrid = () => {
   const grid = new Grid("layout");
-  grid.width = 0.7;
-  grid.addColumnDefinition(0.5);
-  grid.addColumnDefinition(0.5);
-  grid.paddingTop = "50px";
+  grid.widthInPixels = Math.min(Math.max(0.8*window.innerWidth, 300), 1000);
+  window.addEventListener('resize', () => {
+    grid.widthInPixels = Math.min(Math.max(0.8*window.innerWidth, 300), 1000);
+  });
+  grid.addColumnDefinition(0.45);
+  grid.addColumnDefinition(0.1);
+  grid.addColumnDefinition(0.45);
+  grid.paddingTop = "40px";
   grid.paddingBottom = "20px";
   grid.isPointerBlocker = true;
   grid.addControl(new ModesScroll(true), 0, 0);
-  grid.addControl(new ModesScroll(false), 0, 1);
+  grid.addControl(buildInput(), 0, 0);
+  grid.addControl(new ModesScroll(false), 0, 2);
   return grid;
 }
 
@@ -282,56 +290,46 @@ const buildPoseButton = (poseName: string) => {
 
 const buildInput = () => {
   const input = new InputText("input");
-  input.height = "50px";
+  input.height = "30px";
   input.width = 1;
-  input.paddingTop = "15px";
+  input.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
   input.paddingRight = "5px";
   input.paddingLeft = "5px";
-  input.paddingBottom = "10px";
   input.placeholderText = "🞣";
-  input.background = "grey";
-  input.color = "black";
-  input.placeholderColor = "black";
-  input.focusedBackground = "rgb(60,215,60)";
+  input.color = "white";
+  input.focusedBackground = "green";
   input.onBlurObservable.add(() => {
     if(input.text) {
       ipcRenderer.send("storeMove", input.text, []);
       input.text = "";
     }
   });
-  input.onPointerEnterObservable.add(() => {
-    input.alpha = 0.9;
-  });
-  input.onPointerOutObservable.add(() => {
-    input.alpha = 1.0;
-  });
+  input.thickness = 0;
+  input.onPointerEnterObservable.add(() => input.thickness = 1);
+  input.onPointerOutObservable.add(() => input.thickness = 0);
   return input;
 }
 
 const buildTrashIcon = (modeSelection: Container) => {
   const button = Button.CreateSimpleButton("trashIcon", "🗑");
-  button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-  button.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  button.paddingRight = "10px";
-  button.topInPixels = 50;
-  button.width = 0.15;
-  button.height = 0.25;
+  button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+  button.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+  button.height = 0.15;
   button.color = "#303030";
   button.isEnabled = false;
-  button.textBlock.fontSize = "90%";
-  button.isPointerBlocker = true;
+  button.textBlock.fontSize = "80%";
+  button.textBlock.textWrapping = false;
+  button.textBlock.resizeToFit = true;
+  button.adaptWidthToChildren = true;
+  button.thickness = 0;
   ipcRenderer.on("notifyGuiDrag", (event, vecx, vecy) => {
     if(!modeSelection.isVisible) return;
-    if(button.contains(vecx, vecy)) {
-      button.color = "green";
-    }
-    else {
-      button.color = "lightgrey";
-    }
+    if(button.contains(vecx, vecy)) button.color = "red"
+    else button.color = "lightgrey";
   });
   ipcRenderer.on("stopGuiDrag", (event, control) => {
     if(!modeSelection.isVisible) return;
-    if(control && control.textBlock && button.color == "green" && event as any == "dragEvent") {
+    if(control && control.textBlock && button.color == "red" && event as any == "dragEvent") {
       ipcRenderer.send('deleteMode', control.textBlock.text);
     }
     button.color = "#303030";

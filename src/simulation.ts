@@ -2,19 +2,22 @@ import { EventEmitter } from "events";
 import { PoweredAbstraction, HubAbstraction, LEDAbstraction, AccelerometerAbstraction, MotorAbstraction, DistanceSensorAbstraction } from "./interfaces";
 
 export class SimulationPowered extends EventEmitter implements PoweredAbstraction {
-  hubList: string[] = ["BeneLego1", "BeneLego2", "BeneLego3", "BeneLego4", "differentHub", "BeneLego5", "BeneLego0"]
-  restart: boolean = true
+  hubList: string[] = ["BeneLego0", "BeneLego1", "BeneLego2", "BeneLego3", "BeneLego4", "BeneLego5", "differentHub"]
+  restart: boolean = false
 
   public async scan() {
-    if(!this.restart) return;
     console.log("scanning for simulation hubs");
-    for(let hubName of this.hubList) {
-      this.emit('discover', new SimulationHub(hubName));
+    if(this.restart) {
+      console.log("waiting 10 seconds before turning on simulation hubs");
+      await sleep(10000);
+    }
+    for(let hubName of this.hubList.sort(() => Math.random() - 0.5)) {
+      await setTimeout(() => this.emit('discover', new SimulationHub(hubName)), 1000 * Math.random());
     }
   }
   public stop() {
     console.log("stop scanning for simulation hubs");
-    this.restart = false;
+    this.restart = true;
   }
 }
 
@@ -24,7 +27,6 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   firmwareVersion: string = "simulation"
   batteryLevel: number
   rssi: number
-  tiltIntervalID: NodeJS.Timeout
 
   constructor(hubName: string) {
     super();
@@ -44,7 +46,6 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   }
   shutdown() {
     console.log("shutdown simulation hub " + this.name);
-    clearInterval(this.tiltIntervalID);
     this.emit('disconnect');
     return Promise.resolve();
   }
@@ -140,12 +141,13 @@ export class SimulationAccelerometer extends EventEmitter implements Acceleromet
       this.y = 0;
       this.z = 0;
     }
-    this.emit('accel', {x: this.x, y: this.y, z: this.z});
+    setInterval(() => this.emit('accel', {x: this.x, y: this.y, z: this.z}), 1000*Math.random());
   }
   send(message: Buffer) {
     return Promise.resolve();
   }
   requestUpdate() {
+    console.log("simulation accelerometer sending acceleration " + this.x + " " + this.y + " " + this.z);
     this.emit('accel', {x: this.x, y: this.y, z: this.z});
     return Promise.resolve();
   }
@@ -164,6 +166,7 @@ export class SimulationDistanceSensor extends EventEmitter implements DistanceSe
   }
   requestUpdate() {
     const distance = this.distance;
+    console.log("simulation distance sensor sending update " + distance);
     this.emit('distance', {distance});
     return Promise.resolve();
   }
