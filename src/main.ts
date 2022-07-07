@@ -35,7 +35,7 @@ async function createDog() {
     poweredUP = new library.SimulationPowered();
   }
   else {
-    let library = await import("node-poweredup");
+    let library = await import("@debenben/node-poweredup");
     poweredUP = new library.PoweredUP();
   }
   poweredUP.on('discover', (hub) => {
