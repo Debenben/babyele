@@ -2,24 +2,39 @@
 <html>
 
 <head>
-    <meta charset="UTF-8">
-    <title>program to control lego walker --txt</title>
-    <style>
-        html,
-        body {
-            overflow: hidden;
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>program to control lego walker</title>
 </head>
 
 <body>
-    <script>
-        require('./app/txtrenderer.js');
-    </script>
+  <p>Current mode is <strong id="currentMode">OFFLINE</strong></p>
+  <p>
+    <span id="hubFrontRight">FrontRight</span>
+    <button id="legFrontRightTop">0.0°</button>
+    <button id="legFrontRightBottom">0.0°</button>
+    <button id="legFrontRightMount">0.0°</button>
+  </p>
+  <p>
+    <span id="hubFrontLeft">FrontLeft</span>
+    <button id="legFrontLeftTop">0.0°</button>
+    <button id="legFrontLeftBottom">0.0°</button>
+    <button id="legFrontLeftMount">0.0°</button>
+  </p>
+  <p>
+    <span id="hubBackRight">BackRight</span>
+    <button id="legBackRightTop">0.0°</button>
+    <button id="legBackRightBottom">0.0°</button>
+    <button id="legBackRightMount">0.0°</button>
+  </p>
+  <p>
+    <span id="hubBackLeft">BackLeft</span>
+    <button id="legBackLeftTop">0.0°</button>
+    <button id="legBackLeftBottom">0.0°</button>
+    <button id="legBackLeftMount">0.0°</button>
+  </p>
+  <script>
+    require('./app/txtrenderer.js');
+  </script>
 </body>
 
 </html>
