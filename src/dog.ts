@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
-import { HubAbstraction, LEDAbstraction, AccelerometerAbstraction, MotorAbstraction } from "./interfaces";
+import { HubAbstraction, LEDAbstraction, TiltSensorAbstraction, MotorAbstraction } from "./interfaces";
 import { legNames, LegName, motorNames, Position, Pose, fromArray, toArray, parsePosition, add, multiply, getRotation, rotate } from "./tools";
 import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH } from "./param";
 
@@ -22,7 +22,7 @@ export class Dog {
   positionSpeed: Position
   rotationSpeed: Position
   startMovePositions: Record<LegName, Position>
-  tilts: Record<string, Position> = {}
+  dogTilt: Position
   moveSpeedIntervalID: NodeJS.Timeout
   isComplete: boolean = false
 
@@ -57,7 +57,6 @@ export class Dog {
       const hubName = MotorMap[hub.name]["name"];
       this.hubs[hubName] = hub;
       this.leds[hubName] = await hub.waitForDeviceByType(23); //Consts.DeviceType.HUB_LED
-      const accelerometer = await hub.waitForDeviceByType(57); //Consts.DeviceType.TECHNIC_MEDIUM_HUB_ACCELEROMETER
       this.send('notifyState', hubName, 'online');
       hub.removeAllListeners("attach");
       hub.on("attach", (device) => {
@@ -79,7 +78,6 @@ export class Dog {
         this.send('notifyState', hubName, 'offline');
         delete this.hubs[hubName];
         delete this.leds[hubName];
-        delete this.tilts[hubName];
         this.init();
       });
       hub.removeAllListeners("batteryLevel");
@@ -90,34 +88,36 @@ export class Dog {
       hub.on("rssi", (rssi) => {
         return this.send('notifyRssi', hubName, Number(rssi.rssi));
       });
-      accelerometer.removeAllListeners("accel");
-      accelerometer.on('accel', (accel) => {
-        const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
-        if(abs < 950 || abs > 1050) return;
-        if(hubName.endsWith("Center")) {
-          this.tilts[hubName] = {forward: -Math.atan2(accel.y, accel.z), height: 0, sideways: Math.atan2(accel.x, Math.sqrt(accel.y**2 + accel.z**2))};
-        }
-        else {
-          this.tilts[hubName] = {forward: Math.atan2(accel.y, -accel.x), height: 0, sideways: Math.atan2(accel.z, Math.sqrt(accel.x**2 + accel.y**2))};
-        }
-        this.notifyTiltChange(hubName);
-      });
       ipcMain.on(hubName, (event, arg1) => {
         if(arg1 === "getProperties") {
           this.send('notifyBattery', hubName, hub.batteryLevel); // battery is only emitted on change
           setHubProperty(hub, 0x05, 0x05); // request rssi update
           setHubProperty(hub, 0x06, 0x05); // request battery update
-          accelerometer.requestUpdate();
         }
       });
-      accelerometer.send(Buffer.from([0x41, 0x61, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribing again with larger delta interval
       setHubProperty(hub, 0x05, 0x03); // disable rssi update
       setHubProperty(hub, 0x06, 0x03); // disable battery update
+      if(hubName == "hubFrontCenter") this.addDogAccelerometer(hub);
       this.init();
       return;
     }
     console.log("HubName " + hub.name + " not known, disconnecting");
     hub.disconnect();
+  }
+
+  async addDogAccelerometer(hub: HubAbstraction) {
+    const accelerometer = await hub.waitForDeviceByType(57); //Consts.DeviceType.TECHNIC_MEDIUM_HUB_ACCELEROMETER
+    accelerometer.removeAllListeners("accel");
+    accelerometer.on('accel', (accel) => {
+      const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
+      if(abs < 950 || abs > 1050) return;
+      this.dogTilt = {forward: -Math.atan2(accel.y, accel.z), height: 0, sideways: Math.atan2(accel.x, Math.sqrt(accel.y**2 + accel.z**2))};
+      this.send('notifyTilt', "dog", this.dogTilt);
+      for(let id of legNames) {
+        this.legs[id].setDogTilt(this.dogTilt);
+      }
+    });
+    accelerometer.send(Buffer.from([0x41, 0x61, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribing again with larger delta interval
   }
 
   async init() {
@@ -137,8 +137,8 @@ export class Dog {
             else {
               hubComplete = false;
             }
-            if(deviceName.endsWith("Distance")) {
-              deviceComplete = await this.legs[legNum].addDistanceSensor(device) && deviceComplete;
+            if(deviceName.endsWith("Tilt")) {
+              deviceComplete = await this.legs[legNum].addTiltSensor(deviceName, device) && deviceComplete;
             }
             else {
               const range = MotorMap[hubNum][portNum]["range"];
@@ -162,22 +162,6 @@ export class Dog {
     }
   }
 
-  notifyTiltChange = (hubName: string) => {
-    this.send('notifyTilt', hubName, this.tilts[hubName]);
-    const dogTilt = this.getDogTilt();
-    let legNameList = [];
-    if(hubName.endsWith("Center")) {
-      this.send('notifyTilt', "dog", dogTilt);
-      legNameList.push(...legNames);
-    }
-    else {
-      legNameList.push(hubName.replace("hub", "leg"));
-    }
-    for(let legName of legNameList) {
-      this.legs[legName].setTilt(dogTilt, this.tilts[legName.replace("leg", "hub")]);
-    }
-  }
-
   buildLegRecord = (recordName) => {
     let record = {}
     for(let legName of legNames) {
@@ -197,11 +181,7 @@ export class Dog {
   }
 
   getDogTilt() {
-    const dogTilt = this.tilts["hubFrontCenter"];
-    if(dogTilt) {
-      return dogTilt;
-    }
-    return {forward:0, height:0, sideways:0};
+    return this.dogTilt;
   }
 
   getDogPosition() {

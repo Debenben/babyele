@@ -22,7 +22,8 @@ export interface LEDAbstraction {
   send: (message: Buffer) => Promise<void>;
 }
 
-export interface AccelerometerAbstraction {
+export interface TiltSensorAbstraction extends EventEmitter {
+  readonly portId: number;
   send: (message: Buffer) => Promise<void>;
   requestUpdate: () => Promise<void>;
 }
@@ -37,9 +38,5 @@ export interface MotorAbstraction extends EventEmitter {
   send: (message: Buffer) => Promise<void>;
   setSpeed: (speed: number, time: number | undefined, interrupt: boolean) => Promise<void>;
   rotateByDegrees: (degrees: number, speed: number, interrupt: boolean) => Promise<void>;
-  requestUpdate: () => Promise<void>;
-}
-
-export interface DistanceSensorAbstraction extends EventEmitter {
   requestUpdate: () => Promise<void>;
 }

@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { MotorAbstraction, DistanceSensorAbstraction } from "./interfaces";
-import { MotorName, LegName, Position, fromArray, toArray, parsePosition, cosLaw, invCosLaw } from "./tools";
-import { DistanceAngleMap, NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
+import { MotorAbstraction, TiltSensorAbstraction } from "./interfaces";
+import { MotorName, motorNames, LegName, Position, fromArray, toArray, parsePosition, cosLaw, invCosLaw } from "./tools";
+import { NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
 
 const mountAngleOffset = invCosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH);
 const setMotorAngle = (motor: MotorAbstraction, motorAngle: number) => {
@@ -13,9 +13,9 @@ const setMotorAngle = (motor: MotorAbstraction, motorAngle: number) => {
 export class Leg {
   legName: LegName
   mainWindow: BrowserWindow
-  distanceSensor: DistanceSensorAbstraction
-  distance: number = 0xfe
-  tilts: Record<MotorName, number> = {top: null, bottom: null, mount: null}
+  tiltSensors: Record<string, TiltSensorAbstraction> = {top: null, bottom: null}
+  tilts: Record<string, Position> = {}
+  tiltAngles: Record<MotorName, number> = {top: null, bottom: null, mount: null}
   motors: Record<MotorName, MotorAbstraction> = {top: null, bottom: null, mount: null}
   motorRanges: Record<MotorName, number> = {top: 10, bottom: 10, mount: 10}
   motorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
@@ -41,32 +41,38 @@ export class Leg {
         for(let id in this.motors) {
           if(this.motors[id]) this.motors[id].requestUpdate();
         }
-        if(this.distanceSensor) {
-          this.distanceSensor.requestUpdate();
-        }
-        this.send('notifyTilt', this.legName + "Mount", this.tilts.mount);
-        this.send('notifyTilt', this.legName + "Top", this.tilts.top);
+        this.calculateTiltAngles();
       }
     });
   }
 
-  async addDistanceSensor(sensor: DistanceSensorAbstraction) {
-    this.distanceSensor = sensor;
+  async addTiltSensor(deviceName: string, sensor: TiltSensorAbstraction) {
+    const sensorName = deviceName.replace(this.legName, "").replace("Tilt","").toLowerCase();
     if(!sensor) {
-      this.distance = 0xfe;
+      this.send("notifyState", deviceName, "offline");
+      ipcMain.removeAllListeners(deviceName);
+      this.tiltSensors[sensorName] = null;
       return false;
     }
-    sensor.removeAllListeners('distance');
-    sensor.on("distance", ({distance}) => {
-      if(this.distance == 0xfe) { // discard initial values
-        return;
+    if(this.tiltSensors[sensorName]) {
+      return true;
+    }
+    this.tiltSensors[sensorName] = sensor;
+    if(sensor) {
+      sensor.removeAllListeners('accel');
+      sensor.on("accel", (accel) => {
+        const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
+        if(abs < 950 || abs > 1050) return;
+        this.tilts[sensorName] = {forward: Math.atan2(accel.y, -accel.x), height: 0, sideways: Math.atan2(accel.z, Math.sqrt(accel.x**2 + accel.y**2))};
+        this.send('notifyTilt', deviceName, this.tilts[sensorName]);
+        this.calculateTiltAngles();
+      });
+      if(sensor.portId === 0x61) { // ACCELEROMETER of TechnicMediumHub
+        sensor.send(Buffer.from([0x41, sensor.portId, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribe again with larger delta interval
       }
-      this.distance = Math.ceil(10*distance/254); // 25.4 as integer division
-      const min = DistanceAngleMap[this.distance]["min"]*Math.PI/180;
-      this.send('notifyTilt', this.legName + 'Bottom', min);
-    });
-    setTimeout(() => {this.distance = 0x0ff; sensor.requestUpdate();}, 5000);
-    return true;
+      this.send("notifyState", deviceName, "online");
+      return true;
+    }
   }
 
   async addMotor(deviceName: string, motor: MotorAbstraction, motorRange: number) {
@@ -115,44 +121,37 @@ export class Leg {
     }
   }
 
-  setTilt(dogTilt: Position, hubTilt: Position) {
-    if(hubTilt) {
+  async setDogTilt(dogTilt: Position) {
+    this.tilts["dog"] = dogTilt;
+    this.calculateTiltAngles();
+  }
+
+  async calculateTiltAngles() {
+    if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"]) {
       if(this.legName.includes("Right")) {
-        this.tilts.top = -dogTilt.sideways + hubTilt.forward;
-        this.tilts.mount = -dogTilt.forward + hubTilt.sideways;
+        this.tiltAngles.top = -this.tilts["dog"].sideways + this.tilts["top"].forward;
+        this.tiltAngles.bottom = -this.tilts["bottom"].forward + this.tilts["top"].forward;
+        this.tiltAngles.mount = -this.tilts["dog"].forward + this.tilts["top"].sideways;
       }
       else {
-        this.tilts.top = -dogTilt.sideways - hubTilt.forward;
-        this.tilts.mount = dogTilt.forward + hubTilt.sideways;
+        this.tiltAngles.top = -this.tilts["dog"].sideways - this.tilts["top"].forward;
+        this.tiltAngles.bottom = this.tilts["bottom"].forward - this.tilts["top"].forward;
+        this.tiltAngles.mount = this.tilts["dog"].forward + this.tilts["top"].sideways;
+      }
+      for(let id of motorNames) {
+        this.send('notifyTilt', this.legName + id.charAt(0).toUpperCase() + id.slice(1), this.tiltAngles[id]);
       }
     }
-    else {
-      this.tilts.top = null;
-      this.tilts.mount = null;
-    }
-    this.send('notifyTilt', this.legName + "Mount", this.tilts.mount);
-    this.send('notifyTilt', this.legName + "Top", this.tilts.top);
   }
 
   async synchronize(motorName: string) {
     const motor = this.motors[motorName];
-    if(motorName === 'top') {
-      setMotorAngle(motor, this.tilts['top']*this.motorRanges['top']/Math.PI);
-    }
-    else if(motorName === 'mount') {
-      const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, this.tilts['mount'] + mountAngleOffset);
+    if(motorName === 'mount') {
+      const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, this.tiltAngles['mount'] + mountAngleOffset);
       setMotorAngle(motor, (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges['mount']);
     }
     else {
-      const min = DistanceAngleMap[this.distance]["min"]*Math.PI/180;
-      const max = DistanceAngleMap[this.distance]["max"]*Math.PI/180;
-      const margin = Math.abs(NO_MOVE_MOTOR_ANGLE*Math.PI/this.motorRanges['bottom']);
-      if(this.getAngle('bottom') < min) {
-        setMotorAngle(motor, (min + margin)*this.motorRanges['bottom']/Math.PI);
-      }
-      else if(this.getAngle('bottom') > max) {
-        setMotorAngle(motor, (max - margin)*this.motorRanges['bottom']/Math.PI);
-      }
+      setMotorAngle(motor, this.tiltAngles[motor]*this.motorRanges[motor]/Math.PI);
     }
     motor.requestUpdate();
   }

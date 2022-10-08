@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { PoweredAbstraction, HubAbstraction, LEDAbstraction, AccelerometerAbstraction, MotorAbstraction, DistanceSensorAbstraction } from "./interfaces";
+import { PoweredAbstraction, HubAbstraction, LEDAbstraction, MotorAbstraction, TiltSensorAbstraction } from "./interfaces";
 
 export class SimulationPowered extends EventEmitter implements PoweredAbstraction {
   hubList: string[] = ["BeneLego0", "BeneLego1", "BeneLego2", "BeneLego3", "BeneLego4", "BeneLego5", "differentHub"]
@@ -50,6 +50,10 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     return Promise.resolve();
   }
   getDeviceAtPort(portName: string) {
+    if(portName === "ACCELEROMETER") {
+      console.log("simulation hub " + this.name + " returns tilt sensor at port " + portName);
+      return new SimulationTiltSensor(portName, this.name);
+    }
     switch(this.name) {
       case "BeneLego4":
       case "BeneLego0":
@@ -68,8 +72,8 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
           return new SimulationMotor(portName);
         }
         else {
-          console.log("simulation hub " + this.name + " returns distance sensor at port " + portName);
-          return new SimulationDistanceSensor(portName);
+          console.log("simulation hub " + this.name + " returns tilt sensor at port " + portName);
+          return new SimulationTiltSensor(portName, this.name);
         }
       case "BeneLego3":
       case "BeneLego5":
@@ -78,8 +82,8 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
           return new SimulationMotor(portName);
         }
         else {
-          console.log("simulation hub " + this.name + " returns distance sensor at port " + portName);
-          return new SimulationDistanceSensor(portName);
+          console.log("simulation hub " + this.name + " returns tilt sensor at port " + portName);
+          return new SimulationTiltSensor(portName, this.name);
         }
       default:
         console.log("simulation hub " + this.name + " returns null at port " + portName);
@@ -94,7 +98,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
       }
       else if(deviceType == 57) {
         console.log("simulation hub " + this.name + " returns simulationAccelerometer");
-        return resolve(new SimulationAccelerometer(this.name));
+        return resolve(new SimulationTiltSensor("ACCELEROMETER", this.name));
       }
       return true;
     });
@@ -124,13 +128,15 @@ export class SimulationLED extends EventEmitter implements LEDAbstraction {
 }
 
 
-export class SimulationAccelerometer extends EventEmitter implements AccelerometerAbstraction {
+export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbstraction {
+  portId: number
   x: number
   y: number
   z: number
 
-  constructor(hubName: string) {
+  constructor(portName: string, hubName: string) {
     super();
+    this.portId = toPortId(portName);
     if(hubName == "BeneLego4" || hubName == "BeneLego0") {
       this.x = 0;
       this.y = 0;
@@ -147,27 +153,8 @@ export class SimulationAccelerometer extends EventEmitter implements Acceleromet
     return Promise.resolve();
   }
   requestUpdate() {
-    console.log("simulation accelerometer sending acceleration " + this.x + " " + this.y + " " + this.z);
+    console.log("simulation tilt sensor sending acceleration " + this.x + " " + this.y + " " + this.z);
     this.emit('accel', {x: this.x, y: this.y, z: this.z});
-    return Promise.resolve();
-  }
-}
-
-
-export class SimulationDistanceSensor extends EventEmitter implements DistanceSensorAbstraction {
-  distance: number
-
-  constructor(portName: string) {
-    super();
-    this.distance = Math.floor(25.4*Math.floor(10 * Math.random()));
-    const distance = this.distance;
-    this.emit('distance', {distance});
-    this.distance = Math.floor(25.4*0xff);
-  }
-  requestUpdate() {
-    const distance = this.distance;
-    console.log("simulation distance sensor sending update " + distance);
-    this.emit('distance', {distance});
     return Promise.resolve();
   }
 }
@@ -185,16 +172,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
 
   constructor(portName: string) {
     super();
-    switch(portName) {
-      case "A":
-        this.portId = 0;
-      case "B":
-        this.portId = 1;
-      case "C":
-        this.portId = 2;
-      case "D":
-        this.portId = 3;
-    } 
+    this.portId = toPortId(portName);
     this.rotation = 0;
   }
   setBrakingStyle(style: number) {
@@ -288,6 +266,25 @@ function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function toPortId(portName) {
+    switch(portName) {
+      case "A":
+        return 0;
+      case "B":
+        return 1;
+      case "C":
+        return 2;
+      case "D":
+        return 3;
+      case "E":
+        return 4;
+      case "F":
+        return 5;
+      case "ACCELEROMETER":
+        return 97;
+    } 
 }
 
 class Token {
