@@ -45,7 +45,7 @@ export class Dog {
       else if(arg1 === "getProperties") {
         this.send('notifyDogPosition', "dog", this.getDogPosition());
         this.send('notifyDogRotation', "dog", this.getDogRotation());
-        this.send('notifyDogTilt', "dog", this.getDogTilt());
+        this.send('notifyTilt', "dog", this.getDogTilt());
       }
     });
   }

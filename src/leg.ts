@@ -111,7 +111,6 @@ export class Leg {
       motor.removeAllListeners('rotate');
       motor.on('rotate', ({degrees}) => {
         this.motorAngles[motorName] = degrees;
-        ipcMain.emit("dog", "rotationEvent", "getProperties");
         this.send('notifyLegRotation', deviceName, this.getAngle(motorName));
         this.send('notifyLegPosition', this.legName, this.getPosition());
       });

@@ -14,7 +14,7 @@ export class Infobox extends Container {
   rotationText: TextBlock;
   positionText: TextBlock;
   angleText: TextBlock;
-  angleSlider: Slider;
+  angleSlider: Grid;
   bendForward: StackPanel;
   constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
     super(name);
@@ -62,11 +62,11 @@ export class Infobox extends Container {
       this.panel.addControl(grid);
       ipcRenderer.send(this.name, "getProperties");
     }
-    this.tiltText = buildText("tilt: --");
-    ipcRenderer.on('notifyTilt', this.updateTilt);
-    this.panel.addControl(this.tiltText);
     let sliderDest;
     if(this.name === "dog") {
+      this.tiltText = buildText("tilt: --");
+      ipcRenderer.on('notifyTilt', this.updateTilt);
+      this.panel.addControl(this.tiltText);
       sliderDest = "dog";
       this.rotationText = buildText("rot.: --");
       this.panel.addControl(this.rotationText);
@@ -92,6 +92,9 @@ export class Infobox extends Container {
       ipcRenderer.send(sliderDest, "getProperties");
     }
     if(this.name.startsWith("leg")) {
+      this.tiltText = buildText("tilt angle: --");
+      ipcRenderer.on('notifyTilt', this.updateTilt);
+      this.panel.addControl(this.tiltText);
       this.angleText = buildText("rot. angle:" + printDegree(getLegRotation(this.name, this.scene)));
       ipcRenderer.on('notifyLegRotation', this.updateAngle);
       this.panel.addControl(this.angleText);
@@ -158,9 +161,10 @@ export class Infobox extends Container {
     }
   }
   updateAngle = (event, arg1, arg2) => {
-    if(arg1 === this.name && !this.angleSlider.displayValueBar) {
+    const slider = this.angleSlider.getChildByName("angleSlider") as Slider;
+    if(arg1 === this.name && !slider.displayValueBar) {
       this.angleText.text = "rot. angle:" + printDegree(arg2);
-      this.angleSlider.value = arg2;
+      slider.value = arg2;
     }
   }
 }
@@ -247,22 +251,31 @@ const buildButton = (meshName: string, requestName: string, buttonText: string) 
 }
 
 const buildAngleSlider = (infobox: Infobox) => {
+  const grid = new Grid("sliderGrid");
+  grid.width = 1;
+  grid.height = "35px";
+  grid.paddingTop = "5px";
+  grid.paddingBottom = "5px";
   const slider = new Slider("angleSlider");
-  slider.height = "35px";
-  slider.paddingTop = "5px";
-  slider.paddingBottom = "5px";
   slider.minimum = -Math.PI;
   slider.maximum = Math.PI;
   slider.value = getLegRotation(infobox.name, infobox.scene);
   slider.displayValueBar = false;
+  grid.addControl(slider);
+  const sliderThumb = Button.CreateSimpleButton("sliderThumb", "∠");
+  sliderThumb.widthInPixels = slider.thumbWidthInPixels;
+  sliderThumb.thickness = 0;
+  sliderThumb.isEnabled = false;
+  grid.addControl(sliderThumb);
   slider.onPointerDownObservable.add(() => slider.displayValueBar = true);
   slider.onPointerUpObservable.add(() => slider.displayValueBar = false);
   slider.onValueChangedObservable.add((value) => {
+    sliderThumb.leftInPixels = value/(slider.maximum - slider.minimum)*(slider.widthInPixels - slider.thumbWidthInPixels);
     if(!slider.displayValueBar) return;
     infobox.angleText.text = "req. angle:" + printDegree(value);
     ipcRenderer.send(infobox.name, "requestRotation", value);
   });
-  return slider;
+  return grid;
 }
 
 const buildCorrectionSlider = (meshName: string, requestName: string, buttonText: string) => {
