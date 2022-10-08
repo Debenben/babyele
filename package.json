@@ -13,18 +13,18 @@
   "author": "bene",
   "license": "ISC",
   "dependencies": {
-    "babylonjs": "^5.12.1",
-    "babylonjs-gui": "^5.12.1",
+    "babylonjs": "5.26.1",
+    "babylonjs-gui": "5.26.1",
     "electron-squirrel-startup": "^1.0.0",
     "@debenben/node-poweredup": "^9.0.0"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^6.0.0-beta.62",
-    "@electron-forge/maker-deb": "^6.0.0-beta.62",
-    "@electron-forge/maker-rpm": "^6.0.0-beta.62",
-    "@electron-forge/maker-squirrel": "^6.0.0-beta.62",
-    "@electron-forge/maker-zip": "^6.0.0-beta.62",
-    "electron": "^19.0.6",
+    "@electron-forge/cli": "^6.0.0-beta.67",
+    "@electron-forge/maker-deb": "^6.0.0-beta.67",
+    "@electron-forge/maker-rpm": "^6.0.0-beta.67",
+    "@electron-forge/maker-squirrel": "^6.0.0-beta.67",
+    "@electron-forge/maker-zip": "^6.0.0-beta.67",
+    "electron": "^19.1.2",
     "electron-rebuild": "^3.2.5",
     "typescript": "^4.7.4"
   },
