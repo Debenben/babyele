@@ -95,11 +95,11 @@ export class Infobox extends Container {
       this.tiltText = buildText("tilt angle: --");
       ipcRenderer.on('notifyTilt', this.updateTilt);
       this.panel.addControl(this.tiltText);
-      this.angleText = buildText("rot. angle:" + printDegree(getLegRotation(this.name, this.scene)));
-      ipcRenderer.on('notifyLegRotation', this.updateAngle);
+      this.angleText = buildText("rot. angle: --");
       this.panel.addControl(this.angleText);
       this.angleSlider = buildAngleSlider(this);
       this.panel.addControl(this.angleSlider);
+      ipcRenderer.on('notifyLegRotation', this.updateAngle);
       const syncButton = buildButton(this.name, "requestSync", "synchronize");
       const resetButton = buildButton(this.name, "requestReset", "reset");
       const grid = new Grid("hubColumn");
@@ -163,6 +163,7 @@ export class Infobox extends Container {
   updateAngle = (event, arg1, arg2) => {
     const slider = this.angleSlider.getChildByName("angleSlider") as Slider;
     if(arg1 === this.name && !slider.displayValueBar) {
+      this.scene.render(); // force calculation of slider.widthInPixels
       this.angleText.text = "rot. angle:" + printDegree(arg2);
       slider.value = arg2;
     }
@@ -225,20 +226,6 @@ const buildText = (content: string) => {
   return block;
 }
 
-const getLegRotation = (meshName: string, scene: BABYLON.Scene) => {
-  if(scene) {
-    const mesh = scene.getMeshByName(meshName);
-    if(mesh) {
-      if(meshName.endsWith("Mount")) {
-        return mesh.rotation.x;
-      }
-      else {
-        return mesh.rotation.z;
-      }
-    }
-  }
-}
-
 const buildButton = (meshName: string, requestName: string, buttonText: string) => {
   const button = Button.CreateSimpleButton("button", buttonText);
   button.paddingTop = "5px";
@@ -259,7 +246,6 @@ const buildAngleSlider = (infobox: Infobox) => {
   const slider = new Slider("angleSlider");
   slider.minimum = -Math.PI;
   slider.maximum = Math.PI;
-  slider.value = getLegRotation(infobox.name, infobox.scene);
   slider.displayValueBar = false;
   grid.addControl(slider);
   const sliderThumb = Button.CreateSimpleButton("sliderThumb", "∠");

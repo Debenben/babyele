@@ -1,6 +1,6 @@
 {
   "name": "babyele",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "program to control lego walker",
   "main": "./app/main.js",
   "scripts": {
@@ -24,9 +24,9 @@
     "@electron-forge/maker-rpm": "^6.0.0-beta.67",
     "@electron-forge/maker-squirrel": "^6.0.0-beta.67",
     "@electron-forge/maker-zip": "^6.0.0-beta.67",
-    "electron": "^19.1.2",
+    "electron": "^21.2.0",
     "electron-rebuild": "^3.2.5",
-    "typescript": "^4.7.4"
+    "typescript": "^4.8.4"
   },
   "config": {
     "forge": {

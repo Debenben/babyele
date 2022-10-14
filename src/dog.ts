@@ -22,7 +22,7 @@ export class Dog {
   positionSpeed: Position
   rotationSpeed: Position
   startMovePositions: Record<LegName, Position>
-  dogTilt: Position
+  dogTilt: Position = {forward: 0, height: 0, sideways: 0};
   moveSpeedIntervalID: NodeJS.Timeout
   isComplete: boolean = false
 
@@ -30,6 +30,7 @@ export class Dog {
     this.mainWindow = mainWindow;
     for(let id of legNames) {
       this.legs[id] = new Leg(id, mainWindow);
+      this.legs[id].setDogTilt(this.dogTilt);
     }
     ipcMain.on("dog", (event, arg1, arg2) => {
       if(arg1.startsWith("requestPositionSpeed")) {

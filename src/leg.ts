@@ -111,6 +111,7 @@ export class Leg {
       motor.removeAllListeners('rotate');
       motor.on('rotate', ({degrees}) => {
         this.motorAngles[motorName] = degrees;
+        ipcMain.emit("dog", "rotationEvent", "getProperties"); // force dog position and rotation calculation
         this.send('notifyLegRotation', deviceName, this.getAngle(motorName));
         this.send('notifyLegPosition', this.legName, this.getPosition());
       });
@@ -126,15 +127,15 @@ export class Leg {
   }
 
   async calculateTiltAngles() {
-    if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"]) {
+    if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"] && Math.abs(this.tilts["top"].sideways - this.tilts["bottom"].sideways) < 0.1) {
       if(this.legName.includes("Right")) {
         this.tiltAngles.top = -this.tilts["dog"].sideways + this.tilts["top"].forward;
-        this.tiltAngles.bottom = -this.tilts["bottom"].forward + this.tilts["top"].forward;
+        this.tiltAngles.bottom = this.tilts["bottom"].forward - this.tilts["top"].forward;
         this.tiltAngles.mount = -this.tilts["dog"].forward + this.tilts["top"].sideways;
       }
       else {
         this.tiltAngles.top = -this.tilts["dog"].sideways - this.tilts["top"].forward;
-        this.tiltAngles.bottom = this.tilts["bottom"].forward - this.tilts["top"].forward;
+        this.tiltAngles.bottom = -this.tilts["bottom"].forward + this.tilts["top"].forward;
         this.tiltAngles.mount = this.tilts["dog"].forward + this.tilts["top"].sideways;
       }
       for(let id of motorNames) {

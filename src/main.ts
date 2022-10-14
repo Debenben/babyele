@@ -53,10 +53,13 @@ async function createDog() {
   console.log("Looking for Hubs...");
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on("ready", createWindow);
+app.on("ready", () => {
+  if(process.argv.includes('--version')) {
+    console.log(app.getName() + " " + app.getVersion());
+    return app.quit();
+  }
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   controller.requestMode("OFFLINE");

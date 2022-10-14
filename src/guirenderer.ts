@@ -484,6 +484,9 @@ ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
     dogRotation.sideways = arg2.sideways;
     renderer.setDogRotation(dogRotation);
   }
+  /*else if(arg1.startsWith("leg")) {
+    renderer.setLegRotation(arg1, arg2);
+  }*/
 });
 ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
   if(arg1 === "dog") {

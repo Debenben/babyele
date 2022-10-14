@@ -220,6 +220,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     }
   }
   requestUpdate() {
+    console.log("simulation motor sending rotation " + this.rotation);
     this.emit('rotate', {degrees: this.rotation});
     return Promise.resolve();
   }
