@@ -98,7 +98,6 @@ export class Dog {
       });
       setHubProperty(hub, 0x05, 0x03); // disable rssi update
       setHubProperty(hub, 0x06, 0x03); // disable battery update
-      if(hubName == "hubFrontCenter") this.addDogAccelerometer(hub);
       this.init();
       return;
     }
@@ -106,10 +105,13 @@ export class Dog {
     hub.disconnect();
   }
 
-  async addDogAccelerometer(hub: HubAbstraction) {
-    const accelerometer = await hub.waitForDeviceByType(57); //Consts.DeviceType.TECHNIC_MEDIUM_HUB_ACCELEROMETER
-    accelerometer.removeAllListeners("accel");
-    accelerometer.on('accel', (accel) => {
+  async addDogTiltSensor(sensor: TiltSensorAbstraction, offset: Position) {
+    if(!sensor) return false;
+    sensor.removeAllListeners("accel");
+    sensor.on('accel', (accel) => {
+      accel.x += offset.forward;
+      accel.y += offset.sideways;
+      accel.z += offset.height;
       const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
       if(abs < 950 || abs > 1050) return;
       this.dogTilt = {forward: -Math.atan2(accel.y, accel.z), height: 0, sideways: Math.atan2(accel.x, Math.sqrt(accel.y**2 + accel.z**2))};
@@ -118,40 +120,45 @@ export class Dog {
         this.legs[id].setDogTilt(this.dogTilt);
       }
     });
-    accelerometer.send(Buffer.from([0x41, 0x61, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribing again with larger delta interval
+    sensor.send(Buffer.from([0x41, 0x61, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribing again with larger delta interval
   }
 
   async init() {
-    let deviceComplete = true;
-    let hubComplete = true;
+    let complete = true;
     for(let hubNum in MotorMap) {
+      const hub = this.hubs[MotorMap[hubNum]["name"]];
       for(let portNum in MotorMap[hubNum]) {
         if(portNum === "name") continue;
+        const deviceName = MotorMap[hubNum][portNum]["name"].toString();
+        let device = null;
+        if(hub) {
+          device = hub.getDeviceAtPort(portNum);
+	  if(!device) complete = false;
+        }
+        else {
+          complete = false;
+        }
+	if(deviceName.startsWith("dog")) {
+          const offset = MotorMap[hubNum][portNum]["offset"];
+          this.addDogTiltSensor(device, offset);
+	}
         for(let legNum in this.legs) {
-          const deviceName = MotorMap[hubNum][portNum]["name"].toString();
           if(deviceName.startsWith(legNum)) {
-            const hub = this.hubs[MotorMap[hubNum]["name"]];
-            let device = null;
-            if(hub) {
-              device = hub.getDeviceAtPort(portNum);
-            }
-            else {
-              hubComplete = false;
-            }
             if(deviceName.endsWith("Tilt")) {
-              deviceComplete = await this.legs[legNum].addTiltSensor(deviceName, device) && deviceComplete;
+              const offset = MotorMap[hubNum][portNum]["offset"];
+              await this.legs[legNum].addTiltSensor(deviceName, device, offset);
             }
             else {
               const range = MotorMap[hubNum][portNum]["range"];
-              deviceComplete = await this.legs[legNum].addMotor(deviceName, device, range) && deviceComplete;
+              await this.legs[legNum].addMotor(deviceName, device, range);
             }
           }
         }
       }
     }
     try {
-      if(this.isComplete != (hubComplete && deviceComplete)) {
-        this.isComplete = (hubComplete && deviceComplete);
+      if(this.isComplete != complete) {
+        this.isComplete = complete;
         const state = this.isComplete ? "online" : "offline";
         this.send('notifyState', 'dog', state);
         ipcMain.emit('notifyState', 'internal', 'dog', state);

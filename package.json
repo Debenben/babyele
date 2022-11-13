@@ -1,6 +1,6 @@
 {
   "name": "babyele",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "program to control lego walker",
   "main": "./app/main.js",
   "scripts": {
@@ -13,19 +13,19 @@
   "author": "bene",
   "license": "ISC",
   "dependencies": {
-    "babylonjs": "5.26.1",
-    "babylonjs-gui": "5.26.1",
-    "electron-squirrel-startup": "^1.0.0",
-    "@debenben/node-poweredup": "^9.0.0"
+    "@debenben/node-poweredup": "^9.0.0",
+    "babylonjs": "^5.32.1",
+    "babylonjs-gui": "^5.32.1",
+    "electron-squirrel-startup": "^1.0.0"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^6.0.0-beta.67",
-    "@electron-forge/maker-deb": "^6.0.0-beta.67",
-    "@electron-forge/maker-rpm": "^6.0.0-beta.67",
-    "@electron-forge/maker-squirrel": "^6.0.0-beta.67",
-    "@electron-forge/maker-zip": "^6.0.0-beta.67",
+    "@electron-forge/cli": "^6.0.0",
+    "@electron-forge/maker-deb": "^6.0.0",
+    "@electron-forge/maker-rpm": "^6.0.0",
+    "@electron-forge/maker-squirrel": "^6.0.0",
+    "@electron-forge/maker-zip": "^6.0.0",
     "electron": "^21.2.0",
-    "electron-rebuild": "^3.2.5",
+    "@electron/rebuild": "^3.2.5",
     "typescript": "^4.8.4"
   },
   "config": {

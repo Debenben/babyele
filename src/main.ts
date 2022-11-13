@@ -17,9 +17,9 @@ function createWindow() {
 
   const fileName = process.argv.includes('--txt') ? "../txtindex.html" : "../guiindex.html";
   mainWindow.loadURL(url.format({
-      pathname: path.join(__dirname, fileName),
-      protocol: "file:",
-      slashes: true,
+    pathname: path.join(__dirname, fileName),
+    protocol: "file:",
+    slashes: true,
   }));
 
   mainWindow.removeMenu();

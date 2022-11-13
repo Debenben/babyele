@@ -14,6 +14,7 @@ export class Leg {
   legName: LegName
   mainWindow: BrowserWindow
   tiltSensors: Record<string, TiltSensorAbstraction> = {top: null, bottom: null}
+  tiltSensorOffsets: Record<string, Position> = {top: null, bottom: null}
   tilts: Record<string, Position> = {}
   tiltAngles: Record<MotorName, number> = {top: null, bottom: null, mount: null}
   motors: Record<MotorName, MotorAbstraction> = {top: null, bottom: null, mount: null}
@@ -46,7 +47,7 @@ export class Leg {
     });
   }
 
-  async addTiltSensor(deviceName: string, sensor: TiltSensorAbstraction) {
+  async addTiltSensor(deviceName: string, sensor: TiltSensorAbstraction, offset: Position) {
     const sensorName = deviceName.replace(this.legName, "").replace("Tilt","").toLowerCase();
     if(!sensor) {
       this.send("notifyState", deviceName, "offline");
@@ -58,9 +59,13 @@ export class Leg {
       return true;
     }
     this.tiltSensors[sensorName] = sensor;
+    this.tiltSensorOffsets[sensorName] = offset;
     if(sensor) {
       sensor.removeAllListeners('accel');
       sensor.on("accel", (accel) => {
+	accel.x += this.tiltSensorOffsets[sensorName].forward;
+	accel.y += this.tiltSensorOffsets[sensorName].sideways;
+	accel.z += this.tiltSensorOffsets[sensorName].height;
         const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
         if(abs < 950 || abs > 1050) return;
         this.tilts[sensorName] = {forward: Math.atan2(accel.y, -accel.x), height: 0, sideways: Math.atan2(accel.z, Math.sqrt(accel.x**2 + accel.y**2))};

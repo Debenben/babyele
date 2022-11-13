@@ -21,10 +21,7 @@ export class Infobox extends Container {
     this.scene = scene;
     this.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 600);
     this.adaptHeightToChildren = true;
-    this.paddingLeft = 10; 
-    this.paddingRight = 10; 
-    this.paddingTop = 10; 
-    this.paddingBottom = 10; 
+    this.setPaddingInPixels(10);
     this.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
     this.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.fillRectangle = new Rectangle("background");
@@ -185,16 +182,19 @@ const buildHeading = (infobox: Infobox) => {
   block.color = "black";
   block.onPointerDownObservable.add((vec) => {
     ipcRenderer.emit('startGuiDrag', 'dragEvent', infobox, vec);
+    heading.thickness = 1;
   });
   block.onPointerUpObservable.add((vec) => {
     ipcRenderer.emit('stopGuiDrag', 'dragEvent', infobox, vec);
+    heading.thickness = 0;
   });
   block.onPointerEnterObservable.add(() => {
-    heading.thickness = 1;
+    heading.alpha = 0.6;
     infobox.fillRectangle.thickness = 1;
   });
   block.onPointerOutObservable.add(() => {
-    heading.thickness = 0;
+    if(heading.thickness > 0) return;
+    heading.alpha = 0.8;
     infobox.fillRectangle.thickness = 0;
   });
   heading.addControl(block);
@@ -202,9 +202,9 @@ const buildHeading = (infobox: Infobox) => {
   button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
   button.width = "30px";
   button.height = "30px";
-  button.paddingRight = "2px";
-  button.paddingTop = "2px";
-  button.color = "black";
+  button.setPaddingInPixels(2);
+  button.color = "lightgrey";
+  button.textBlock.color = "black";
   button.thickness = 0;
   button.onPointerEnterObservable.add(() => button.thickness = 1);
   button.onPointerOutObservable.add(() => button.thickness = 0);

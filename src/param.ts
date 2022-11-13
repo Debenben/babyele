@@ -23,6 +23,7 @@ export const MotorMap = {
   },
   "BeneLego4": {
     "name"          : "hubFrontCenter",
+    "ACCELEROMETER" : {"name": "dogTilt", "offset": {forward:22, height:-27, sideways:-7}},
     "A"             : {"name": "legFrontRightTop", "range": TOP_MOTOR_RANGE},
     "C"             : {"name": "legFrontLeftTop", "range": -TOP_MOTOR_RANGE},
     "B"             : {"name": "legFrontLeftMount", "range": MOUNT_MOTOR_RANGE},
@@ -30,27 +31,27 @@ export const MotorMap = {
   },
   "BeneLego2": {
     "name"          : "hubFrontLeft",
-    "ACCELEROMETER" : {"name": "legFrontLeftTopTilt"},
+    "ACCELEROMETER" : {"name": "legFrontLeftTopTilt", "offset": {forward:0, height:0, sideways:0}},
     "C"             : {"name": "legFrontLeftBottom", "range": -BOTTOM_MOTOR_RANGE},
-    "A"             : {"name": "legFrontLeftBottomTilt"},
+    "A"             : {"name": "legFrontLeftBottomTilt", "offset": {forward:0, height:0, sideways:0}},
   },
   "BeneLego3": {
     "name"          : "hubFrontRight",
-    "ACCELEROMETER" : {"name": "legFrontRightTopTilt"},
+    "ACCELEROMETER" : {"name": "legFrontRightTopTilt", "offset": {forward:0, height:0, sideways:0}},
     "D"             : {"name": "legFrontRightBottom", "range": BOTTOM_MOTOR_RANGE},
-    "B"             : {"name": "legFrontRightBottomTilt"},
+    "B"             : {"name": "legFrontRightBottomTilt", "offset": {forward:0, height:0, sideways:0}},
   },
   "BeneLego1": {
     "name"          : "hubBackRight",
-    "ACCELEROMETER" : {"name": "legBackRightTopTilt"},
+    "ACCELEROMETER" : {"name": "legBackRightTopTilt", "offset": {forward:0, height:0, sideways:0}},
     "C"             : {"name": "legBackRightBottom", "range": BOTTOM_MOTOR_RANGE},
-    "D"             : {"name": "legBackRightBottomTilt"},
+    "D"             : {"name": "legBackRightBottomTilt", "offset": {forward:0, height:0, sideways:0}},
   },
   "BeneLego5": {
     "name"          : "hubBackLeft",
-    "ACCELEROMETER" : {"name": "legBackLeftTopTilt"},
+    "ACCELEROMETER" : {"name": "legBackLeftTopTilt", "offset": {forward:0, height:0, sideways:0}},
     "D"             : {"name": "legBackLeftBottom", "range": -BOTTOM_MOTOR_RANGE},
-    "C"             : {"name": "legBackLeftBottomTilt"},
+    "C"             : {"name": "legBackLeftBottomTilt", "offset": {forward:0, height:0, sideways:0}},
   },
 }
 
