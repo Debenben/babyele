@@ -8,6 +8,10 @@ export const LEG_PISTON_HEIGHT = 101.0; // distance from bottom of leg mount to 
 export const LEG_PISTON_WIDTH = 112.0; // distance from bottom of leg mount to bottom of piston
 export const LEG_PISTON_LENGTH = 175.0; // length of piston when leg is vertical
 
+export const ACCEL_NORM_MAX = 1050.0; // acceleration in mG, values above are ignored
+export const ACCEL_NORM_MIN = 950.0; // acceleration in mG, values below are ignored
+export const ACCEL_SIDEWAYS_TOLERANCE = 0.1; // difference in sideways tilt angle of legs
+
 export const NO_MOVE_MOTOR_ANGLE = 16;
 const TOP_MOTOR_RANGE = 12272; // motor rotation in degree needed for rotation of top leg segment by pi
 const BOTTOM_MOTOR_RANGE = 22486; // motor rotation in degree needed for rotation of bottom leg segment by pi

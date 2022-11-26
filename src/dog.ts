@@ -4,12 +4,12 @@ import { HubAbstraction, LEDAbstraction, TiltSensorAbstraction, MotorAbstraction
 import { legNames, LegName, motorNames, Position, Pose, fromArray, toArray, parsePosition, add, multiply, getRotation, rotate } from "./tools";
 import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH } from "./param";
 
-const defaultLegPositions: Record<LegName, Position> = 
+const defaultLegPositions: Record<LegName, Position> =
   {legFrontRight: {forward:LEG_SEPARATION_LENGTH/2, height:0, sideways:LEG_SEPARATION_WIDTH/2},
    legBackRight: {forward:-LEG_SEPARATION_LENGTH/2, height:0, sideways:LEG_SEPARATION_WIDTH/2},
    legFrontLeft: {forward:LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2},
    legBackLeft: {forward:-LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2}};
-const setHubProperty = 
+const setHubProperty =
   (hub: HubAbstraction, property: number, value: number) => {
     return hub.send(Buffer.from([0x01, property, value]), "00001624-1212-efde-1623-785feabcd123");
   };
@@ -28,7 +28,7 @@ export class Dog {
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-    for(let id of legNames) {
+    for(const id of legNames) {
       this.legs[id] = new Leg(id, mainWindow);
       this.legs[id].setDogTilt(this.dogTilt);
     }
@@ -57,7 +57,7 @@ export class Dog {
     if(MotorMap[hub.name]) {
       const hubName = MotorMap[hub.name]["name"];
       this.hubs[hubName] = hub;
-      this.leds[hubName] = await hub.waitForDeviceByType(23); //Consts.DeviceType.HUB_LED
+      this.leds[hubName] = await hub.waitForDeviceByType(23); // Consts.DeviceType.HUB_LED
       this.send('notifyState', hubName, 'online');
       hub.removeAllListeners("attach");
       hub.on("attach", (device) => {
@@ -69,7 +69,7 @@ export class Dog {
       });
       hub.removeAllListeners("button");
       hub.on("button", ({ event }) => {
-        if(event === 2) { //Consts.ButtonState.PRESSED
+        if(event === 2) { // Consts.ButtonState.PRESSED
           ipcMain.emit('requestMode', 'internal', 'BUTTON');
         }
       });
@@ -116,7 +116,7 @@ export class Dog {
       if(abs < 950 || abs > 1050) return;
       this.dogTilt = {forward: -Math.atan2(accel.y, accel.z), height: 0, sideways: Math.atan2(accel.x, Math.sqrt(accel.y**2 + accel.z**2))};
       this.send('notifyTilt', "dog", this.dogTilt);
-      for(let id of legNames) {
+      for(const id of legNames) {
         this.legs[id].setDogTilt(this.dogTilt);
       }
     });
@@ -125,9 +125,9 @@ export class Dog {
 
   async init() {
     let complete = true;
-    for(let hubNum in MotorMap) {
+    for(const hubNum of Object.keys(MotorMap)) {
       const hub = this.hubs[MotorMap[hubNum]["name"]];
-      for(let portNum in MotorMap[hubNum]) {
+      for(const portNum in MotorMap[hubNum]) {
         if(portNum === "name") continue;
         const deviceName = MotorMap[hubNum][portNum]["name"].toString();
         let device = null;
@@ -142,7 +142,7 @@ export class Dog {
           const offset = MotorMap[hubNum][portNum]["offset"];
           this.addDogTiltSensor(device, offset);
 	}
-        for(let legNum in this.legs) {
+        for(const legNum in this.legs) {
           if(deviceName.startsWith(legNum)) {
             if(deviceName.endsWith("Tilt")) {
               const offset = MotorMap[hubNum][portNum]["offset"];
@@ -157,7 +157,7 @@ export class Dog {
       }
     }
     try {
-      if(this.isComplete != complete) {
+      if(this.isComplete !== complete) {
         this.isComplete = complete;
         const state = this.isComplete ? "online" : "offline";
         this.send('notifyState', 'dog', state);
@@ -171,9 +171,9 @@ export class Dog {
   }
 
   buildLegRecord = (recordName) => {
-    let record = {}
-    for(let legName of legNames) {
-      for(let motorName of motorNames) {
+    const record = {}
+    for(const legName of legNames) {
+      for(const motorName of motorNames) {
         record[legName + motorName] = this.legs[legName][recordName][motorName];
       }
     }
@@ -181,8 +181,8 @@ export class Dog {
   }
 
   getPose() {
-    let pose = {} as Pose;
-    for(let id of legNames) {
+    const pose = {} as Pose;
+    for(const id of legNames) {
       pose[id] = JSON.parse(JSON.stringify(this.legs[id].motorAngles));
     }
     return pose;
@@ -194,7 +194,7 @@ export class Dog {
 
   getDogPosition() {
     let averagePosition = {forward:0, height:0, sideways:0};
-    for(let id of legNames) {
+    for(const id of legNames) {
       averagePosition = add(averagePosition, multiply(0.25,(this.legs[id].getPosition())));
     }
     return averagePosition;
@@ -203,7 +203,7 @@ export class Dog {
   getDogRotation() {
     let averageRotation = {forward:0, height:0, sideways:0};
     const dogPosition = this.getDogPosition();
-    for(let id of legNames) {
+    for(const id of legNames) {
       const absolutePosition = add(this.legs[id].getPosition(), add(defaultLegPositions[id], multiply(-1,dogPosition)));
       averageRotation = add(averageRotation, multiply(0.25, getRotation(absolutePosition)));
     }
@@ -232,19 +232,19 @@ export class Dog {
     }
     else {
       this.startMovePositions = {} as Record<LegName, Position>;
-      for(let id of legNames) {
+      for(const id of legNames) {
         this.startMovePositions[id] = this.legs[id].getPosition();
       };
       this.moveSpeedIntervalID = setInterval(() => {
         /* calculate initial dog position */
         let startDogPosition = {forward:0, height:0, sideways:0};
-        for(let id of legNames) {
+        for(const id of legNames) {
           startDogPosition = add(startDogPosition, multiply(0.25,this.startMovePositions[id]))
         }
         const averagePositionDiff = add(this.getDogPosition(), multiply(-1,startDogPosition));
         /* calculate dog rotation with respect to initial position */
         let startDogRotation = {forward:0, height:0, sideways:0};
-        for(let id of legNames) {
+        for(const id of legNames) {
           const startAbsolute = add(this.startMovePositions[id], add(defaultLegPositions[id], multiply(-1,startDogPosition)));
           const currentAbsolute = add(this.legs[id].getPosition(), add(defaultLegPositions[id], multiply(-1,this.getDogPosition())));
           const startRotation = getRotation(startAbsolute);
@@ -253,19 +253,19 @@ export class Dog {
         }
         const averageRotation = add(this.getDogRotation(), multiply(-1,startDogRotation));
         /* determine new positions */
-        for(let id of legNames) {
+        for(const id of legNames) {
           const startAbsolute = add(this.startMovePositions[id], add(defaultLegPositions[id], multiply(-1,startDogPosition)));
-          let rotationMove = {forward:0, height:0, sideways:0};
+          const rotationMove = {forward:0, height:0, sideways:0};
           if(this.rotationSpeed) {
-            for(let i in rotationMove) {
-              if(this.rotationSpeed[i] == 0) rotationMove[i] = 0;
+            for(const i in rotationMove) {
+              if(this.rotationSpeed[i] === 0) rotationMove[i] = 0;
               else rotationMove[i] = averageRotation[i] + this.rotationSpeed[i]/10000;
             }
           }
-          let positionMove = {forward:0, height:0, sideways:0};
+          const positionMove = {forward:0, height:0, sideways:0};
           if(this.positionSpeed) {
-            for(let i in positionMove) {
-              if(this.positionSpeed[i] == 0) positionMove[i] = 0;
+            for(const i in positionMove) {
+              if(this.positionSpeed[i] === 0) positionMove[i] = 0;
               else positionMove[i] = averagePositionDiff[i] + this.positionSpeed[i]/10;
             }
           }
@@ -278,7 +278,7 @@ export class Dog {
   }
 
   async requestPose(pose: Pose) {
-    for(let id of legNames) {
+    for(const id of legNames) {
       this.legs[id].destMotorAngles = JSON.parse(JSON.stringify(pose[id]));
     }
     return this.motorLoop();
@@ -286,13 +286,13 @@ export class Dog {
 
   stop() {
     const motors = this.buildLegRecord('motors');
-    for(let i in motors) {
+    for(const i of Object.keys(motors)) {
       motors[i].setSpeed(0, undefined, true);
     }
   }
 
   shutdown() {
-    for(let hubNum in this.hubs) {
+    for(const hubNum of Object.keys(this.hubs)) {
       this.hubs[hubNum].shutdown();
     }
   }

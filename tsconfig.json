@@ -8,12 +8,7 @@
       "baseUrl": ".",
       "paths": {
         "*": ["node_modules/*"]
-      },
-      "types": [
-        "@debenben/node-poweredup",
-        "babylonjs",
-        "babylonjs-gui"
-      ]
+      }
     },
     "include": [
       "src/**/*"

@@ -23,21 +23,21 @@ function createWindow() {
   }));
 
   mainWindow.removeMenu();
-  //mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 }
 
 async function createDog() {
-  dog = new Dog(mainWindow);
   let poweredUP;
   if(process.argv.includes('--simulation')) {
     console.log("Starting simulation...");
-    let library = await import("./simulation");
+    const library = await import("./simulation");
     poweredUP = new library.SimulationPowered();
   }
   else {
-    let library = await import("@debenben/node-poweredup");
+    const library = await import("@debenben/node-poweredup");
     poweredUP = new library.PoweredUP();
   }
+  dog = new Dog(mainWindow);
   poweredUP.on('discover', (hub) => {
     dog.addHub(hub);
   });
@@ -69,7 +69,7 @@ app.on("window-all-closed", () => {
   app.quit();
 });
 
-ipcMain.on('rendererInitialized', (event, arg) => {
-  createDog();
+ipcMain.on('rendererInitialized', async (event, arg) => {
+  await createDog();
   controller = new MoveController(mainWindow, dog);
 });

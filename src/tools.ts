@@ -28,7 +28,7 @@ export const toDegree = (rad: Position) => {
 }
 
 export const pad = (str: string, size: number) => {
-  let s = "          " + str;
+  const s = "          " + str;
   return s.substr(s.length - size);
 }
 export const printPosition = (pos: Position) => {
@@ -74,7 +74,7 @@ export const rotate = (position: Position, angles: Position) => {
   const forward = Math.cos(angles.height)*Math.cos(angles.sideways)*position.forward + Math.cos(angles.height)*Math.sin(angles.sideways)*position.height - Math.sin(angles.height)*position.sideways;
   const height = (Math.sin(angles.forward)*Math.sin(angles.height)*Math.cos(angles.sideways) - Math.cos(angles.forward)*Math.sin(angles.sideways))*position.forward + (Math.sin(angles.forward)*Math.sin(angles.height)*Math.sin(angles.sideways) + Math.cos(angles.forward)*Math.cos(angles.sideways))*position.height + Math.sin(angles.forward)*Math.cos(angles.height)*position.sideways;
   const sideways = (Math.cos(angles.forward)*Math.sin(angles.height)*Math.cos(angles.sideways) + Math.sin(angles.forward)*Math.sin(angles.sideways))*position.forward + (Math.cos(angles.forward)*Math.sin(angles.height)*Math.sin(angles.sideways) - Math.sin(angles.forward)*Math.cos(angles.sideways))*position.height + Math.cos(angles.forward)*Math.cos(angles.height)*position.sideways;
-  return {forward:forward, height:height, sideways:sideways};
+  return {forward, height, sideways};
 }
 
 export const cosLaw = (rSide: number, lSide: number, angle: number) => {
@@ -85,6 +85,6 @@ export const cosLaw = (rSide: number, lSide: number, angle: number) => {
 export const invCosLaw = (rSide: number, lSide: number, oSide: number) => {
   // returns angle in a triangle with rSide and lSide adjacent side lengths and oSide the side length opposite of the angle
   const cosVal = (rSide**2 + lSide**2 - oSide**2)/(2*rSide*lSide);
-  return Math.acos(cosVal > 1.0 ? 1.0 : (cosVal < -1.0 ? -1.0 : cosVal));  
+  return Math.acos(cosVal > 1.0 ? 1.0 : (cosVal < -1.0 ? -1.0 : cosVal));
 }
 

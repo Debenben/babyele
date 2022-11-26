@@ -1,7 +1,8 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { MotorAbstraction, TiltSensorAbstraction } from "./interfaces";
 import { MotorName, motorNames, LegName, Position, fromArray, toArray, parsePosition, cosLaw, invCosLaw } from "./tools";
-import { NO_MOVE_MOTOR_ANGLE, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
+import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
+import { NO_MOVE_MOTOR_ANGLE, ACCEL_NORM_MIN, ACCEL_NORM_MAX, ACCEL_SIDEWAYS_TOLERANCE } from "./param";
 
 const mountAngleOffset = invCosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH);
 const setMotorAngle = (motor: MotorAbstraction, motorAngle: number) => {
@@ -34,12 +35,12 @@ export class Leg {
         ipcMain.emit('requestMode', 'internal', 'MANUAL');
         this.requestPositionSpeed(parsePosition(arg1, arg2));
       }
-      else if(arg1 == "setBendForward") {
+      else if(arg1 === "setBendForward") {
         this.bendForward = arg2;
       }
       else if(arg1 === "getProperties") {
         this.send('notifyBendForward', this.legName, this.bendForward);
-        for(let id in this.motors) {
+        for(const id in this.motors) {
           if(this.motors[id]) this.motors[id].requestUpdate();
         }
         this.calculateTiltAngles();
@@ -67,7 +68,7 @@ export class Leg {
 	accel.y += this.tiltSensorOffsets[sensorName].sideways;
 	accel.z += this.tiltSensorOffsets[sensorName].height;
         const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
-        if(abs < 950 || abs > 1050) return;
+        if(abs < ACCEL_NORM_MIN || abs > ACCEL_NORM_MAX) return;
         this.tilts[sensorName] = {forward: Math.atan2(accel.y, -accel.x), height: 0, sideways: Math.atan2(accel.z, Math.sqrt(accel.x**2 + accel.y**2))};
         this.send('notifyTilt', deviceName, this.tilts[sensorName]);
         this.calculateTiltAngles();
@@ -94,7 +95,7 @@ export class Leg {
     this.motors[motorName] = motor;
     this.motorRanges[motorName] = motorRange;
     if(motor) {
-      motor.setBrakingStyle(127); //Consts.BrakingStyle.BRAKE
+      motor.setBrakingStyle(127); // Consts.BrakingStyle.BRAKE
       motor.useAccelerationProfile = false;
       motor.useDecelerationProfile = false;
       await this.requestRotationSpeed(motorName, 0);
@@ -132,7 +133,7 @@ export class Leg {
   }
 
   async calculateTiltAngles() {
-    if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"] && Math.abs(this.tilts["top"].sideways - this.tilts["bottom"].sideways) < 0.1) {
+    if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"] && Math.abs(this.tilts["top"].sideways - this.tilts["bottom"].sideways) < ACCEL_SIDEWAYS_TOLERANCE) {
       if(this.legName.includes("Right")) {
         this.tiltAngles.top = -this.tilts["dog"].sideways + this.tilts["top"].forward;
         this.tiltAngles.bottom = this.tilts["bottom"].forward - this.tilts["top"].forward;
@@ -143,7 +144,7 @@ export class Leg {
         this.tiltAngles.bottom = -this.tilts["bottom"].forward + this.tilts["top"].forward;
         this.tiltAngles.mount = this.tilts["dog"].forward + this.tilts["top"].sideways;
       }
-      for(let id of motorNames) {
+      for(const id of motorNames) {
         this.send('notifyTilt', this.legName + id.charAt(0).toUpperCase() + id.slice(1), this.tiltAngles[id]);
       }
     }
@@ -232,7 +233,7 @@ export class Leg {
       this.startMovePosition = this.getPosition();
       this.positionSpeedIntervalID = setInterval(() => {
         const position = toArray(this.startMovePosition).map((n,i) => {
-          if(toArray(this.positionSpeed)[i] != 0) {
+          if(toArray(this.positionSpeed)[i]) {
             return toArray(this.getPosition())[i] + toArray(this.positionSpeed)[i]/10;
           }
           return n;
@@ -264,7 +265,7 @@ export class Leg {
     if(this.legName.endsWith("Left")) {
       sideways *= -1;
     }
-    return {forward:forward, height:height, sideways:sideways};
+    return {forward, height, sideways};
   }
 
   send = (arg1, arg2, arg3) => {

@@ -83,7 +83,7 @@ class MoveButton extends Container {
       ipcRenderer.send('requestMode', modeName);
     });
     this.addControl(this.moveButton);
-    this.expandButton = Button.CreateSimpleButton("expandMove","▼"); 
+    this.expandButton = Button.CreateSimpleButton("expandMove","▼");
     this.expandButton.width = "25px";
     this.expandButton.height = "25px";
     this.expandButton.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
@@ -120,7 +120,7 @@ class MoveButton extends Container {
   updateMoveColor = () => {
     if(this.moveButtonAvailable) {
       this.moveButton.color = "black";
-    } 
+    }
     else {
       this.moveButton.color = "darkgrey";
     }
@@ -158,13 +158,13 @@ class ExpandView extends StackPanel {
     if(this.contains(vecx, vecy)) {
       const coords = this.getLocalCoordinates(new BABYLON.Vector2(vecx, vecy));
       this.background = "green";
-      const sectionHeight = 30; //height of poseButton
+      const sectionHeight = 30; // height of poseButton
       const spacerLocation = Math.floor(coords.y/sectionHeight);
       this.updateSpacerLocation(spacerLocation);
       this.spacer.background = "red";
     }
     else {
-      if(this.background == "green" || "#303030") {
+      if(this.background === "green" || "#303030") {
         this.background = "lightgrey";
         this.spacer.background = "transparent";
         this.removeControl(this.spacer);
@@ -175,20 +175,20 @@ class ExpandView extends StackPanel {
 
   onStopGuiDrag = (event, control) => {
     let storeChanges = false;
-    for(let item of this.children) {
-      if(item.color == "red" && item.name != "spacer") {
+    for(const item of this.children) {
+      if(item.color === "red" && item.name !== "spacer") {
         storeChanges = true;
         this.removeControl(item);
       }
     }
     let poses = [];
-    if(control && control.textBlock && this.background == "green") {
+    if(control && control.textBlock && this.background === "green") {
       storeChanges = true;
-      poses = this.children.map(e => e.name == "spacer" ? control.textBlock.text : e.name);
+      poses = this.children.map(e => e.name === "spacer" ? control.textBlock.text : e.name);
     }
     else {
       poses = this.children.map(e => e.name);
-      poses = poses.filter(e => e != "spacer");
+      poses = poses.filter(e => e !== "spacer");
     }
     if(storeChanges) ipcRenderer.send('storeMove', this.moveName, poses);
     this.background = "#303030";
@@ -198,15 +198,15 @@ class ExpandView extends StackPanel {
   updateSpacerLocation = (position: number) => {
     const temp = new StackPanel("temp");
     let pos = 0;
-    for(let control of this.children) {
-      if(control.name == "spacer") continue;
-      if(pos == position) temp.addControl(this.spacer);
+    for(const control of this.children) {
+      if(control.name === "spacer") continue;
+      if(pos === position) temp.addControl(this.spacer);
       temp.addControl(control);
       pos++;
     }
-    if(pos == position) temp.addControl(this.spacer);
+    if(pos === position) temp.addControl(this.spacer);
     this.clearControls();
-    for(let control of temp.children) {
+    for(const control of temp.children) {
       this.addControl(control);
     }
   }
@@ -214,7 +214,7 @@ class ExpandView extends StackPanel {
 
 const updatePosesPanel = (panel: StackPanel, poseNames: string[]) => {
   panel.clearControls();
-  for(let id of poseNames) {
+  for(const id of poseNames) {
     panel.addControl(buildPoseButton(id));
   }
 }
@@ -228,7 +228,7 @@ const updateMovesPanel = (panel: StackPanel, moves: Record<string, Move>, enable
     panel.removeControl(move);
     move = null;
   });
-  for(let id in moves) {
+  for(const id of Object.keys(moves)) {
     const move = panel.getChildByName(id);
     if(move) {
       (move as MoveButton).update(moves[id], enabled[id]);
@@ -329,7 +329,7 @@ const buildTrashIcon = (modeSelection: Container) => {
   });
   ipcRenderer.on("stopGuiDrag", (event, control) => {
     if(!modeSelection.isVisible) return;
-    if(control && control.textBlock && button.color == "red" && event as any == "dragEvent") {
+    if(control && control.textBlock && button.color === "red" && event as any === "dragEvent") {
       ipcRenderer.send('deleteMode', control.textBlock.text);
     }
     button.color = "#303030";

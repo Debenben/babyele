@@ -17,7 +17,7 @@ export class MoveController {
     this.dog = dog;
 
     setInterval(() => {
-      for(let ledNum in this.dog.leds) {
+      for(const ledNum in this.dog.leds) {
         if(this.dog.leds[ledNum]) {
           this.dog.leds[ledNum].send(Buffer.from([0x81, 0x32, 0x10, 0x51, 0x00, this.color%2]));
         }
@@ -49,8 +49,8 @@ export class MoveController {
       }
       else {
         delete this.poses[modeName];
-        for(let id in this.moves) {
-          this.moves[id] = this.moves[id].filter(el => el != modeName);
+        for(const id of Object.keys(this.moves)) {
+          this.moves[id] = this.moves[id].filter(el => el !== modeName);
         }
         this.send('notifyMode', modeName, false);
       }
@@ -71,9 +71,9 @@ export class MoveController {
 
     ipcMain.on('storeMove', (event, moveName, content) => {
       if(reservedNames.includes(moveName)) return;
-      let newMove = [];
-      for(let modeName of content) {
-        if(this.poses.hasOwnProperty(modeName) || modeName == "OFFLINE") {
+      const newMove = [];
+      for(const modeName of content) {
+        if(this.poses.hasOwnProperty(modeName) || modeName === "OFFLINE") {
           newMove.push(modeName);
         }
         else if (this.moves.hasOwnProperty(modeName)) {
@@ -124,8 +124,8 @@ export class MoveController {
 
   notifyAvailability = () => {
     const lastMode = this.modeQueue.length ? this.modeQueue[this.modeQueue.length-1] : this.mode;
-    let enabled: Record<string, boolean> = {};
-    for(let id in this.moves) {
+    const enabled: Record<string, boolean> = {};
+    for(const id of Object.keys(this.moves)) {
       enabled[id] = this.allowSwitch(lastMode, id);
     }
     this.send('notifyPosesAvailable', Object.keys(this.poses));
@@ -133,17 +133,17 @@ export class MoveController {
   }
 
   getNewPoseName = () => {
-    let num = [];
+    const num = [];
     const prefix = this.mode.split('-')[0]
-    for(let id in this.poses) {
-      if(id.split('-')[0] == prefix) {
+    for(const id in this.poses) {
+      if(id.split('-')[0] === prefix) {
         num.push(id.split('-')[1]);
       }
     }
     num.sort((a, b) => {return a-b});
     let available = 0;
-    for(let i in num) {
-      if(num[i] == available) available++;
+    for(const i in num) {
+      if(num[i] === available) available++;
     }
     return prefix + '-' + available;
   }
@@ -173,7 +173,7 @@ export class MoveController {
         this.notifyAvailability();
       }
       else {
-        for(let moveName in this.moves) {
+        for(const moveName in this.moves) {
           if(this.allowSwitch(this.mode, moveName)) {
             this.modeQueue.push(moveName);
             this.notifyAvailability();
@@ -193,7 +193,7 @@ export class MoveController {
     }
     /* allow switching to empty modes */
     else if (this.moves.hasOwnProperty(destMode)) {
-      if(this.moves[destMode].length == 0) {
+      if(this.moves[destMode].length === 0) {
         this.modeQueue = [];
         this.mode = destMode;
         this.notifyAvailability();
@@ -206,7 +206,7 @@ export class MoveController {
       this.modeQueue.push(destMode);
       this.notifyAvailability();
     }
-    else if(this.modeQueue.length == 0 && this.allowSwitch(this.mode, destMode)) {
+    else if(this.modeQueue.length === 0 && this.allowSwitch(this.mode, destMode)) {
       this.modeQueue.push(destMode);
       this.notifyAvailability();
       this.modeLoop();
@@ -218,7 +218,7 @@ export class MoveController {
 
   async modeLoop() {
     while(this.modeQueue.length) {
-      let dest = this.modeQueue[0];
+      const dest = this.modeQueue[0];
       if(this.poses.hasOwnProperty(dest)) {
         await this.dog.requestPose(this.poses[dest]);
         this.mode = dest;
@@ -227,12 +227,12 @@ export class MoveController {
       }
       else if(this.moves.hasOwnProperty(dest)) {
         if(!this.moves[dest].length) return Promise.resolve();
-        for(let poseId of this.moves[dest]) {
+        for(const poseId of this.moves[dest]) {
           await Promise.all([this.dog.requestPose(this.poses[poseId]), new Promise(res => setTimeout(res, 10))]);
           this.mode = poseId;
           this.send('notifyMode', poseId, true);
         }
-        if(this.modeQueue.length == 1 && this.allowSwitch(dest, dest)) continue;
+        if(this.modeQueue.length === 1 && this.allowSwitch(dest, dest)) continue;
         this.modeQueue.shift();
       }
       else {
@@ -244,13 +244,13 @@ export class MoveController {
   }
 
   allowSwitch = (origin, destination) => {
-    if(origin == "OFFLINE") return false;
-    if(destination == "OFFLINE") return true;
-    if(origin == "WAITING") return true;
+    if(origin === "OFFLINE") return false;
+    if(destination === "OFFLINE") return true;
+    if(origin === "WAITING") return true;
     if(this.poses.hasOwnProperty(destination)) return true;
-    if(this.moves.hasOwnProperty(destination) && this.moves[destination].length == 0) return true;
-    if(this.poses.hasOwnProperty(origin) && this.moves.hasOwnProperty(destination)) return (origin == this.moves[destination][0]);
-    if(this.moves.hasOwnProperty(origin) && this.moves.hasOwnProperty(destination)) return (this.moves[origin][this.moves[origin].length-1] == this.moves[destination][0]);
+    if(this.moves.hasOwnProperty(destination) && this.moves[destination].length === 0) return true;
+    if(this.poses.hasOwnProperty(origin) && this.moves.hasOwnProperty(destination)) return (origin === this.moves[destination][0]);
+    if(this.moves.hasOwnProperty(origin) && this.moves.hasOwnProperty(destination)) return (this.moves[origin][this.moves[origin].length-1] === this.moves[destination][0]);
     return false;
   }
 

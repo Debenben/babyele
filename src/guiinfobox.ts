@@ -150,7 +150,7 @@ export class Infobox extends Container {
   updateRotation = (event, arg1, arg2) => {
     if(arg1 === this.name) {
       this.rotationText.text = "rot.:" + printPosition(toDegree(arg2));
-    } 
+    }
   }
   updatePosition = (event, arg1, arg2) => {
     if(arg1 === this.name || arg1 === this.name.replace("hub", "leg")) {
@@ -168,7 +168,7 @@ export class Infobox extends Container {
 }
 
 const buildHeading = (infobox: Infobox) => {
-  let heading = new Rectangle("headingBackground");
+  const heading = new Rectangle("headingBackground");
   heading.height = "30px";
   heading.thickness = 0;
   heading.alpha = 0.8;
@@ -302,7 +302,7 @@ const buildCheckBox = (meshName: string, requestName: string) => {
     ipcRenderer.send(meshName, requestName, checked);
   });
   panel.addControl(box);
-  var label = buildText(requestName);
+  const label = buildText(requestName);
   label.width = "200px";
   panel.addControl(label);
   return panel;

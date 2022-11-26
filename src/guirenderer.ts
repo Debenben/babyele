@@ -23,7 +23,7 @@ export default class Renderer {
     this.canvas = canvas;
     this.engine = engine;
     const scene = new BABYLON.Scene(engine);
-    //scene.debugLayer.show();
+    // scene.debugLayer.show();
     scene.imageProcessingConfiguration.toneMappingEnabled = true;
     scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
     scene.fogDensity = 0.0002;
@@ -189,7 +189,7 @@ export default class Renderer {
       this.scene.render();
     });
 
-    window.addEventListener('resize', function () {
+    window.addEventListener('resize', () => {
       engine.resize();
     });
   }
@@ -222,8 +222,8 @@ const getProjection = (scene: BABYLON.Scene, meshName: string) => {
 }
 
 const getGravityLinesPath = (scene: BABYLON.Scene) => {
-  let system = [];
-  let path = [];
+  const system = [];
+  const path = [];
   path.push(getProjection(scene, 'legFrontLeftFoot'));
   path.push(getProjection(scene, 'legFrontRightFoot'));
   path.push(getProjection(scene, 'legBackRightFoot'));
@@ -238,13 +238,13 @@ const getGravityLinesPath = (scene: BABYLON.Scene) => {
 }
 
 const getDisplacementLinesPath = () => {
-  let system = [];
+  const system = [];
   for (let x=-120; x<=120; x+=30) {
-    let path1 = [];
+    const path1 = [];
     path1.push(new BABYLON.Vector3(Param.LEG_SEPARATION_LENGTH/2 + x,0,Param.LEG_SEPARATION_WIDTH));
     path1.push(new BABYLON.Vector3(Param.LEG_SEPARATION_LENGTH/2 + x,0,-Param.LEG_SEPARATION_WIDTH));
     system.push(path1);
-    let path2 = [];
+    const path2 = [];
     path2.push(new BABYLON.Vector3(-Param.LEG_SEPARATION_LENGTH/2 + x,0,Param.LEG_SEPARATION_WIDTH));
     path2.push(new BABYLON.Vector3(-Param.LEG_SEPARATION_LENGTH/2 + x,0,-Param.LEG_SEPARATION_WIDTH));
     system.push(path2);
@@ -288,7 +288,7 @@ const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
   background.isBackground = true;
   background.texture = backTexture;
   const renderImage = new BABYLON.EffectWrapper({
-    engine: engine,
+    engine,
     fragmentShader: `
       varying vec2 vUV;
       void main(void) {
@@ -308,7 +308,7 @@ const buildGround = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
   const groundTexture = new BABYLON.RenderTargetTexture("groundTexture", 1200, scene)
   groundTexture.hasAlpha = true;
   const renderImage = new BABYLON.EffectWrapper({
-    engine: engine,
+    engine,
     fragmentShader: `
       varying vec2 vUV;
       void main(void) {
@@ -386,7 +386,7 @@ const buildHub = (scene: BABYLON.Scene, meshName: string) => {
 }
 
 const buildBone = ({width, height, depth}, scene: BABYLON.Scene) => {
-  const rect = BABYLON.MeshBuilder.CreateBox("rect", {width:width, height:height, depth:depth}, scene);
+  const rect = BABYLON.MeshBuilder.CreateBox("rect", {width, height, depth}, scene);
   const topCyl = BABYLON.MeshBuilder.CreateCylinder("topCyl", {diameter:width, height:depth}, scene);
   topCyl.rotation.x = Math.PI/2;
   topCyl.position.y = height/2.0;
@@ -477,7 +477,7 @@ ipcRenderer.on('notifyState', (event, arg1, arg2) => {
 ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
   renderer.setLegRotation(arg1, arg2);
 });
-let dogRotation = {forward: 0, sideways: 0, height: 0};
+const dogRotation = {forward: 0, sideways: 0, height: 0};
 ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
   if(arg1 === "dog") {
     dogRotation.forward = arg2.forward;

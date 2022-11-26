@@ -11,7 +11,7 @@ export class SimulationPowered extends EventEmitter implements PoweredAbstractio
       console.log("waiting 10 seconds before turning on simulation hubs");
       await sleep(10000);
     }
-    for(let hubName of this.hubList.sort(() => Math.random() - 0.5)) {
+    for(const hubName of this.hubList.sort(() => Math.random() - 0.5)) {
       await setTimeout(() => this.emit('discover', new SimulationHub(hubName)), 1000 * Math.random());
     }
   }
@@ -92,11 +92,11 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   }
   waitForDeviceByType(deviceType: number) {
     return new Promise((resolve) => {
-      if(deviceType == 23) {
+      if(deviceType === 23) {
         console.log("simulation hub " + this.name + " returns simulationLED");
         return resolve(new SimulationLED());
       }
-      else if(deviceType == 57) {
+      else if(deviceType === 57) {
         console.log("simulation hub " + this.name + " returns simulationAccelerometer");
         return resolve(new SimulationTiltSensor("ACCELEROMETER", this.name));
       }
@@ -105,7 +105,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   }
   send(message: Buffer, characteristic: string) {
     console.log("sending raw message " + message.toString("hex"));
-    if(message.length == 3 && message[0] == 0x01 && message[1] == 0x05 && message[2] == 0x05) {
+    if(message.length === 3 && message[0] === 0x01 && message[1] === 0x05 && message[2] === 0x05) {
       this.emit('rssi', {rssi: this.rssi});
     }
     return Promise.resolve();
@@ -121,7 +121,7 @@ export class SimulationLED extends EventEmitter implements LEDAbstraction {
     return Promise.resolve();
   }
   send(message: Buffer) {
-    if(message.length == 6 && message[0] == 0x81 && message[1] == 0x32 && message[3] == 0x51 && message[4] == 0x00) {
+    if(message.length === 6 && message[0] === 0x81 && message[1] === 0x32 && message[3] === 0x51 && message[4] === 0x00) {
       return this.setColor(message[5]);
     }
   }
@@ -137,7 +137,7 @@ export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbst
   constructor(portName: string, hubName: string) {
     super();
     this.portId = toPortId(portName);
-    if(hubName == "BeneLego4" || hubName == "BeneLego0") {
+    if(hubName === "BeneLego4" || hubName === "BeneLego0") {
       this.x = 0;
       this.y = 0;
       this.z = 1000;
@@ -212,10 +212,10 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     return Promise.resolve();
   }
   send(message: Buffer) {
-    if(message.length == 6 && message[0] == 0x81 && message[1] == this.portId && message[3] == 0x51 && message[4] == 0x00) {
+    if(message.length === 6 && message[0] === 0x81 && message[1] === this.portId && message[3] === 0x51 && message[4] === 0x00) {
       return this.setSpeed(message.readInt8(5), undefined);
     }
-    else if(message.length == 9 && message[0] == 0x81 && message[1] == this.portId && message[3] == 0x51 && message[4] == 0x02) {
+    else if(message.length === 9 && message[0] === 0x81 && message[1] === this.portId && message[3] === 0x51 && message[4] === 0x02) {
       return this.resetZero(message.readInt32LE(5));
     }
   }
@@ -239,7 +239,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
 
   async motorLoop(token: Token) {
     try {
-      while(this.rotation != this.destRotation) {
+      while(this.rotation !== this.destRotation) {
         await sleep(50);
         if(token.isCancellationRequested) {
           console.log("simulation motor rotateByDegree is cancelled");
@@ -285,9 +285,9 @@ function toPortId(portName) {
         return 5;
       case "ACCELEROMETER":
         return 97;
-    } 
+    }
 }
 
 class Token {
-  isCancellationRequested: boolean = false; 
+  isCancellationRequested: boolean = false;
 }

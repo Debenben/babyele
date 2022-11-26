@@ -98,7 +98,7 @@ class DragHelper extends Container {
         this.container.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
         this.container.scaleX = 0.9;
         this.container.scaleY = 0.9;
-        this.container.isVisible = false; //switch to visible after Pointer move
+        this.container.isVisible = false; // switch to visible after Pointer move
         this.container.isEnabled = false;
         this.addControl(this.container);
       }
@@ -193,7 +193,7 @@ const onKeyPress = (kbInfo: BABYLON.KeyboardInfo) => {
           break;
       }
     case BABYLON.KeyboardEventTypes.KEYUP:
-      const value = kbInfo.type == BABYLON.KeyboardEventTypes.KEYDOWN ? 100 : 0
+      const value = kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN ? 100 : 0
       switch (kbInfo.event.key) {
         case "a":
         case "A":
