@@ -27,7 +27,7 @@ export const MotorMap = {
   },
   "BeneLego4": {
     "name"          : "hubFrontCenter",
-    "ACCELEROMETER" : {"name": "dogTilt", "offset": {forward:22, height:-27, sideways:-7}},
+    "ACCELEROMETER" : {"name": "dogTilt", "offset": {forward: 19.393014183424288 , height: -27.001327682538353 , sideways: -9.472666413278418 }},
     "A"             : {"name": "legFrontRightTop", "range": TOP_MOTOR_RANGE},
     "C"             : {"name": "legFrontLeftTop", "range": -TOP_MOTOR_RANGE},
     "B"             : {"name": "legFrontLeftMount", "range": MOUNT_MOTOR_RANGE},

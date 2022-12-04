@@ -61,24 +61,22 @@ export class Leg {
     }
     this.tiltSensors[sensorName] = sensor;
     this.tiltSensorOffsets[sensorName] = offset;
-    if(sensor) {
-      sensor.removeAllListeners('accel');
-      sensor.on("accel", (accel) => {
-	accel.x += this.tiltSensorOffsets[sensorName].forward;
-	accel.y += this.tiltSensorOffsets[sensorName].sideways;
-	accel.z += this.tiltSensorOffsets[sensorName].height;
-        const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
-        if(abs < ACCEL_NORM_MIN || abs > ACCEL_NORM_MAX) return;
-        this.tilts[sensorName] = {forward: Math.atan2(accel.y, -accel.x), height: 0, sideways: Math.atan2(accel.z, Math.sqrt(accel.x**2 + accel.y**2))};
-        this.send('notifyTilt', deviceName, this.tilts[sensorName]);
-        this.calculateTiltAngles();
-      });
-      if(sensor.portId === 0x61) { // ACCELEROMETER of TechnicMediumHub
-        sensor.send(Buffer.from([0x41, sensor.portId, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribe again with larger delta interval
-      }
-      this.send("notifyState", deviceName, "online");
-      return true;
+    sensor.removeAllListeners('accel');
+    sensor.on("accel", (accel) => {
+      accel.x += this.tiltSensorOffsets[sensorName].forward;
+      accel.y += this.tiltSensorOffsets[sensorName].sideways;
+      accel.z += this.tiltSensorOffsets[sensorName].height;
+      const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
+      if(abs < ACCEL_NORM_MIN || abs > ACCEL_NORM_MAX) return;
+      this.tilts[sensorName] = {forward: Math.atan2(accel.y, -accel.x), height: 0, sideways: Math.atan2(accel.z, Math.sqrt(accel.x**2 + accel.y**2))};
+      this.send('notifyTilt', deviceName, this.tilts[sensorName]);
+      this.calculateTiltAngles();
+    });
+    if(sensor.portId === 0x61) { // ACCELEROMETER of TechnicMediumHub
+      sensor.send(Buffer.from([0x41, sensor.portId, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribe again with larger delta interval
     }
+    this.send("notifyState", deviceName, "online");
+    return true;
   }
 
   async addMotor(deviceName: string, motor: MotorAbstraction, motorRange: number) {
@@ -94,37 +92,35 @@ export class Leg {
     }
     this.motors[motorName] = motor;
     this.motorRanges[motorName] = motorRange;
-    if(motor) {
-      motor.setBrakingStyle(127); // Consts.BrakingStyle.BRAKE
-      motor.useAccelerationProfile = false;
-      motor.useDecelerationProfile = false;
-      await this.requestRotationSpeed(motorName, 0);
-      await setMotorAngle(motor, this.motorAngles[motorName]);
-      ipcMain.on(deviceName, (event, arg1, arg2) => {
-        switch(arg1) {
-          case "requestRotationSpeed":
-            ipcMain.emit('requestMode', 'internal', 'MANUAL');
-            return this.requestRotationSpeed(motorName, arg2);
-          case "requestRotation":
-            ipcMain.emit('requestMode', 'internal', 'MANUAL');
-            return this.requestRotation(motorName, arg2);
-          case "requestSync":
-            return this.synchronize(motorName);
-          case "requestReset":
-            return setMotorAngle(motor, 0);
-        }
-      });
-      motor.removeAllListeners('rotate');
-      motor.on('rotate', ({degrees}) => {
-        this.motorAngles[motorName] = degrees;
-        ipcMain.emit("dog", "rotationEvent", "getProperties"); // force dog position and rotation calculation
-        this.send('notifyLegRotation', deviceName, this.getAngle(motorName));
-        this.send('notifyLegPosition', this.legName, this.getPosition());
-      });
-      motor.send(Buffer.from([0x41, motor.portId, 0x02, 0x30, 0x00, 0x00, 0x00, 0x01])); // subscribe again with delta interval 48 instead of 1
-      this.send("notifyState", deviceName, "online");
-      return true;
-    }
+    motor.setBrakingStyle(127); // Consts.BrakingStyle.BRAKE
+    motor.useAccelerationProfile = false;
+    motor.useDecelerationProfile = false;
+    await this.requestRotationSpeed(motorName, 0);
+    await setMotorAngle(motor, this.motorAngles[motorName]);
+    ipcMain.on(deviceName, (event, arg1, arg2) => {
+      switch(arg1) {
+        case "requestRotationSpeed":
+          ipcMain.emit('requestMode', 'internal', 'MANUAL');
+          return this.requestRotationSpeed(motorName, arg2);
+        case "requestRotation":
+          ipcMain.emit('requestMode', 'internal', 'MANUAL');
+          return this.requestRotation(motorName, arg2);
+        case "requestSync":
+          return this.synchronize(motorName);
+        case "requestReset":
+          return setMotorAngle(motor, 0);
+      }
+    });
+    motor.removeAllListeners('rotate');
+    motor.on('rotate', ({degrees}) => {
+      this.motorAngles[motorName] = degrees;
+      ipcMain.emit("dog", "rotationEvent", "getProperties"); // force dog position and rotation calculation
+      this.send('notifyLegRotation', deviceName, this.getAngle(motorName));
+      this.send('notifyLegPosition', this.legName, this.getPosition());
+    });
+    motor.send(Buffer.from([0x41, motor.portId, 0x02, 0x30, 0x00, 0x00, 0x00, 0x01])); // subscribe again with delta interval 48 instead of 1
+    this.send("notifyState", deviceName, "online");
+    return true;
   }
 
   async setDogTilt(dogTilt: Position) {

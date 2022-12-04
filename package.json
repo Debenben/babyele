@@ -5,8 +5,10 @@
   "main": "./app/main.js",
   "scripts": {
     "build": "tsc && electron-rebuild",
-    "start": "sudo setcap cap_net_raw+eip ./node_modules/electron/dist/electron && sudo bash -c 'echo $(pwd)/node_modules/electron/dist > /etc/ld.so.conf.d/electron-node.conf' && electron-forge start",
+    "configure": "sudo setcap cap_net_raw+eip ./node_modules/electron/dist/electron && sudo bash -c 'echo $(pwd)/node_modules/electron/dist > /etc/ld.so.conf.d/electron-node.conf' && sudo bash -c 'chown root:root $(pwd)/node_modules/electron/dist/chrome-sandbox && chmod 4755 $(pwd)/node_modules/electron/dist/chrome-sandbox'",
+    "start": "tsc && electron-forge start",
     "test": "tsc && electron-forge start -- --simulation",
+    "calibrate": "tsc && electron-forge start -- --calibrate",
     "package": "electron-forge package",
     "make": "electron-forge make"
   },
@@ -16,7 +18,8 @@
     "@debenben/node-poweredup": "^9.0.3",
     "babylonjs": "^5.33.1",
     "babylonjs-gui": "^5.33.1",
-    "electron-squirrel-startup": "^1.0.0"
+    "electron-squirrel-startup": "^1.0.0",
+    "ml-matrix": "^6.10.4"
   },
   "devDependencies": {
     "@electron-forge/cli": "^6.0.0",

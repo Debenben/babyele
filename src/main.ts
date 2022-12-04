@@ -1,11 +1,9 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import * as path from "path";
 import * as url from "url";
-import { Dog } from "./dog";
 import { MoveController } from "./movecontroller"
 
 let mainWindow: Electron.BrowserWindow;
-let dog: Dog;
 let controller: MoveController;
 
 function createWindow() {
@@ -26,18 +24,32 @@ function createWindow() {
   // mainWindow.webContents.openDevTools();
 }
 
-async function createDog() {
-  let poweredUP;
+async function createPoweredUP() {
   if(process.argv.includes('--simulation')) {
     console.log("Starting simulation...");
     const library = await import("./simulation");
-    poweredUP = new library.SimulationPowered();
+    return new library.SimulationPowered();
   }
-  else {
-    const library = await import("@debenben/node-poweredup");
-    poweredUP = new library.PoweredUP();
-  }
-  dog = new Dog(mainWindow);
+  const library = await import("@debenben/node-poweredup");
+  return new library.PoweredUP();
+}
+
+async function createCalibrator() {
+  const library = await import("./calibrator");
+  const calibrator = new library.Calibrator();
+  const poweredUP = await createPoweredUP();
+  poweredUP.on('discover', async (hub) => {
+    calibrator.calibrate(hub);
+  });
+  poweredUP.scan();
+  console.log("Looking for Hubs...");
+}
+
+async function createDog() {
+  const library = await import("./dog");
+  const dog = new library.Dog(mainWindow);
+  controller = new MoveController(mainWindow, dog);
+  const poweredUP = await createPoweredUP();
   poweredUP.on('discover', (hub) => {
     dog.addHub(hub);
   });
@@ -58,18 +70,22 @@ app.on("ready", () => {
     console.log(app.getName() + " " + app.getVersion());
     return app.quit();
   }
+  if(process.argv.includes('--calibrate')) {
+    createCalibrator();
+    return;
+  }
   createWindow();
 });
 
 app.on("window-all-closed", () => {
-  controller.requestMode("OFFLINE");
-  dog = null;
+  if(controller) {
+    controller.requestMode("OFFLINE");
+  }
   controller = null;
   mainWindow = null;
   app.quit();
 });
 
 ipcMain.on('rendererInitialized', async (event, arg) => {
-  await createDog();
-  controller = new MoveController(mainWindow, dog);
+  createDog();
 });
