@@ -1,8 +1,8 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, TiltSensorAbstraction, MotorAbstraction } from "./interfaces";
-import { legNames, LegName, motorNames, Position, Pose, fromArray, toArray, parsePosition, add, multiply, getRotation, rotate } from "./tools";
-import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH } from "./param";
+import { legNames, LegName, motorNames, Position, Pose, fromArray, toArray, parsePosition, add, multiply, getRotation, getTilt, rotate, norm } from "./tools";
+import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, TILT_TYPES, ACCEL_NORM_MIN, ACCEL_NORM_MAX } from "./param";
 
 const defaultLegPositions: Record<LegName, Position> =
   {legFrontRight: {forward:LEG_SEPARATION_LENGTH/2, height:0, sideways:LEG_SEPARATION_WIDTH/2},
@@ -105,22 +105,20 @@ export class Dog {
     hub.disconnect();
   }
 
-  async addDogTiltSensor(sensor: TiltSensorAbstraction, offset: Position) {
-    if(!sensor) return false;
+  async addDogTiltSensor(sensor: TiltSensorAbstraction, rotation: Position, offset: Position) {
+    if(!sensor || !TILT_TYPES.includes(sensor.type)) return false;
     sensor.removeAllListeners("accel");
     sensor.on('accel', (accel) => {
-      accel.x += offset.forward;
-      accel.y += offset.sideways;
-      accel.z += offset.height;
-      const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
-      if(abs < 950 || abs > 1050) return;
-      this.dogTilt = {forward: -Math.atan2(accel.y, accel.z), height: 0, sideways: Math.atan2(accel.x, Math.sqrt(accel.y**2 + accel.z**2))};
+      const acceleration = add({forward: accel.x, height: accel.z, sideways: accel.y}, offset);
+      if(norm(acceleration) < ACCEL_NORM_MIN || norm(acceleration) > ACCEL_NORM_MAX) return;
+      this.dogTilt = getTilt(rotate(acceleration, rotation));
       this.send('notifyTilt', "dog", this.dogTilt);
       for(const id of legNames) {
         this.legs[id].setDogTilt(this.dogTilt);
       }
     });
     sensor.send(Buffer.from([0x41, 0x61, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribing again with larger delta interval
+    return true
   }
 
   async init() {
@@ -139,18 +137,20 @@ export class Dog {
           complete = false;
         }
 	if(deviceName.startsWith("dog")) {
+          const rotation = MotorMap[hubNum][portNum]["rotation"];
           const offset = MotorMap[hubNum][portNum]["offset"];
-          this.addDogTiltSensor(device, offset);
+          complete = await this.addDogTiltSensor(device, rotation, offset) && complete;
 	}
         for(const legNum in this.legs) {
           if(deviceName.startsWith(legNum)) {
             if(deviceName.endsWith("Tilt")) {
+              const rotation = MotorMap[hubNum][portNum]["rotation"];
               const offset = MotorMap[hubNum][portNum]["offset"];
-              await this.legs[legNum].addTiltSensor(deviceName, device, offset);
+              complete = await this.legs[legNum].addTiltSensor(deviceName, device, rotation, offset) && complete;
             }
             else {
               const range = MotorMap[hubNum][portNum]["range"];
-              await this.legs[legNum].addMotor(deviceName, device, range);
+              complete = await this.legs[legNum].addMotor(deviceName, device, range) && complete;
             }
           }
         }

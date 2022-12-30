@@ -65,6 +65,14 @@ export const multiply = (factor: number, pos: Position) => {
   return null;
 }
 
+export const norm = (pos: Position) => {
+  return Math.sqrt(pos.forward**2 + pos.height**2 + pos.sideways**2);
+}
+
+export const getTilt = (accel: Position) => {
+  return {forward: Math.atan2(accel.sideways, accel.height), height: 0, sideways: Math.atan2(-accel.forward, Math.sqrt(accel.height**2 + accel.sideways**2))};
+}
+
 export const getRotation = (absolute: Position) => {
   return {forward:-Math.atan2(absolute.sideways, absolute.height), height:-Math.atan2(absolute.forward, absolute.sideways), sideways:Math.atan2(absolute.forward, absolute.height)};
 }

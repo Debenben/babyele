@@ -19,17 +19,20 @@ export interface HubAbstraction extends EventEmitter {
 }
 
 export interface LEDAbstraction {
+  readonly type: number;
   send: (message: Buffer) => Promise<void>;
 }
 
 export interface TiltSensorAbstraction extends EventEmitter {
   readonly portId: number;
+  readonly type: number;
   send: (message: Buffer) => Promise<void>;
   requestUpdate: () => Promise<void>;
 }
 
 export interface MotorAbstraction extends EventEmitter {
   readonly portId: number;
+  readonly type: number;
   useAccelerationProfile: boolean;
   useDecelerationProfile: boolean;
   setBrakingStyle: (style: number) => Promise<void>;

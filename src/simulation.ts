@@ -2,7 +2,7 @@ import { EventEmitter } from "events";
 import { PoweredAbstraction, HubAbstraction, LEDAbstraction, MotorAbstraction, TiltSensorAbstraction } from "./interfaces";
 
 export class SimulationPowered extends EventEmitter implements PoweredAbstraction {
-  hubList: string[] = ["BeneLego0", "BeneLego1", "BeneLego2", "BeneLego3", "BeneLego4", "BeneLego5", "differentHub"]
+  hubList: string[] = ["BeneLego6", "BeneLego1", "BeneLego2", "BeneLego3", "BeneLego4", "BeneLego5", "differentHub"]
   restart: boolean = false
 
   public async scan() {
@@ -56,7 +56,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     }
     switch(this.name) {
       case "BeneLego4":
-      case "BeneLego0":
+      case "BeneLego6":
         switch(portName) {
           case "A":
           case "B":
@@ -65,9 +65,10 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
             console.log("simulation hub " + this.name + " returns motor at port " + portName);
             return new SimulationMotor(portName);
         }
-      case "BeneLego1":
       case "BeneLego2":
-        if(portName === "C") {
+      case "BeneLego3":
+      case "BeneLego1":
+        if(portName === "A") {
           console.log("simulation hub " + this.name + " returns motor at port " + portName);
           return new SimulationMotor(portName);
         }
@@ -75,9 +76,8 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
           console.log("simulation hub " + this.name + " returns tilt sensor at port " + portName);
           return new SimulationTiltSensor(portName, this.name);
         }
-      case "BeneLego3":
       case "BeneLego5":
-        if(portName === "D") {
+        if(portName === "B") {
           console.log("simulation hub " + this.name + " returns motor at port " + portName);
           return new SimulationMotor(portName);
         }
@@ -116,6 +116,9 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
 export class SimulationLED extends EventEmitter implements LEDAbstraction {
   color: number
 
+  get type() {
+    return 23;
+  }
   setColor(color: number) {
     this.color = color;
     return Promise.resolve();
@@ -134,6 +137,9 @@ export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbst
   y: number
   z: number
 
+  get type() {
+    return 57;
+  }
   constructor(portName: string, hubName: string) {
     super();
     this.portId = toPortId(portName);
@@ -170,10 +176,14 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   speedIntervalID: NodeJS.Timeout
   token: Token
 
+  get type() {
+    return 46;
+  }
   constructor(portName: string) {
     super();
     this.portId = toPortId(portName);
     this.rotation = 0;
+    this.speed = 0;
   }
   setBrakingStyle(style: number) {
     return Promise.resolve();
@@ -191,7 +201,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     return Promise.resolve();
   }
   setSpeed(speed: number, time: number | undefined) {
-    console.log("simulation motor setting speed to " + this.speed);
+    console.log("simulation motor setting speed to " + speed);
     this.speed = speed;
     if(this.token) {
       this.token.isCancellationRequested = true;

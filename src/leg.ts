@@ -1,8 +1,8 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { MotorAbstraction, TiltSensorAbstraction } from "./interfaces";
-import { MotorName, motorNames, LegName, Position, fromArray, toArray, parsePosition, cosLaw, invCosLaw } from "./tools";
+import { MotorName, motorNames, LegName, Position, fromArray, toArray, parsePosition, cosLaw, invCosLaw, getTilt, add, norm, rotate } from "./tools";
 import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
-import { NO_MOVE_MOTOR_ANGLE, ACCEL_NORM_MIN, ACCEL_NORM_MAX, ACCEL_SIDEWAYS_TOLERANCE } from "./param";
+import { NO_MOVE_MOTOR_ANGLE, ACCEL_NORM_MIN, ACCEL_NORM_MAX, ACCEL_SIDEWAYS_TOLERANCE, MOTOR_TYPES, TILT_TYPES } from "./param";
 
 const mountAngleOffset = invCosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH);
 const setMotorAngle = (motor: MotorAbstraction, motorAngle: number) => {
@@ -48,9 +48,9 @@ export class Leg {
     });
   }
 
-  async addTiltSensor(deviceName: string, sensor: TiltSensorAbstraction, offset: Position) {
+  async addTiltSensor(deviceName: string, sensor: TiltSensorAbstraction, rotation: Position, offset: Position) {
     const sensorName = deviceName.replace(this.legName, "").replace("Tilt","").toLowerCase();
-    if(!sensor) {
+    if(!sensor || !TILT_TYPES.includes(sensor.type)) {
       this.send("notifyState", deviceName, "offline");
       ipcMain.removeAllListeners(deviceName);
       this.tiltSensors[sensorName] = null;
@@ -63,12 +63,9 @@ export class Leg {
     this.tiltSensorOffsets[sensorName] = offset;
     sensor.removeAllListeners('accel');
     sensor.on("accel", (accel) => {
-      accel.x += this.tiltSensorOffsets[sensorName].forward;
-      accel.y += this.tiltSensorOffsets[sensorName].sideways;
-      accel.z += this.tiltSensorOffsets[sensorName].height;
-      const abs = Math.sqrt(accel.x**2 + accel.y**2 + accel.z**2);
-      if(abs < ACCEL_NORM_MIN || abs > ACCEL_NORM_MAX) return;
-      this.tilts[sensorName] = {forward: Math.atan2(accel.y, -accel.x), height: 0, sideways: Math.atan2(accel.z, Math.sqrt(accel.x**2 + accel.y**2))};
+      const acceleration = add({forward: accel.x, height: accel.z, sideways: accel.y}, this.tiltSensorOffsets[sensorName]);
+      if(norm(acceleration) < ACCEL_NORM_MIN || norm(acceleration) > ACCEL_NORM_MAX) return;
+      this.tilts[sensorName] = getTilt(rotate(acceleration, rotation));
       this.send('notifyTilt', deviceName, this.tilts[sensorName]);
       this.calculateTiltAngles();
     });
@@ -81,7 +78,7 @@ export class Leg {
 
   async addMotor(deviceName: string, motor: MotorAbstraction, motorRange: number) {
     const motorName = deviceName.replace(this.legName, "").toLowerCase();
-    if(!motor) {
+    if(!motor || !MOTOR_TYPES.includes(motor.type)) {
       this.send("notifyState", deviceName, "offline");
       ipcMain.removeAllListeners(deviceName);
       this.motors[motorName] = null;
@@ -153,7 +150,7 @@ export class Leg {
       setMotorAngle(motor, (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges['mount']);
     }
     else {
-      setMotorAngle(motor, this.tiltAngles[motor]*this.motorRanges[motor]/Math.PI);
+      setMotorAngle(motor, this.tiltAngles[motorName]*this.motorRanges[motorName]/Math.PI);
     }
     motor.requestUpdate();
   }
