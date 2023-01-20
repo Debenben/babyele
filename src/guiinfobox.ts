@@ -1,7 +1,7 @@
 import * as BABYLON from 'babylonjs';
 import { Rectangle, Control, Slider, Checkbox, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { toDegree, printPosition, printDegree } from './tools';
+import { printPosition, printDegree } from './tools';
 
 export class Infobox extends Container {
   scene: BABYLON.Scene;
@@ -143,18 +143,18 @@ export class Infobox extends Container {
         this.tiltText.text = "tilt angle:" + printDegree(arg2);;
       }
       else {
-        this.tiltText.text = "tilt:" + printPosition(toDegree(arg2));
+        this.tiltText.text = "tilt:" + printPosition(new BABYLON.Vector3(arg2._x, arg2._y, arg2._z).scale(180/Math.PI));
       }
     }
   }
   updateRotation = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.rotationText.text = "rot.:" + printPosition(toDegree(arg2));
+      this.rotationText.text = "rot.:" + printPosition(new BABYLON.Vector3(arg2._x, arg2._y, arg2._z).scale(180/Math.PI));
     }
   }
   updatePosition = (event, arg1, arg2) => {
     if(arg1 === this.name || arg1 === this.name.replace("hub", "leg")) {
-      this.positionText.text = "pos.:" + printPosition(arg2);
+      this.positionText.text = "pos.:" + printPosition(new BABYLON.Vector3(arg2._x, arg2._y, arg2._z));
     }
   }
   updateAngle = (event, arg1, arg2) => {

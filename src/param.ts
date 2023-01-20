@@ -19,15 +19,15 @@ const BOTTOM_MOTOR_RANGE = 22486; // motor rotation in degree needed for rotatio
 const BOTTOM_MOTOR_SPEED = 846; // degree per second at 7.5V
 const MOUNT_MOTOR_RANGE = 433; // motor rotation in degree needed for one millimeter piston extension
 const MOUNT_MOTOR_SPEED = 882; // degree per second at 7.5V
-const POSITION_ZERO = {forward: 0, height: 0, sideways: 0};
-const POSITION_TOP = {forward: 0, height: 0, sideways: Math.PI/2};
-const POSITION_DOWN = {forward: Math.PI/2, height: 0, sideways: 0};
-const POSITION_UP = {forward: -Math.PI/2, height: 0, sideways: 0};
+const POSITION_ZERO = {x: 0, y: 0, z: 0};
+const POSITION_TOP = {x: 0, y: 0, z: Math.PI/2};
+const POSITION_DOWN = {x: Math.PI/2, y: 0, z: 0};
+const POSITION_UP = {x: -Math.PI/2, y: 0, z: 0};
 
 export const MOTOR_TYPES = [46, 47, 48, 49, 65, 75, 76]; // list of ids of accepted motor types
 export const TILT_TYPES = [34, 57]; // list of ids of accepted accelerometer types
 
-// BeneLego6 "offset": {forward: -1.6396414210587527 , height: -20.485073051430724 , sideways: 6.226506645503237 }
+// BeneLego6 "offset": {x: -1.6396414210587527 , y: -20.485073051430724 , z: 6.226506645503237 }
 export const MotorMap = {
 
   "BeneLego6":
@@ -42,7 +42,7 @@ export const MotorMap = {
   "BeneLego4":
   {
     "name"          : "hubFrontCenter",
-    "ACCELEROMETER" : {"name": "dogTilt", "rotation": POSITION_ZERO, "offset": {forward: 19.393014183424288 , height: -27.001327682538353 , sideways: -9.472666413278418 }},
+    "ACCELEROMETER" : {"name": "dogTilt", "rotation": POSITION_ZERO, "offset": {x: 19.393014183424288 , y: -27.001327682538353 , z: -9.472666413278418 }},
     "A"             : {"name": "legFrontLeftMount", "range": MOUNT_MOTOR_RANGE, "speed": MOUNT_MOTOR_SPEED},
     "B"             : {"name": "legFrontRightMount", "range": -MOUNT_MOTOR_RANGE, "speed": MOUNT_MOTOR_SPEED},
     "C"             : {"name": "legFrontLeftTop", "range": TOP_MOTOR_RANGE, "speed": TOP_MOTOR_SPEED},
@@ -52,7 +52,7 @@ export const MotorMap = {
   "BeneLego2":
   {
     "name"          : "hubFrontLeft",
-    "ACCELEROMETER" : {"name": "legFrontLeftTopTilt", "rotation": POSITION_TOP, "offset": {forward: -0.08344213308973626 , height: -15.080626602566387 , sideways: -8.196183317198305 }},
+    "ACCELEROMETER" : {"name": "legFrontLeftTopTilt", "rotation": POSITION_TOP, "offset": {x: -0.08344213308973626 , y: -15.080626602566387 , z: -8.196183317198305 }},
     "A"             : {"name": "legFrontLeftBottom", "range": -BOTTOM_MOTOR_RANGE, "speed": BOTTOM_MOTOR_SPEED},
     "B"             : {"name": "legFrontLeftBottomTilt", "rotation": POSITION_DOWN, "offset": POSITION_ZERO},
   },
@@ -60,7 +60,7 @@ export const MotorMap = {
   "BeneLego3":
   {
     "name"          : "hubFrontRight",
-    "ACCELEROMETER" : {"name": "legFrontRightTopTilt", "rotation": POSITION_TOP, "offset": {forward: 11.298255866719538 , height: -31.71790512403232 , sideways: 10.033798832447475 }},
+    "ACCELEROMETER" : {"name": "legFrontRightTopTilt", "rotation": POSITION_TOP, "offset": {x: 11.298255866719538 , y: -31.71790512403232 , z: 10.033798832447475 }},
     "A"             : {"name": "legFrontRightBottom", "range": BOTTOM_MOTOR_RANGE, "speed": BOTTOM_MOTOR_SPEED},
     "B"             : {"name": "legFrontRightBottomTilt", "rotation": POSITION_DOWN, "offset": POSITION_ZERO},
   },
@@ -68,7 +68,7 @@ export const MotorMap = {
   "BeneLego1":
   {
     "name"          : "hubBackRight",
-    "ACCELEROMETER" : {"name": "legBackRightTopTilt", "rotation": POSITION_TOP, "offset": {forward: 9.14052648462668 , height: -11.399257997403645 , sideways: 6.6247577529308685 }},
+    "ACCELEROMETER" : {"name": "legBackRightTopTilt", "rotation": POSITION_TOP, "offset": {x: 9.14052648462668 , y: -11.399257997403645 , z: 6.6247577529308685 }},
     "A"             : {"name": "legBackRightBottom", "range": BOTTOM_MOTOR_RANGE, "speed": BOTTOM_MOTOR_SPEED},
     "C"             : {"name": "legBackRightBottomTilt", "rotation": POSITION_UP, "offset": POSITION_ZERO},
   },
@@ -76,7 +76,7 @@ export const MotorMap = {
   "BeneLego5":
   {
     "name"          : "hubBackLeft",
-    "ACCELEROMETER" : {"name": "legBackLeftTopTilt", "rotation": POSITION_TOP, "offset": {forward: -2.4691926825874586 , height: -37.32943122852581 , sideways: -8.373090629947134 }},
+    "ACCELEROMETER" : {"name": "legBackLeftTopTilt", "rotation": POSITION_TOP, "offset": {x: -2.4691926825874586 , y: -37.32943122852581 , z: -8.373090629947134 }},
     "B"             : {"name": "legBackLeftBottom", "range": -BOTTOM_MOTOR_RANGE, "speed": BOTTOM_MOTOR_SPEED},
     "D"             : {"name": "legBackLeftBottomTilt", "rotation": POSITION_UP, "offset": POSITION_ZERO},
   },

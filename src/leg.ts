@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { MotorAbstraction, TiltSensorAbstraction } from "./interfaces";
-import { MotorName, motorNames, LegName, Position, fromArray, toArray, parsePosition, cosLaw, invCosLaw, getTilt, add, norm, rotate } from "./tools";
+import { MotorName, motorNames, LegName, Vector3, Quaternion, parsePosition, cosLaw, invCosLaw, getTilt } from "./tools";
 import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
 import { NO_MOVE_MOTOR_ANGLE, ACCEL_NORM_MIN, ACCEL_NORM_MAX, ACCEL_SIDEWAYS_TOLERANCE, MOTOR_TYPES, TILT_TYPES } from "./param";
 
@@ -15,8 +15,8 @@ export class Leg {
   legName: LegName
   mainWindow: BrowserWindow
   tiltSensors: Record<string, TiltSensorAbstraction> = {top: null, bottom: null}
-  tiltSensorOffsets: Record<string, Position> = {top: null, bottom: null}
-  tilts: Record<string, Position> = {}
+  tiltSensorOffsets: Record<string, Vector3> = {top: null, bottom: null}
+  tilts: Record<string, Vector3> = {}
   tiltAngles: Record<MotorName, number> = {top: null, bottom: null, mount: null}
   motors: Record<MotorName, MotorAbstraction> = {top: null, bottom: null, mount: null}
   motorRanges: Record<MotorName, number> = {top: 10, bottom: 10, mount: 10}
@@ -24,8 +24,8 @@ export class Leg {
   motorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
   destMotorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
   bendForward: boolean = true
-  positionSpeed: Position
-  startMovePosition: Position
+  positionSpeed: Vector3
+  startMovePosition: Vector3
   positionSpeedIntervalID: NodeJS.Timeout
 
   constructor(legName: LegName, mainWindow: BrowserWindow) {
@@ -49,7 +49,7 @@ export class Leg {
     });
   }
 
-  async addTiltSensor(deviceName: string, sensor: TiltSensorAbstraction, rotation: Position, offset: Position) {
+  async addTiltSensor(deviceName: string, sensor: TiltSensorAbstraction, rotation: Vector3, offset: Vector3) {
     const sensorName = deviceName.replace(this.legName, "").replace("Tilt","").toLowerCase();
     if(!sensor || !TILT_TYPES.includes(sensor.type)) {
       this.send("notifyState", deviceName, "offline");
@@ -61,12 +61,12 @@ export class Leg {
       return true;
     }
     this.tiltSensors[sensorName] = sensor;
-    this.tiltSensorOffsets[sensorName] = offset;
+    this.tiltSensorOffsets[sensorName] = new Vector3(offset.x, offset.y, offset.z);
     sensor.removeAllListeners('accel');
     sensor.on("accel", (accel) => {
-      const acceleration = add({forward: accel.x, height: accel.z, sideways: accel.y}, this.tiltSensorOffsets[sensorName]);
-      if(norm(acceleration) < ACCEL_NORM_MIN || norm(acceleration) > ACCEL_NORM_MAX) return;
-      this.tilts[sensorName] = getTilt(rotate(acceleration, rotation));
+      const acceleration = new Vector3(accel.x, accel.z, accel.y).addInPlace(this.tiltSensorOffsets[sensorName]);
+      if(acceleration.length() < ACCEL_NORM_MIN || acceleration.length() > ACCEL_NORM_MAX) return;
+      this.tilts[sensorName] = getTilt(acceleration.applyRotationQuaternion(Quaternion.RotationYawPitchRoll(rotation.y, rotation.x, rotation.z)));
       this.send('notifyTilt', deviceName, this.tilts[sensorName]);
       this.calculateTiltAngles();
     });
@@ -122,22 +122,22 @@ export class Leg {
     return true;
   }
 
-  async setDogTilt(dogTilt: Position) {
+  async setDogTilt(dogTilt: Vector3) {
     this.tilts["dog"] = dogTilt;
     this.calculateTiltAngles();
   }
 
   async calculateTiltAngles() {
-    if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"] && Math.abs(this.tilts["top"].sideways - this.tilts["bottom"].sideways) < ACCEL_SIDEWAYS_TOLERANCE) {
+    if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"] && Math.abs(this.tilts["top"].z - this.tilts["bottom"].z) < ACCEL_SIDEWAYS_TOLERANCE) {
       if(this.legName.includes("Right")) {
-        this.tiltAngles.top = -this.tilts["dog"].sideways + this.tilts["top"].forward;
-        this.tiltAngles.bottom = this.tilts["bottom"].forward - this.tilts["top"].forward;
-        this.tiltAngles.mount = -this.tilts["dog"].forward + this.tilts["top"].sideways;
+        this.tiltAngles.top = -this.tilts["dog"].z + this.tilts["top"].x;
+        this.tiltAngles.bottom = this.tilts["bottom"].x - this.tilts["top"].x;
+        this.tiltAngles.mount = -this.tilts["dog"].x + this.tilts["top"].z;
       }
       else {
-        this.tiltAngles.top = -this.tilts["dog"].sideways - this.tilts["top"].forward;
-        this.tiltAngles.bottom = -this.tilts["bottom"].forward + this.tilts["top"].forward;
-        this.tiltAngles.mount = this.tilts["dog"].forward + this.tilts["top"].sideways;
+        this.tiltAngles.top = -this.tilts["dog"].z - this.tilts["top"].x;
+        this.tiltAngles.bottom = -this.tilts["bottom"].x + this.tilts["top"].x;
+        this.tiltAngles.mount = this.tilts["dog"].x + this.tilts["top"].z;
       }
       for(const id of motorNames) {
         this.send('notifyTilt', this.legName + id.charAt(0).toUpperCase() + id.slice(1), this.tiltAngles[id]);
@@ -186,19 +186,19 @@ export class Leg {
     });
   }
 
-  setPosition(position: Position) {
+  setPosition(position: Vector3) {
     if(this.legName.endsWith("Left")) {
-      position.sideways *= -1;
+      position.z *= -1;
     }
-    const mAngle = Math.atan2(position.sideways + LEG_MOUNT_WIDTH, position.height + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT);
-    const mLength = (position.height + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT)/Math.cos(mAngle);
+    const mAngle = Math.atan2(position.z + LEG_MOUNT_WIDTH, position.y + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT);
+    const mLength = (position.y + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT)/Math.cos(mAngle);
     const mHeight = Math.sqrt(Math.abs(mLength**2 - LEG_MOUNT_WIDTH**2));
     const destMountAngle = mAngle - Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, destMountAngle + mountAngleOffset);
     this.destMotorAngles['mount'] = (pistonLength - LEG_PISTON_LENGTH)*this.motorRanges['mount'];
     const tbHeight = mHeight + LEG_MOUNT_HEIGHT
-    const tbLength = Math.sqrt(tbHeight**2 + position.forward**2);
-    const phi = Math.atan2(position.forward, tbHeight);
+    const tbLength = Math.sqrt(tbHeight**2 + position.x**2);
+    const phi = Math.atan2(position.x, tbHeight);
     const alpha = invCosLaw(tbLength, LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM);
     let destTopAngle = phi + alpha;
     let destBottomAngle = Math.acos((LEG_LENGTH_TOP/LEG_LENGTH_BOTTOM)*Math.cos(Math.PI/2 - alpha)) - alpha - Math.PI/2;
@@ -210,12 +210,12 @@ export class Leg {
     this.destMotorAngles['bottom'] = destBottomAngle*this.motorRanges['bottom']/Math.PI;
   }
 
-  requestPosition(position: Position) {
+  requestPosition(position: Vector3) {
     this.setPosition(position);
     return this.motorLoop();
   }
 
-  requestPositionSpeed(speed: Position) {
+  requestPositionSpeed(speed: Vector3) {
     this.positionSpeed = speed;
     if(!speed) {
       clearInterval(this.positionSpeedIntervalID);
@@ -227,13 +227,11 @@ export class Leg {
     else {
       this.startMovePosition = this.getPosition();
       this.positionSpeedIntervalID = setInterval(() => {
-        const position = toArray(this.startMovePosition).map((n,i) => {
-          if(toArray(this.positionSpeed)[i]) {
-            return toArray(this.getPosition())[i] + toArray(this.positionSpeed)[i]/10;
-          }
-          return n;
-        });
-        this.requestPosition(fromArray(position));
+        let position = this.startMovePosition.clone()
+        if(this.positionSpeed.x) position.x = this.getPosition().x + this.positionSpeed.x;
+        if(this.positionSpeed.y) position.y = this.getPosition().y + this.positionSpeed.y;
+        if(this.positionSpeed.z) position.z = this.getPosition().z + this.positionSpeed.z;
+        this.requestPosition(position);
       }, 100);
     }
   }
@@ -260,7 +258,7 @@ export class Leg {
     if(this.legName.endsWith("Left")) {
       sideways *= -1;
     }
-    return {forward, height, sideways};
+    return new Vector3(forward, height, sideways);
   }
 
   send = (arg1, arg2, arg3) => {

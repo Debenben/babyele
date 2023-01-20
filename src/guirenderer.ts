@@ -119,19 +119,19 @@ export default class Renderer {
     });
   }
 
-  setDogRotation(tilt) {
+  setDogRotation(tilt: BABYLON.Vector3) {
     const dog = this.scene.getMeshByName("dog");
     const ground = this.scene.getMeshByName("ground");
     dog.rotation = new BABYLON.Vector3(0, -ground.rotation.y, 0);
-    dog.rotate(BABYLON.Axis.X, tilt.forward, BABYLON.Space.WORLD);
-    dog.rotate(BABYLON.Axis.Z, tilt.sideways, BABYLON.Space.WORLD);
-    dog.rotate(BABYLON.Axis.Y, tilt.height + ground.rotation.y, BABYLON.Space.WORLD);
+    dog.rotate(BABYLON.Axis.X, tilt.x, BABYLON.Space.WORLD);
+    dog.rotate(BABYLON.Axis.Z, tilt.z, BABYLON.Space.WORLD);
+    dog.rotate(BABYLON.Axis.Y, tilt.y + ground.rotation.y, BABYLON.Space.WORLD);
   }
 
-  setDogPosition(position) {
+  setDogPosition(position: BABYLON.Vector3) {
     const dog = this.scene.getMeshByName("dog");
-    dog.position.x = -position.forward;
-    dog.position.z = position.sideways;
+    dog.position.x = -position.x;
+    dog.position.z = position.z;
   }
 
   setLegRotation(meshName: string, rotation: number) {
@@ -477,11 +477,11 @@ ipcRenderer.on('notifyState', (event, arg1, arg2) => {
 ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
   renderer.setLegRotation(arg1, arg2);
 });
-const dogRotation = {forward: 0, sideways: 0, height: 0};
+let dogRotation = new BABYLON.Vector3(0, 0, 0);
 ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
   if(arg1 === "dog") {
-    dogRotation.forward = arg2.forward;
-    dogRotation.sideways = arg2.sideways;
+    dogRotation.x = arg2._x;
+    dogRotation.z = arg2._z;
     renderer.setDogRotation(dogRotation);
   }
   /*else if(arg1.startsWith("leg")) {
@@ -490,11 +490,11 @@ ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
 });
 ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
   if(arg1 === "dog") {
-    dogRotation.height = -arg2.height;
+    dogRotation.y = arg2._y;
     renderer.setDogRotation(dogRotation);
   }
 });
 ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
-    renderer.setDogPosition(arg2);
+  renderer.setDogPosition(new BABYLON.Vector3(arg2._x, arg2._y, arg2._z));
 });
 ipcRenderer.send("rendererInitialized");

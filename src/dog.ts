@@ -1,14 +1,14 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, TiltSensorAbstraction, MotorAbstraction } from "./interfaces";
-import { legNames, LegName, motorNames, Position, Pose, fromArray, toArray, parsePosition, add, multiply, getRotation, getTilt, rotate, norm } from "./tools";
+import { legNames, LegName, motorNames, Vector3, Quaternion, Pose, parsePosition, getRotation, getTilt } from "./tools";
 import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, TILT_TYPES, ACCEL_NORM_MIN, ACCEL_NORM_MAX } from "./param";
 
-const defaultLegPositions: Record<LegName, Position> =
-  {legFrontRight: {forward:LEG_SEPARATION_LENGTH/2, height:0, sideways:LEG_SEPARATION_WIDTH/2},
-   legBackRight: {forward:-LEG_SEPARATION_LENGTH/2, height:0, sideways:LEG_SEPARATION_WIDTH/2},
-   legFrontLeft: {forward:LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2},
-   legBackLeft: {forward:-LEG_SEPARATION_LENGTH/2, height:0, sideways:-LEG_SEPARATION_WIDTH/2}};
+const defaultLegPositions: Record<LegName, Vector3> =
+  {legFrontRight: new Vector3(LEG_SEPARATION_LENGTH/2,  0,  LEG_SEPARATION_WIDTH/2),
+   legBackRight:  new Vector3(-LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2),
+   legFrontLeft:  new Vector3(LEG_SEPARATION_LENGTH/2,  0, -LEG_SEPARATION_WIDTH/2),
+   legBackLeft:   new Vector3(-LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2)};
 const setHubProperty =
   (hub: HubAbstraction, property: number, value: number) => {
     return hub.send(Buffer.from([0x01, property, value]), "00001624-1212-efde-1623-785feabcd123");
@@ -19,10 +19,10 @@ export class Dog {
   legs: Record<LegName, Leg> = {} as Record<LegName, Leg>
   hubs: Record<string, HubAbstraction> = {}
   leds: Record<string, LEDAbstraction> = {}
-  positionSpeed: Position
-  rotationSpeed: Position
-  startMovePositions: Record<LegName, Position>
-  dogTilt: Position = {forward: 0, height: 0, sideways: 0};
+  positionSpeed: Vector3
+  rotationSpeed: Vector3
+  startMovePositions: Record<LegName, Vector3>
+  dogTilt: Vector3 = new Vector3(0, 0, 0);
   moveSpeedIntervalID: NodeJS.Timeout
   isComplete: boolean = false
 
@@ -105,13 +105,14 @@ export class Dog {
     hub.disconnect();
   }
 
-  async addDogTiltSensor(sensor: TiltSensorAbstraction, rotation: Position, offset: Position) {
+  async addDogTiltSensor(sensor: TiltSensorAbstraction, rotation: Vector3, offset: Vector3) {
     if(!sensor || !TILT_TYPES.includes(sensor.type)) return false;
     sensor.removeAllListeners("accel");
     sensor.on('accel', (accel) => {
-      const acceleration = add({forward: accel.x, height: accel.z, sideways: accel.y}, offset);
-      if(norm(acceleration) < ACCEL_NORM_MIN || norm(acceleration) > ACCEL_NORM_MAX) return;
-      this.dogTilt = getTilt(rotate(acceleration, rotation));
+      let acceleration = new Vector3(accel.x, accel.z, accel.y)
+      acceleration.addInPlaceFromFloats(offset.x, offset.y, offset.z);
+      if(acceleration.length() < ACCEL_NORM_MIN || acceleration.length() > ACCEL_NORM_MAX) return;
+      this.dogTilt = getTilt(acceleration.applyRotationQuaternion(Quaternion.RotationYawPitchRoll(rotation.y, rotation.x, rotation.z)));
       this.send('notifyTilt', "dog", this.dogTilt);
       for(const id of legNames) {
         this.legs[id].setDogTilt(this.dogTilt);
@@ -194,19 +195,19 @@ export class Dog {
   }
 
   getDogPosition() {
-    let averagePosition = {forward:0, height:0, sideways:0};
+    let averagePosition = new Vector3(0, 0, 0);
     for(const id of legNames) {
-      averagePosition = add(averagePosition, multiply(0.25,(this.legs[id].getPosition())));
+      averagePosition.addInPlace(this.legs[id].getPosition().scale(0.25));
     }
     return averagePosition;
   }
 
   getDogRotation() {
-    let averageRotation = {forward:0, height:0, sideways:0};
+    let averageRotation = new Vector3(0, 0, 0);
     const dogPosition = this.getDogPosition();
     for(const id of legNames) {
-      const absolutePosition = add(this.legs[id].getPosition(), add(defaultLegPositions[id], multiply(-1,dogPosition)));
-      averageRotation = add(averageRotation, multiply(0.25, getRotation(absolutePosition)));
+      const absolutePosition = this.legs[id].getPosition().subtract(defaultLegPositions[id]);
+      averageRotation.addInPlace(getRotation(absolutePosition).scale(0.25));
     }
     return averageRotation;
   }
@@ -232,45 +233,46 @@ export class Dog {
       return;
     }
     else {
-      this.startMovePositions = {} as Record<LegName, Position>;
+      this.startMovePositions = {} as Record<LegName, Vector3>;
       for(const id of legNames) {
         this.startMovePositions[id] = this.legs[id].getPosition();
       };
       this.moveSpeedIntervalID = setInterval(() => {
         /* calculate initial dog position */
-        let startDogPosition = {forward:0, height:0, sideways:0};
+        let startDogPosition = new Vector3(0, 0, 0);
         for(const id of legNames) {
-          startDogPosition = add(startDogPosition, multiply(0.25,this.startMovePositions[id]))
+          startDogPosition.addInPlace(this.startMovePositions[id].scale(0.25))
         }
-        const averagePositionDiff = add(this.getDogPosition(), multiply(-1,startDogPosition));
+        const averagePositionDiff = this.getDogPosition().subtract(startDogPosition);
         /* calculate dog rotation with respect to initial position */
-        let startDogRotation = {forward:0, height:0, sideways:0};
+        let startDogRotation = new Vector3(0, 0, 0);
         for(const id of legNames) {
-          const startAbsolute = add(this.startMovePositions[id], add(defaultLegPositions[id], multiply(-1,startDogPosition)));
-          const currentAbsolute = add(this.legs[id].getPosition(), add(defaultLegPositions[id], multiply(-1,this.getDogPosition())));
+          const startAbsolute = this.startMovePositions[id].add(defaultLegPositions[id].subtract(startDogPosition));
+          const currentAbsolute = this.legs[id].getPosition().add(defaultLegPositions[id].subtract(this.getDogPosition()));
           const startRotation = getRotation(startAbsolute);
           const currentRotation = getRotation(currentAbsolute);
-          startDogRotation = add(startDogRotation, multiply(0.25,startRotation));
+          startDogRotation = startDogRotation.add(startRotation.scale(0.25));
         }
-        const averageRotation = add(this.getDogRotation(), multiply(-1,startDogRotation));
+        const averageRotation = this.getDogRotation().subtract(startDogRotation);
         /* determine new positions */
         for(const id of legNames) {
-          const startAbsolute = add(this.startMovePositions[id], add(defaultLegPositions[id], multiply(-1,startDogPosition)));
-          const rotationMove = {forward:0, height:0, sideways:0};
+          const startAbsolute = this.startMovePositions[id].add(defaultLegPositions[id].subtract(startDogPosition));
+          const rotationMove = new Vector3(0, 0, 0);
           if(this.rotationSpeed) {
             for(const i in rotationMove) {
               if(this.rotationSpeed[i] === 0) rotationMove[i] = 0;
               else rotationMove[i] = averageRotation[i] + this.rotationSpeed[i]/10000;
             }
           }
-          const positionMove = {forward:0, height:0, sideways:0};
+          const positionMove = new Vector3(0, 0, 0);
           if(this.positionSpeed) {
             for(const i in positionMove) {
               if(this.positionSpeed[i] === 0) positionMove[i] = 0;
               else positionMove[i] = averagePositionDiff[i] + this.positionSpeed[i]/10;
             }
           }
-          const newPosition = add(rotate(startAbsolute, rotationMove), add(startDogPosition, add(multiply(-1, defaultLegPositions[id]), positionMove)));
+          let newPosition = startAbsolute.applyRotationQuaternion(Quaternion.RotationYawPitchRoll(rotationMove.y, rotationMove.x, rotationMove.z))
+	  newPosition.addInPlace(startDogPosition.subtract(defaultLegPositions[id])).addInPlace(positionMove);
           this.legs[id].setPosition(newPosition);
         }
         return this.motorLoop();

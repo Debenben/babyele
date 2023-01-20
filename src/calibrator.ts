@@ -70,7 +70,7 @@ export class Calibrator {
 	    
 	const result = solve(A, B);
 	console.log("result for hub", hub.name);
-	console.log('"offset": {forward:', -result.get(0,0), ', height:', -result.get(2,0), ', sideways:', -result.get(1,0), '}');
+	console.log('"offset": {x:', -result.get(0,0), ', y:', -result.get(2,0), ', z:', -result.get(1,0), '}');
 	return;
       }
 
