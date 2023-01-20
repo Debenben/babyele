@@ -150,7 +150,8 @@ export class Dog {
             }
             else {
               const range = MotorMap[hubNum][portNum]["range"];
-              complete = await this.legs[legNum].addMotor(deviceName, device, range) && complete;
+              const speed = MotorMap[hubNum][portNum]["speed"];
+              complete = await this.legs[legNum].addMotor(deviceName, device, range, speed) && complete;
             }
           }
         }

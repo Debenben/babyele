@@ -20,6 +20,7 @@ export class Leg {
   tiltAngles: Record<MotorName, number> = {top: null, bottom: null, mount: null}
   motors: Record<MotorName, MotorAbstraction> = {top: null, bottom: null, mount: null}
   motorRanges: Record<MotorName, number> = {top: 10, bottom: 10, mount: 10}
+  motorSpeeds: Record<MotorName, number> = {top: 10, bottom: 10, mount: 10}
   motorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
   destMotorAngles: Record<MotorName, number> = {top: 0, bottom: 0, mount: 0}
   bendForward: boolean = true
@@ -76,7 +77,7 @@ export class Leg {
     return true;
   }
 
-  async addMotor(deviceName: string, motor: MotorAbstraction, motorRange: number) {
+  async addMotor(deviceName: string, motor: MotorAbstraction, motorRange: number, motorSpeed: number) {
     const motorName = deviceName.replace(this.legName, "").toLowerCase();
     if(!motor || !MOTOR_TYPES.includes(motor.type)) {
       this.send("notifyState", deviceName, "offline");
@@ -89,6 +90,7 @@ export class Leg {
     }
     this.motors[motorName] = motor;
     this.motorRanges[motorName] = motorRange;
+    this.motorSpeeds[motorName] = motorSpeed;
     motor.setBrakingStyle(127); // Consts.BrakingStyle.BRAKE
     motor.useAccelerationProfile = false;
     motor.useDecelerationProfile = false;
