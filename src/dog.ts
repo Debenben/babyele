@@ -1,14 +1,14 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, TiltSensorAbstraction, MotorAbstraction } from "./interfaces";
-import { legNames, LegName, motorNames, Vector3, Quaternion, Pose, parsePosition, getRotation, getTilt } from "./tools";
+import { legNames, LegName, motorNames, Vector3, Quaternion, Pose, parsePosition } from "./tools";
 import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, TILT_TYPES, ACCEL_NORM_MIN, ACCEL_NORM_MAX } from "./param";
 
 const defaultLegPositions: Record<LegName, Vector3> =
-  {legFrontRight: new Vector3(LEG_SEPARATION_LENGTH/2,  0,  LEG_SEPARATION_WIDTH/2),
-   legBackRight:  new Vector3(-LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2),
-   legFrontLeft:  new Vector3(LEG_SEPARATION_LENGTH/2,  0, -LEG_SEPARATION_WIDTH/2),
-   legBackLeft:   new Vector3(-LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2)};
+  {legFrontRight: new Vector3(LEG_SEPARATION_LENGTH/2,  0, -LEG_SEPARATION_WIDTH/2),
+   legBackRight:  new Vector3(-LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2),
+   legFrontLeft:  new Vector3(LEG_SEPARATION_LENGTH/2,  0,  LEG_SEPARATION_WIDTH/2),
+   legBackLeft:   new Vector3(-LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2)};
 const setHubProperty =
   (hub: HubAbstraction, property: number, value: number) => {
     return hub.send(Buffer.from([0x01, property, value]), "00001624-1212-efde-1623-785feabcd123");
@@ -21,8 +21,8 @@ export class Dog {
   leds: Record<string, LEDAbstraction> = {}
   positionSpeed: Vector3
   rotationSpeed: Vector3
-  startMovePositions: Record<LegName, Vector3>
-  dogTilt: Vector3 = new Vector3(0, 0, 0);
+  startMovePositions: Record<LegName, Vector3> = {} as Record<LegName, Vector3>
+  dogTilt: Quaternion = Quaternion.Identity()
   moveSpeedIntervalID: NodeJS.Timeout
   isComplete: boolean = false
 
@@ -45,7 +45,7 @@ export class Dog {
       }
       else if(arg1 === "getProperties") {
         this.send('notifyDogPosition', "dog", this.getDogPosition());
-        this.send('notifyDogRotation', "dog", this.getDogRotation());
+        this.send('notifyDogRotation', "dog", this.getDogRotation().toEulerAngles());
         this.send('notifyTilt', "dog", this.getDogTilt());
       }
     });
@@ -105,15 +105,17 @@ export class Dog {
     hub.disconnect();
   }
 
-  async addDogTiltSensor(sensor: TiltSensorAbstraction, rotation: Vector3, offset: Vector3) {
+  async addDogTiltSensor(sensor: TiltSensorAbstraction, rotation, offset) {
     if(!sensor || !TILT_TYPES.includes(sensor.type)) return false;
     sensor.removeAllListeners("accel");
     sensor.on('accel', (accel) => {
       let acceleration = new Vector3(accel.x, accel.z, accel.y)
       acceleration.addInPlaceFromFloats(offset.x, offset.y, offset.z);
       if(acceleration.length() < ACCEL_NORM_MIN || acceleration.length() > ACCEL_NORM_MAX) return;
-      this.dogTilt = getTilt(acceleration.applyRotationQuaternion(Quaternion.RotationYawPitchRoll(rotation.y, rotation.x, rotation.z)));
-      this.send('notifyTilt', "dog", this.dogTilt);
+      acceleration.normalize();
+      acceleration.applyRotationQuaternionInPlace(Quaternion.FromEulerAngles(rotation.x, rotation.y, rotation.z));
+      Quaternion.FromUnitVectorsToRef(new Vector3(0, 1, 0), acceleration, this.dogTilt);
+      this.send('notifyTilt', "dog", this.getDogTilt());
       for(const id of legNames) {
         this.legs[id].setDogTilt(this.dogTilt);
       }
@@ -191,7 +193,7 @@ export class Dog {
   }
 
   getDogTilt() {
-    return this.dogTilt;
+    return this.dogTilt.toEulerAngles();
   }
 
   getDogPosition() {
@@ -203,11 +205,13 @@ export class Dog {
   }
 
   getDogRotation() {
-    let averageRotation = new Vector3(0, 0, 0);
+    let averageRotation = Quaternion.Zero();
     const dogPosition = this.getDogPosition();
     for(const id of legNames) {
-      const absolutePosition = this.legs[id].getPosition().subtract(defaultLegPositions[id]);
-      averageRotation.addInPlace(getRotation(absolutePosition).scale(0.25));
+      const absolutePosition = this.legs[id].getPosition().add(defaultLegPositions[id]).subtract(dogPosition);
+      let legRotation = Quaternion.Identity();
+      Quaternion.FromUnitVectorsToRef(absolutePosition.normalize(), defaultLegPositions[id].normalizeToNew(), legRotation);
+      legRotation.scaleAndAddToRef(0.25, averageRotation);
     }
     return averageRotation;
   }
@@ -233,9 +237,8 @@ export class Dog {
       return;
     }
     else {
-      this.startMovePositions = {} as Record<LegName, Vector3>;
       for(const id of legNames) {
-        this.startMovePositions[id] = this.legs[id].getPosition();
+        this.startMovePositions[id] = this.legs[id].getPosition().add(defaultLegPositions[id]);
       };
       this.moveSpeedIntervalID = setInterval(() => {
         /* calculate initial dog position */
@@ -245,36 +248,27 @@ export class Dog {
         }
         const averagePositionDiff = this.getDogPosition().subtract(startDogPosition);
         /* calculate dog rotation with respect to initial position */
-        let startDogRotation = new Vector3(0, 0, 0);
+        let startDogRotation = Quaternion.Zero();
         for(const id of legNames) {
-          const startAbsolute = this.startMovePositions[id].add(defaultLegPositions[id].subtract(startDogPosition));
-          const currentAbsolute = this.legs[id].getPosition().add(defaultLegPositions[id].subtract(this.getDogPosition()));
-          const startRotation = getRotation(startAbsolute);
-          const currentRotation = getRotation(currentAbsolute);
-          startDogRotation = startDogRotation.add(startRotation.scale(0.25));
+          let startAbsolute = this.startMovePositions[id].subtract(startDogPosition);
+          let startLegRotation = Quaternion.Identity();
+          Quaternion.FromUnitVectorsToRef(startAbsolute.normalize(), defaultLegPositions[id].normalizeToNew(), startLegRotation);
+	  startLegRotation.scaleAndAddToRef(0.25, startDogRotation);
         }
-        const averageRotation = this.getDogRotation().subtract(startDogRotation);
+        const averageRotation = this.getDogRotation().multiply(startDogRotation.invert());
         /* determine new positions */
-        for(const id of legNames) {
-          const startAbsolute = this.startMovePositions[id].add(defaultLegPositions[id].subtract(startDogPosition));
-          const rotationMove = new Vector3(0, 0, 0);
-          if(this.rotationSpeed) {
-            for(const i in rotationMove) {
-              if(this.rotationSpeed[i] === 0) rotationMove[i] = 0;
-              else rotationMove[i] = averageRotation[i] + this.rotationSpeed[i]/10000;
-            }
-          }
-          const positionMove = new Vector3(0, 0, 0);
-          if(this.positionSpeed) {
-            for(const i in positionMove) {
-              if(this.positionSpeed[i] === 0) positionMove[i] = 0;
-              else positionMove[i] = averagePositionDiff[i] + this.positionSpeed[i]/10;
-            }
-          }
-          let newPosition = startAbsolute.applyRotationQuaternion(Quaternion.RotationYawPitchRoll(rotationMove.y, rotationMove.x, rotationMove.z))
-	  newPosition.addInPlace(startDogPosition.subtract(defaultLegPositions[id])).addInPlace(positionMove);
-          this.legs[id].setPosition(newPosition);
-        }
+	for(const id of legNames) {
+	  let newPosition = this.startMovePositions[id].clone();
+	  if(this.rotationSpeed) {
+            newPosition.applyRotationQuaternionInPlace(Quaternion.RotationAxis(this.rotationSpeed.normalizeToNew(), averageRotation.toEulerAngles().length()));
+            newPosition.applyRotationQuaternionInPlace(Quaternion.RotationAxis(this.rotationSpeed.normalizeToNew(), this.rotationSpeed.length()*0.001));
+	  }
+	  if(this.positionSpeed) {
+            newPosition.addInPlace(this.positionSpeed.normalizeToNew().scale(averagePositionDiff.length()));
+            newPosition.addInPlace(this.positionSpeed.scale(0.1));
+	  }
+	  this.legs[id].setPosition(newPosition.subtract(defaultLegPositions[id]));
+	}
         return this.motorLoop();
       }, 100);
     }

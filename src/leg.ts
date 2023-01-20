@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { MotorAbstraction, TiltSensorAbstraction } from "./interfaces";
-import { MotorName, motorNames, LegName, Vector3, Quaternion, parsePosition, cosLaw, invCosLaw, getTilt } from "./tools";
+import { MotorName, motorNames, LegName, Vector3, Quaternion, parsePosition, cosLaw, invCosLaw } from "./tools";
 import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
 import { NO_MOVE_MOTOR_ANGLE, ACCEL_NORM_MIN, ACCEL_NORM_MAX, ACCEL_SIDEWAYS_TOLERANCE, MOTOR_TYPES, TILT_TYPES } from "./param";
 
@@ -15,8 +15,7 @@ export class Leg {
   legName: LegName
   mainWindow: BrowserWindow
   tiltSensors: Record<string, TiltSensorAbstraction> = {top: null, bottom: null}
-  tiltSensorOffsets: Record<string, Vector3> = {top: null, bottom: null}
-  tilts: Record<string, Vector3> = {}
+  tilts: Record<string, Quaternion> = {top: Quaternion.Identity(), bottom: Quaternion.Identity(), dog: Quaternion.Identity()}
   tiltAngles: Record<MotorName, number> = {top: null, bottom: null, mount: null}
   motors: Record<MotorName, MotorAbstraction> = {top: null, bottom: null, mount: null}
   motorRanges: Record<MotorName, number> = {top: 10, bottom: 10, mount: 10}
@@ -49,7 +48,7 @@ export class Leg {
     });
   }
 
-  async addTiltSensor(deviceName: string, sensor: TiltSensorAbstraction, rotation: Vector3, offset: Vector3) {
+  async addTiltSensor(deviceName: string, sensor: TiltSensorAbstraction, rotation, offset) {
     const sensorName = deviceName.replace(this.legName, "").replace("Tilt","").toLowerCase();
     if(!sensor || !TILT_TYPES.includes(sensor.type)) {
       this.send("notifyState", deviceName, "offline");
@@ -61,13 +60,15 @@ export class Leg {
       return true;
     }
     this.tiltSensors[sensorName] = sensor;
-    this.tiltSensorOffsets[sensorName] = new Vector3(offset.x, offset.y, offset.z);
     sensor.removeAllListeners('accel');
     sensor.on("accel", (accel) => {
-      const acceleration = new Vector3(accel.x, accel.z, accel.y).addInPlace(this.tiltSensorOffsets[sensorName]);
+      let acceleration = new Vector3(accel.x, accel.z, accel.y)
+      acceleration.addInPlaceFromFloats(offset.x, offset.y, offset.z);
       if(acceleration.length() < ACCEL_NORM_MIN || acceleration.length() > ACCEL_NORM_MAX) return;
-      this.tilts[sensorName] = getTilt(acceleration.applyRotationQuaternion(Quaternion.RotationYawPitchRoll(rotation.y, rotation.x, rotation.z)));
-      this.send('notifyTilt', deviceName, this.tilts[sensorName]);
+      acceleration.normalize();
+      acceleration.applyRotationQuaternionInPlace(Quaternion.FromEulerAngles(rotation.x, rotation.y, rotation.z));
+      Quaternion.FromUnitVectorsToRef(new Vector3(0, 1, 0), acceleration, this.tilts[sensorName]);
+      this.send('notifyTilt', deviceName, this.tilts[sensorName].toEulerAngles());
       this.calculateTiltAngles();
     });
     if(sensor.portId === 0x61) { // ACCELEROMETER of TechnicMediumHub
@@ -122,22 +123,22 @@ export class Leg {
     return true;
   }
 
-  async setDogTilt(dogTilt: Vector3) {
+  async setDogTilt(dogTilt: Quaternion) {
     this.tilts["dog"] = dogTilt;
     this.calculateTiltAngles();
   }
 
   async calculateTiltAngles() {
-    if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"] && Math.abs(this.tilts["top"].z - this.tilts["bottom"].z) < ACCEL_SIDEWAYS_TOLERANCE) {
+    if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"] && Math.abs(this.tilts["top"].toEulerAngles().x - this.tilts["bottom"].toEulerAngles().x) < ACCEL_SIDEWAYS_TOLERANCE) {
+      const topRotation = this.tilts["dog"].multiply(this.tilts["top"].invert());
+      const bottomRotation = this.tilts["top"].multiply(this.tilts["bottom"].invert());
+      this.tiltAngles.top = topRotation.toEulerAngles().z;
+      this.tiltAngles.bottom = bottomRotation.toEulerAngles().z;
       if(this.legName.includes("Right")) {
-        this.tiltAngles.top = -this.tilts["dog"].z + this.tilts["top"].x;
-        this.tiltAngles.bottom = this.tilts["bottom"].x - this.tilts["top"].x;
-        this.tiltAngles.mount = -this.tilts["dog"].x + this.tilts["top"].z;
+        this.tiltAngles.mount = -topRotation.toEulerAngles().x;
       }
       else {
-        this.tiltAngles.top = -this.tilts["dog"].z - this.tilts["top"].x;
-        this.tiltAngles.bottom = -this.tilts["bottom"].x + this.tilts["top"].x;
-        this.tiltAngles.mount = this.tilts["dog"].x + this.tilts["top"].z;
+        this.tiltAngles.mount = topRotation.toEulerAngles().x;
       }
       for(const id of motorNames) {
         this.send('notifyTilt', this.legName + id.charAt(0).toUpperCase() + id.slice(1), this.tiltAngles[id]);
@@ -187,11 +188,11 @@ export class Leg {
   }
 
   setPosition(position: Vector3) {
-    if(this.legName.endsWith("Left")) {
+    if(this.legName.endsWith("Right")) {
       position.z *= -1;
     }
-    const mAngle = Math.atan2(position.z + LEG_MOUNT_WIDTH, position.y + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT);
-    const mLength = (position.y + LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM - LEG_MOUNT_HEIGHT)/Math.cos(mAngle);
+    const mAngle = Math.atan2(position.z + LEG_MOUNT_WIDTH, -position.y);
+    const mLength = -position.y/Math.cos(mAngle);
     const mHeight = Math.sqrt(Math.abs(mLength**2 - LEG_MOUNT_WIDTH**2));
     const destMountAngle = mAngle - Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, destMountAngle + mountAngleOffset);
@@ -253,9 +254,9 @@ export class Leg {
     const mHeight = LEG_LENGTH_TOP*Math.cos(tAngle) + LEG_LENGTH_BOTTOM*Math.cos(bAngle) - LEG_MOUNT_HEIGHT;
     const mAngle = this.getAngle('mount') + Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const mLength = Math.sqrt(Math.abs(mHeight**2 + LEG_MOUNT_WIDTH**2));
-    const height = mLength*Math.cos(mAngle) + LEG_MOUNT_HEIGHT - (LEG_LENGTH_TOP + LEG_LENGTH_BOTTOM);
+    const height = -mLength*Math.cos(mAngle);
     let sideways = mLength*Math.sin(mAngle) - LEG_MOUNT_WIDTH;
-    if(this.legName.endsWith("Left")) {
+    if(this.legName.endsWith("Right")) {
       sideways *= -1;
     }
     return new Vector3(forward, height, sideways);

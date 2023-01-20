@@ -37,14 +37,6 @@ export const parsePosition = (directionName: string, value: number) => {
   return null;
 }
 
-export const getTilt = (accel: Vector3) => {
-  return new Vector3(Math.atan2(accel.z, accel.y), 0, Math.atan2(-accel.x, Math.sqrt(accel.y**2 + accel.z**2)));
-}
-
-export const getRotation = (absolute: Vector3) => {
-  return new Vector3(-Math.atan2(absolute.z, absolute.y), -Math.atan2(absolute.x, absolute.z), Math.atan2(absolute.x, absolute.y));
-}
-
 export const cosLaw = (rSide: number, lSide: number, angle: number) => {
   // returns the side length opposite of the angle in a triangle with rSide and lSide side lengths adjacent to the angle
   return Math.sqrt(Math.abs(rSide**2 + lSide**2 - 2*rSide*lSide*Math.cos(angle)));

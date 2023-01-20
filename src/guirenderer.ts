@@ -121,16 +121,12 @@ export default class Renderer {
 
   setDogRotation(tilt: BABYLON.Vector3) {
     const dog = this.scene.getMeshByName("dog");
-    const ground = this.scene.getMeshByName("ground");
-    dog.rotation = new BABYLON.Vector3(0, -ground.rotation.y, 0);
-    dog.rotate(BABYLON.Axis.X, tilt.x, BABYLON.Space.WORLD);
-    dog.rotate(BABYLON.Axis.Z, tilt.z, BABYLON.Space.WORLD);
-    dog.rotate(BABYLON.Axis.Y, tilt.y + ground.rotation.y, BABYLON.Space.WORLD);
+    dog.rotation = tilt;
   }
 
   setDogPosition(position: BABYLON.Vector3) {
     const dog = this.scene.getMeshByName("dog");
-    dog.position.x = -position.x;
+    dog.position.x = position.x;
     dog.position.z = position.z;
   }
 
@@ -490,11 +486,13 @@ ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
 });
 ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
   if(arg1 === "dog") {
+    // dogRotation.x = arg2._x;
+    // dogRotation.z = arg2._z;
     dogRotation.y = arg2._y;
     renderer.setDogRotation(dogRotation);
   }
 });
 ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
-  renderer.setDogPosition(new BABYLON.Vector3(arg2._x, arg2._y, arg2._z));
+  renderer.setDogPosition(new BABYLON.Vector3(arg2._x, arg2._y, arg2._z).negate());
 });
 ipcRenderer.send("rendererInitialized");

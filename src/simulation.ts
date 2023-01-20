@@ -255,7 +255,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
           console.log("simulation motor rotateByDegree is cancelled");
           return Promise.resolve();
         }
-        console.log("simulation motor rotating with speed " + this.speed + " from " + this.rotation + " to " + this.destRotation);
+        // console.log("simulation motor rotating with speed " + this.speed + " from " + this.rotation + " to " + this.destRotation);
         if(Math.abs(this.destRotation - this.rotation) < Math.abs(this.speed)) {
           this.rotation = this.destRotation;
         }
