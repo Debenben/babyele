@@ -12,7 +12,8 @@ export const ACCEL_NORM_MAX = 1050.0; // acceleration in mG, values above are ig
 export const ACCEL_NORM_MIN = 950.0; // acceleration in mG, values below are ignored
 export const ACCEL_SIDEWAYS_TOLERANCE = 0.1; // difference in sideways tilt angle of legs
 
-export const NO_MOVE_MOTOR_ANGLE = 16;
+export const NO_MOVE_MOTOR_ANGLE = 4; // minimum motor rotation in degree, values below are ignored
+export const MOTOR_UPDATE_INTERVAL = 100; // interval in milliseconds for updating motor commands
 const TOP_MOTOR_RANGE = 4168; // motor rotation in degree needed for rotation of top leg segment by pi
 const TOP_MOTOR_SPEED = 630; // degree per second at 7.5V
 const BOTTOM_MOTOR_RANGE = 22486; // motor rotation in degree needed for rotation of bottom leg segment by pi

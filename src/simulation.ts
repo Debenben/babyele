@@ -60,17 +60,19 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
         switch(portName) {
           case "A":
           case "B":
+            console.log("simulation hub " + this.name + " returns motor at port " + portName);
+            return new SimulationMotor(portName, 882);
           case "C":
           case "D":
             console.log("simulation hub " + this.name + " returns motor at port " + portName);
-            return new SimulationMotor(portName);
+            return new SimulationMotor(portName, 630);
         }
       case "BeneLego2":
       case "BeneLego3":
       case "BeneLego1":
         if(portName === "A") {
           console.log("simulation hub " + this.name + " returns motor at port " + portName);
-          return new SimulationMotor(portName);
+          return new SimulationMotor(portName, 846);
         }
         else {
           console.log("simulation hub " + this.name + " returns tilt sensor at port " + portName);
@@ -79,7 +81,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
       case "BeneLego5":
         if(portName === "B") {
           console.log("simulation hub " + this.name + " returns motor at port " + portName);
-          return new SimulationMotor(portName);
+          return new SimulationMotor(portName, 846);
         }
         else {
           console.log("simulation hub " + this.name + " returns tilt sensor at port " + portName);
@@ -172,6 +174,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   useDecelerationProfile: boolean
   rotation: number
   destRotation: number
+  maxSpeed: number
   speed: number
   speedIntervalID: NodeJS.Timeout
   token: Token
@@ -179,9 +182,10 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   get type() {
     return 46;
   }
-  constructor(portName: string) {
+  constructor(portName: string, maximumSpeed: number) {
     super();
     this.portId = toPortId(portName);
+    this.maxSpeed = maximumSpeed;
     this.rotation = 0;
     this.speed = 0;
   }
@@ -201,6 +205,10 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     return Promise.resolve();
   }
   setSpeed(speed: number, time: number | undefined) {
+    if(speed > 100 || speed < -100) {
+      console.log("simulation motor requested speed " + speed + " is out of bounds");
+      return;
+    }
     console.log("simulation motor setting speed to " + speed);
     this.speed = speed;
     if(this.token) {
@@ -215,10 +223,12 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     if(this.speedIntervalID) {
       return Promise.resolve();
     }
+    let count = 0;
     this.speedIntervalID = setInterval(() => {
-      this.rotation += this.speed;
-      this.emit('rotate', {degrees: this.rotation});
-    }, 50);
+      count++;
+      this.rotation += 0.0001*this.maxSpeed*(this.speed + 4*(Math.random() - 0.5));
+      if(count%10 === 1) this.emit('rotate', {degrees: this.rotation});
+    }, 10 + Math.random() - 0.5);
     return Promise.resolve();
   }
   send(message: Buffer) {
@@ -235,6 +245,10 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     return Promise.resolve();
   }
   rotateByDegrees(degrees: number, speed: number) {
+    if(speed > 100 || speed < -100 || speed === 0) {
+      console.log("simulation motor requested speed " + speed + " is out of bounds");
+      return;
+    }
     if(this.speedIntervalID) {
       this.setSpeed(0, undefined);
     }
@@ -249,20 +263,23 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
 
   async motorLoop(token: Token) {
     try {
+      let count = 0;
       while(this.rotation !== this.destRotation) {
-        await sleep(50);
+        await sleep(10 + Math.random() - 0.5);
+        count++;
         if(token.isCancellationRequested) {
           console.log("simulation motor rotateByDegree is cancelled");
           return Promise.resolve();
         }
-        // console.log("simulation motor rotating with speed " + this.speed + " from " + this.rotation + " to " + this.destRotation);
-        if(Math.abs(this.destRotation - this.rotation) < Math.abs(this.speed)) {
+        if(Math.abs(this.destRotation - this.rotation) < Math.abs(0.0001*this.maxSpeed*this.speed)) {
+          console.log("simulation motor reached destination", Math.round(this.destRotation), "at", Date.now());
           this.rotation = this.destRotation;
         }
         else {
-          this.rotation += this.speed;
+          console.log("simulation motor speed", this.speed, "from", Math.round(this.rotation), "to", Math.round(this.destRotation), "count:", count, "now:", Date.now());
+          this.rotation += 0.0001*this.maxSpeed*(this.speed + 4*(Math.random() - 0.5));
         }
-        this.emit('rotate', {degrees: this.rotation});
+        if(count%10 === 1) this.emit('rotate', {degrees: this.rotation});
       }
       return Promise.resolve();
     }

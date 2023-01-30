@@ -11,7 +11,9 @@ export type LegName = typeof legNames[number];
 export const motorNames = ['top', 'bottom', 'mount'] as const
 export type MotorName = typeof motorNames[number];
 
-export type Pose = Record <LegName, Record<MotorName, number>>
+export type MotorVec = Record <MotorName, number>;
+
+export type Pose = Record <LegName, MotorVec>
 
 export type Move = string[]
 

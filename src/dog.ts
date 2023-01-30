@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, TiltSensorAbstraction, MotorAbstraction } from "./interfaces";
 import { legNames, LegName, motorNames, Vector3, Quaternion, Pose, parsePosition } from "./tools";
-import { MotorMap, NO_MOVE_MOTOR_ANGLE, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, TILT_TYPES, ACCEL_NORM_MIN, ACCEL_NORM_MAX } from "./param";
+import { MotorMap, NO_MOVE_MOTOR_ANGLE, MOTOR_UPDATE_INTERVAL, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, TILT_TYPES, ACCEL_NORM_MIN, ACCEL_NORM_MAX } from "./param";
 
 const defaultLegPositions: Record<LegName, Vector3> =
   {legFrontRight: new Vector3(LEG_SEPARATION_LENGTH/2,  0, -LEG_SEPARATION_WIDTH/2),
@@ -219,12 +219,15 @@ export class Dog {
   motorLoop() {
     const motors = this.buildLegRecord('motors');
     const motorAngles = this.buildLegRecord('motorAngles');
+    const motorSpeeds = this.buildLegRecord('motorSpeeds');
     const destMotorAngles = this.buildLegRecord('destMotorAngles');
     let motorNames = Object.keys(motors);
     motorNames = motorNames.filter(n => motors[n] && Math.abs(destMotorAngles[n] - motorAngles[n]) > NO_MOVE_MOTOR_ANGLE);
     const diffMotorAngles = motorNames.map(n => (destMotorAngles[n] - motorAngles[n]))
-    const motorSpeeds = diffMotorAngles.map(diff => (10*Math.sign(diff) + 90*diff/Math.max.apply(null, diffMotorAngles.map(Math.abs))));
-    const promises = motorNames.map((n,i) => motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), motorSpeeds[i], true));
+    const durations = motorNames.map((n,i) => Math.abs(diffMotorAngles[i])/motorSpeeds[n]);
+    const maxDuration = Math.max.apply(null, durations);
+    const speeds = diffMotorAngles.map((n,i) => Math.sign(n)*100*durations[i]/maxDuration);
+    const promises = motorNames.map((n,i) => motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), speeds[i], true));
     return Promise.all(promises);
   }
 
@@ -232,6 +235,7 @@ export class Dog {
     if(!this.positionSpeed && !this.rotationSpeed) {
       clearInterval(this.moveSpeedIntervalID);
       this.moveSpeedIntervalID = null;
+      this.stop();
     }
     else if(this.moveSpeedIntervalID) {
       return;
@@ -267,14 +271,19 @@ export class Dog {
             newPosition.addInPlace(this.positionSpeed.normalizeToNew().scale(averagePositionDiff.length()));
             newPosition.addInPlace(this.positionSpeed.scale(0.1));
 	  }
-	  this.legs[id].setPosition(newPosition.subtract(defaultLegPositions[id]));
+	  this.legs[id].destMotorAngles = this.legs[id].motorAnglesFromPosition(newPosition.subtract(defaultLegPositions[id]));
 	}
         return this.motorLoop();
-      }, 100);
+      }, MOTOR_UPDATE_INTERVAL);
     }
   }
 
-  async requestPose(pose: Pose) {
+  durationOfMoveTo(pose: Pose) {
+    const durations = legNames.map(n => this.legs[n].durationOfMoveTo(this.legs[n].positionFromMotorAngles[n]));
+    return Math.max.apply(null, durations);
+  }
+
+  requestPose(pose: Pose) {
     for(const id of legNames) {
       this.legs[id].destMotorAngles = JSON.parse(JSON.stringify(pose[id]));
     }
@@ -282,9 +291,8 @@ export class Dog {
   }
 
   stop() {
-    const motors = this.buildLegRecord('motors');
-    for(const i of Object.keys(motors)) {
-      motors[i].setSpeed(0, undefined, true);
+    for(const id of legNames) {
+      this.legs[id].stop();
     }
   }
 
