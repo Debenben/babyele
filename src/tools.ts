@@ -15,6 +15,8 @@ export type MotorVec = Record <MotorName, number>;
 
 export type Pose = Record <LegName, MotorVec>
 
+export type LegPositions = Record <LegName, Vector3>
+
 export type Move = string[]
 
 export const reservedNames = ["OFFLINE", "WAITING", "MANUAL", "BUTTON"] as const

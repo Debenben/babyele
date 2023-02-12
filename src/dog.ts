@@ -1,18 +1,39 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, TiltSensorAbstraction, MotorAbstraction } from "./interfaces";
-import { legNames, LegName, motorNames, Vector3, Quaternion, Pose, parsePosition } from "./tools";
+import { legNames, LegName, motorNames, Vector3, Quaternion, Pose, LegPositions, parsePosition } from "./tools";
 import { MotorMap, NO_MOVE_MOTOR_ANGLE, MOTOR_UPDATE_INTERVAL, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, TILT_TYPES, ACCEL_NORM_MIN, ACCEL_NORM_MAX } from "./param";
 
-const defaultLegPositions: Record<LegName, Vector3> =
+const defaultLegPositions: LegPositions =
   {legFrontRight: new Vector3(LEG_SEPARATION_LENGTH/2,  0, -LEG_SEPARATION_WIDTH/2),
    legBackRight:  new Vector3(-LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2),
    legFrontLeft:  new Vector3(LEG_SEPARATION_LENGTH/2,  0,  LEG_SEPARATION_WIDTH/2),
    legBackLeft:   new Vector3(-LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2)};
+
 const setHubProperty =
   (hub: HubAbstraction, property: number, value: number) => {
     return hub.send(Buffer.from([0x01, property, value]), "00001624-1212-efde-1623-785feabcd123");
   };
+
+const dogPositionFromLegPositions = (legPositions: LegPositions) => {
+    let position = new Vector3(0, 0, 0);
+    for(const id of legNames) {
+      position.addInPlace(legPositions[id].scale(0.25));
+    }
+    return position;
+  };
+
+const dogRotationFromLegPositions = (legPositions: LegPositions) => {
+  const dogPosition = dogPositionFromLegPositions(legPositions);
+  let averageRotation = Quaternion.Zero();
+  for(const id of legNames) {
+    const absolutePosition = legPositions[id].subtract(dogPosition);
+    let legRotation = Quaternion.Identity();
+    Quaternion.FromUnitVectorsToRef(absolutePosition.normalize(), defaultLegPositions[id].normalizeToNew(), legRotation);
+    legRotation.scaleAndAddToRef(0.25, averageRotation);
+  }
+  return averageRotation;
+};
 
 export class Dog {
   mainWindow: BrowserWindow
@@ -21,7 +42,7 @@ export class Dog {
   leds: Record<string, LEDAbstraction> = {}
   positionSpeed: Vector3
   rotationSpeed: Vector3
-  startMovePositions: Record<LegName, Vector3> = {} as Record<LegName, Vector3>
+  startMovePositions: LegPositions = {} as LegPositions
   dogTilt: Quaternion = Quaternion.Identity()
   moveSpeedIntervalID: NodeJS.Timeout
   isComplete: boolean = false
@@ -197,23 +218,11 @@ export class Dog {
   }
 
   getDogPosition() {
-    let averagePosition = new Vector3(0, 0, 0);
-    for(const id of legNames) {
-      averagePosition.addInPlace(this.legs[id].getPosition().scale(0.25));
-    }
-    return averagePosition;
+    return dogPositionFromLegPositions(this.legPositionsFromPose(this.getPose()));
   }
 
   getDogRotation() {
-    let averageRotation = Quaternion.Zero();
-    const dogPosition = this.getDogPosition();
-    for(const id of legNames) {
-      const absolutePosition = this.legs[id].getPosition().add(defaultLegPositions[id]).subtract(dogPosition);
-      let legRotation = Quaternion.Identity();
-      Quaternion.FromUnitVectorsToRef(absolutePosition.normalize(), defaultLegPositions[id].normalizeToNew(), legRotation);
-      legRotation.scaleAndAddToRef(0.25, averageRotation);
-    }
-    return averageRotation;
+    return dogRotationFromLegPositions(this.legPositionsFromPose(this.getPose()));
   }
 
   motorLoop() {
@@ -241,41 +250,45 @@ export class Dog {
       return;
     }
     else {
-      for(const id of legNames) {
-        this.startMovePositions[id] = this.legs[id].getPosition().add(defaultLegPositions[id]);
-      };
+      this.startMovePositions = this.legPositionsFromPose(this.getPose());
       this.moveSpeedIntervalID = setInterval(() => {
-        /* calculate initial dog position */
-        let startDogPosition = new Vector3(0, 0, 0);
-        for(const id of legNames) {
-          startDogPosition.addInPlace(this.startMovePositions[id].scale(0.25))
-        }
+        const startDogPosition = dogPositionFromLegPositions(this.startMovePositions);
         const averagePositionDiff = this.getDogPosition().subtract(startDogPosition);
-        /* calculate dog rotation with respect to initial position */
-        let startDogRotation = Quaternion.Zero();
-        for(const id of legNames) {
-          let startAbsolute = this.startMovePositions[id].subtract(startDogPosition);
-          let startLegRotation = Quaternion.Identity();
-          Quaternion.FromUnitVectorsToRef(startAbsolute.normalize(), defaultLegPositions[id].normalizeToNew(), startLegRotation);
-	  startLegRotation.scaleAndAddToRef(0.25, startDogRotation);
-        }
+        const startDogRotation = dogRotationFromLegPositions(this.startMovePositions);
         const averageRotation = this.getDogRotation().multiply(startDogRotation.invert());
-        /* determine new positions */
+	const destPositions = {} as LegPositions;
 	for(const id of legNames) {
-	  let newPosition = this.startMovePositions[id].clone();
+	  destPositions[id] = this.startMovePositions[id].clone();
 	  if(this.rotationSpeed) {
-            newPosition.applyRotationQuaternionInPlace(Quaternion.RotationAxis(this.rotationSpeed.normalizeToNew(), averageRotation.toEulerAngles().length()));
-            newPosition.applyRotationQuaternionInPlace(Quaternion.RotationAxis(this.rotationSpeed.normalizeToNew(), this.rotationSpeed.length()*0.001));
+            destPositions[id].applyRotationQuaternionInPlace(Quaternion.RotationAxis(this.rotationSpeed.normalizeToNew(), averageRotation.toEulerAngles().length()));
+            destPositions[id].applyRotationQuaternionInPlace(Quaternion.RotationAxis(this.rotationSpeed.normalizeToNew(), this.rotationSpeed.length()*0.001));
 	  }
 	  if(this.positionSpeed) {
-            newPosition.addInPlace(this.positionSpeed.normalizeToNew().scale(averagePositionDiff.length()));
-            newPosition.addInPlace(this.positionSpeed.scale(0.1));
+            destPositions[id].addInPlace(this.positionSpeed.normalizeToNew().scale(averagePositionDiff.length()));
+            destPositions[id].addInPlace(this.positionSpeed.scale(0.1));
 	  }
-	  this.legs[id].destMotorAngles = this.legs[id].motorAnglesFromPosition(newPosition.subtract(defaultLegPositions[id]));
 	}
-        return this.motorLoop();
+	return this.requestPose(this.poseFromLegPositions(destPositions));
       }, MOTOR_UPDATE_INTERVAL);
     }
+  }
+
+  legPositionsFromPose(pose: Pose) {
+    const legPositions = {} as LegPositions;
+    for(const id of legNames) {
+      legPositions[id] = this.legs[id].positionFromMotorAngles(pose[id]);
+      legPositions[id].addInPlace(defaultLegPositions[id]);
+    }
+    return legPositions;
+  }
+
+  poseFromLegPositions(legPositions: LegPositions) {
+    const pose: Pose = {} as Pose;
+    for(const id of legNames) {
+      const position = legPositions[id].subtractInPlace(defaultLegPositions[id]);
+      pose[id] = this.legs[id].motorAnglesFromPosition(position);
+    }
+    return pose;
   }
 
   durationOfMoveTo(pose: Pose) {
