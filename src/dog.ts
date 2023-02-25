@@ -235,8 +235,8 @@ export class Dog {
     const diffMotorAngles = motorNames.map(n => (destMotorAngles[n] - motorAngles[n]))
     const durations = motorNames.map((n,i) => Math.abs(diffMotorAngles[i])/motorSpeeds[n]);
     const maxDuration = Math.max.apply(null, durations);
-    const speeds = diffMotorAngles.map((n,i) => Math.sign(n)*100*durations[i]/maxDuration);
-    const promises = motorNames.map((n,i) => motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), speeds[i], true));
+    const speeds = diffMotorAngles.map((n,i) => Math.sign(n)*(90*durations[i]/maxDuration + 10));
+    const promises = motorNames.map((n,i) => motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), Math.round(speeds[i]), true));
     return Promise.all(promises);
   }
 

@@ -164,7 +164,7 @@ export class Leg {
     const diffMotorAngles = motorNames.map(n => (this.destMotorAngles[n] - this.motorAngles[n]));
     const durations = motorNames.map((n,i) => Math.abs(diffMotorAngles[i])/this.motorSpeeds[n]);
     const maxDuration = Math.max.apply(null, durations);
-    const speeds = diffMotorAngles.map((n,i) => Math.sign(n)*100*durations[i]/maxDuration);
+    const speeds = diffMotorAngles.map((n,i) => Math.sign(n)*(90*durations[i]/maxDuration + 10));
     const promises = motorNames.map((n,i) => this.motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), Math.round(speeds[i]), true));
     return Promise.all(promises);
   }

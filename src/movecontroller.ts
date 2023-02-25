@@ -137,7 +137,7 @@ export class MoveController {
     const prefix = this.mode.split('-')[0]
     for(const id in this.poses) {
       if(id.split('-')[0] === prefix) {
-        num.push(id.split('-')[1]);
+        num.push(parseInt(id.split('-')[1]));
       }
     }
     num.sort((a, b) => {return a-b});

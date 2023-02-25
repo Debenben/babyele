@@ -226,7 +226,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     let count = 0;
     this.speedIntervalID = setInterval(() => {
       count++;
-      this.rotation += 0.0001*this.maxSpeed*(this.speed + 4*(Math.random() - 0.5));
+      this.rotation += Math.round(0.0001*this.maxSpeed*(this.speed + 4*(Math.random() - 0.5)));
       if(count%10 === 1) this.emit('rotate', {degrees: this.rotation});
     }, 10 + Math.random() - 0.5);
     return Promise.resolve();
@@ -256,8 +256,9 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
       this.token.isCancellationRequested = true;
     }
     this.speed = speed;
-    this.destRotation = this.rotation + degrees*Math.sign(speed);
+    this.destRotation = Math.round(this.rotation + degrees*Math.sign(speed));
     this.token = new Token();
+    console.log("simulation motor request rotate to", this.destRotation, "from", this.rotation, "with speed", speed);
     return this.motorLoop(this.token);
   }
 
@@ -272,12 +273,12 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
           return Promise.resolve();
         }
         if(Math.abs(this.destRotation - this.rotation) < Math.abs(0.0001*this.maxSpeed*this.speed)) {
-          console.log("simulation motor reached destination", Math.round(this.destRotation), "at", Date.now());
-          this.rotation = this.destRotation;
+          console.log("simulation motor reached destination", this.destRotation, "at", Date.now());
+          this.rotation = Math.round(this.destRotation);
         }
         else {
-          console.log("simulation motor speed", this.speed, "from", Math.round(this.rotation), "to", Math.round(this.destRotation), "count:", count, "now:", Date.now());
-          this.rotation += 0.0001*this.maxSpeed*(this.speed + 4*(Math.random() - 0.5));
+          //console.log("simulation motor speed", this.speed, "from", this.rotation, "to", this.destRotation, "count:", count, "now:", Date.now());
+          this.rotation += Math.round(0.0001*this.maxSpeed*(this.speed + 4*(Math.random() - 0.5)));
         }
         if(count%10 === 1) this.emit('rotate', {degrees: this.rotation});
       }
