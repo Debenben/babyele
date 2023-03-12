@@ -130,15 +130,15 @@ export class Leg {
 
   async calculateTiltAngles() {
     if(this.tilts["dog"] && this.tilts["top"] && this.tilts["bottom"] && Math.abs(this.tilts["top"].toEulerAngles().x - this.tilts["bottom"].toEulerAngles().x) < ACCEL_SIDEWAYS_TOLERANCE) {
-      const topRotation = this.tilts["dog"].multiply(this.tilts["top"].invert());
-      const bottomRotation = this.tilts["top"].multiply(this.tilts["bottom"].invert());
+      const topRotation = this.tilts["top"].multiply(this.tilts["dog"].invert());
+      const bottomRotation = this.tilts["bottom"].multiply(this.tilts["top"].invert());
       this.tiltAngles.top = topRotation.toEulerAngles().z;
       this.tiltAngles.bottom = bottomRotation.toEulerAngles().z;
       if(this.legName.includes("Right")) {
-        this.tiltAngles.mount = -topRotation.toEulerAngles().x;
+        this.tiltAngles.mount = topRotation.toEulerAngles().x;
       }
       else {
-        this.tiltAngles.mount = topRotation.toEulerAngles().x;
+        this.tiltAngles.mount = -topRotation.toEulerAngles().x;
       }
       for(const id of motorNames) {
         this.send('notifyTilt', this.legName + id.charAt(0).toUpperCase() + id.slice(1), this.tiltAngles[id]);

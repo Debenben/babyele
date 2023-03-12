@@ -135,7 +135,7 @@ export default class Renderer {
     if(meshName.endsWith("Mount")) {
       mesh.rotation.x = rotation;
     }
-    else {
+    else if(meshName.endsWith("Top") || meshName.endsWith("Bottom")){
       mesh.rotation.z = rotation;
     }
   }

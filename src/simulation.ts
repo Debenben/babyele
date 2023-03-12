@@ -151,9 +151,9 @@ export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbst
       this.z = 1000;
     }
     else {
-      this.x = -1000;
+      this.x = -960;
       this.y = 0;
-      this.z = 0;
+      this.z = 280;
     }
     setInterval(() => this.emit('accel', {x: this.x, y: this.y, z: this.z}), 10000*Math.random());
   }
