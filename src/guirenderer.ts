@@ -17,6 +17,7 @@ export default class Renderer {
   displacementLines: BABYLON.LinesMesh;
   selectedItem: string;
   selectedItemIsPreview: boolean;
+  useRotation: boolean = true;
   guiTexture: GuiTexture;
 
   createScene(canvas: HTMLCanvasElement, engine: BABYLON.Engine) {
@@ -121,13 +122,16 @@ export default class Renderer {
 
   setDogRotation(tilt: BABYLON.Vector3) {
     const dog = this.scene.getMeshByName("dog");
-    dog.rotation = tilt;
+    for(let i of ['x', 'y', 'z']) {
+      if(!(tilt[i] === null)) dog.rotation[i] = tilt[i];
+    }
   }
 
   setDogPosition(position: BABYLON.Vector3) {
     const dog = this.scene.getMeshByName("dog");
-    dog.position.x = position.x;
-    dog.position.z = position.z;
+    for(let i of ['x', 'y', 'z']) {
+      if(!(position[i] === null)) dog.position[i] = position[i];
+    }
   }
 
   setLegRotation(meshName: string, rotation: number) {
@@ -465,34 +469,35 @@ const buildLeg = (scene: BABYLON.Scene, meshName: string) => {
 }
 
 const renderer = new Renderer();
-renderer.initialize(document.getElementById('render-canvas') as HTMLCanvasElement);
+renderer.initialize(document.getElementById('canvas') as HTMLCanvasElement);
 
 ipcRenderer.on('notifyState', (event, arg1, arg2) => {
   renderer.setState(arg1, arg2);
 });
 ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
+  if(!renderer.useRotation) return;
   renderer.setLegRotation(arg1, arg2);
 });
-let dogRotation = new BABYLON.Vector3(0, 0, 0);
 ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
+  if(renderer.useRotation) return;
   if(arg1 === "dog") {
-    dogRotation.x = arg2._x;
-    dogRotation.z = arg2._z;
-    renderer.setDogRotation(dogRotation);
+    renderer.setDogRotation(new BABYLON.Vector3(arg2._x, null, arg2._z));
   }
-  /*else if(arg1.startsWith("leg")) {
+  else if(arg1.startsWith("leg")) {
     renderer.setLegRotation(arg1, arg2);
-  }*/
+  }
 });
 ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
-  if(arg1 === "dog") {
-    // dogRotation.x = arg2._x;
-    // dogRotation.z = arg2._z;
-    dogRotation.y = arg2._y;
-    renderer.setDogRotation(dogRotation);
+  renderer.setDogRotation(new BABYLON.Vector3(null, arg2._y, null));
+  if(renderer.useRotation) {
+    renderer.setDogRotation(new BABYLON.Vector3(arg2._x, null, arg2._z));
   }
 });
 ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
-  renderer.setDogPosition(new BABYLON.Vector3(arg2._x, arg2._y, arg2._z).negate());
+  renderer.setDogPosition(new BABYLON.Vector3(-arg2._x, null, -arg2._z));
 });
+ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
+  document.getElementById('title').innerHTML = "lego walker: " + modeName;
+});
+
 ipcRenderer.send("rendererInitialized");

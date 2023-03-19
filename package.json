@@ -16,8 +16,8 @@
   "license": "ISC",
   "dependencies": {
     "@debenben/node-poweredup": "^9.0.3",
-    "babylonjs": "5.35.1",
-    "babylonjs-gui": "5.35.1",
+    "babylonjs": "5.51.0",
+    "babylonjs-gui": "5.51.0",
     "electron-squirrel-startup": "^1.0.0",
     "ml-matrix": "^6.10.4"
   },

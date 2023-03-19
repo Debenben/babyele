@@ -2,6 +2,7 @@ import { ipcRenderer } from 'electron';
 import { printDegree, legNames, motorNames } from './tools';
 
 ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
+  document.getElementById('title').innerHTML = "lego walker: " + modeName;
   document.getElementById('currentMode').innerHTML = modeName;
 });
 
