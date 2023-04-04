@@ -39,8 +39,10 @@ export default class Renderer {
     const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/3, Math.PI/3, 1200, new BABYLON.Vector3(0,250,0), scene);
     camera.attachControl(canvas, true);
     camera.wheelPrecision = 0.2;
+    camera.useAutoRotationBehavior = true;
     const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(1000, -2000, 1000), scene);
     dirLight.intensity = 0.2;
+    dirLight.parent = camera;
     const hemLight = new BABYLON.HemisphericLight("hemLight", new BABYLON.Vector3(0, 1, 0), scene);
     hemLight.intensity = 0.5;
 
@@ -105,16 +107,7 @@ export default class Renderer {
     this.displacementLines.parent = ground;
     scene.registerBeforeRender(() => {
       setBodyHeight(scene);
-      if(!this.selectedItem) {
-        ground.rotation.y += 0.001;
-        this.gravityLines.isVisible = false;
-        this.displacementLines.isVisible = false;
-      }
-      else {
-        if(!this.selectedItemIsPreview) {
-          this.gravityLines.isVisible = true;
-          this.displacementLines.isVisible = true;
-        }
+      if(this.gravityLines.isVisible) {
         BABYLON.MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), instance: this.gravityLines}, scene);
       }
     });
@@ -498,6 +491,26 @@ ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
 });
 ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
   document.getElementById('title').innerHTML = "lego walker: " + modeName;
+});
+ipcRenderer.on('toggleGridLinesVisibility', (event) => {
+  if(!renderer.displacementLines.isVisible) {
+    renderer.displacementLines.isVisible = true;
+    renderer.guiTexture.setTopMenuButton(0, "green");
+  }
+  else if(!renderer.gravityLines.isVisible) {
+    renderer.gravityLines.isVisible = true;
+    renderer.guiTexture.setTopMenuButton(0, "red");
+  }
+  else {
+    renderer.displacementLines.isVisible = false;
+    renderer.gravityLines.isVisible = false;
+    renderer.guiTexture.setTopMenuButton(0, "white");
+  }
+});
+ipcRenderer.on('toggleUseRotation', (event) => {
+    renderer.useRotation = !renderer.useRotation;
+    if(renderer.useRotation) renderer.guiTexture.setTopMenuButton(1, "white");
+    else renderer.guiTexture.setTopMenuButton(1, "green");
 });
 
 ipcRenderer.send("rendererInitialized");

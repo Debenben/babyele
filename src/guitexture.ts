@@ -11,6 +11,7 @@ export class GuiTexture {
   infobox: Infobox;
   modeSelection: ModeSelection;
   topMenu: Grid;
+  modeMenu: Grid;
   dragHelper: DragHelper;
   constructor(scene: BABYLON.Scene) {
     this.scene = scene;
@@ -18,6 +19,8 @@ export class GuiTexture {
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
     this.topMenu = buildTopMenu();
     this.texture.addControl(this.topMenu);
+    this.modeMenu = buildModeMenu();
+    this.texture.addControl(this.modeMenu);
     this.modeSelection = new ModeSelection();
     this.dragHelper = new DragHelper(this);
     ipcRenderer.on("toggleModeSelectionVisibility", () => {
@@ -50,10 +53,15 @@ export class GuiTexture {
     this.modeSelection.isVisible = !this.modeSelection.isVisible;
     if(this.modeSelection.isVisible) {
       this.texture.addControl(this.modeSelection);
+      this.texture.removeControl(this.topMenu);
     }
     else {
       this.texture.removeControl(this.modeSelection);
+      this.texture.addControl(this.topMenu);
     }
+  }
+  setTopMenuButton(column: number, color: string) {
+    this.topMenu.getChildrenAt(0, column)[0].color = color;
   }
 }
 
@@ -122,19 +130,42 @@ class DragHelper extends Container {
 
 const buildTopMenu = () => {
   const grid = new Grid("topMenu");
+  grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
   grid.heightInPixels = 35;
+  grid.paddingTop = "5px";
+  grid.paddingLeft = "5px";
+  grid.color = "white";
+  grid.addColumnDefinition(35, true);
+  grid.addColumnDefinition(35, true);
+  const gridLinesButton = buildTopMenuButton("⯐");
+  gridLinesButton.onPointerClickObservable.add(() => {
+    ipcRenderer.emit("toggleGridLinesVisibility");
+  });
+  const useRotationButton = buildTopMenuButton("📐");
+  useRotationButton.onPointerClickObservable.add(() => {
+    ipcRenderer.emit("toggleUseRotation");
+  });
+  grid.addControl(gridLinesButton, 0, 0);
+  grid.addControl(useRotationButton, 0, 1);
+  return grid;
+}
+
+const buildModeMenu = () => {
+  const grid = new Grid("modeMenu");
+  grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  grid.heightInPixels = 35;
+  grid.paddingTop = "5px";
+  grid.paddingRight = "5px";
+  grid.paddingLeft = "75px";
+  grid.color = "white";
+  grid.zIndex = 20;
+  grid.isPointerBlocker = true;
   grid.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 500);
   window.addEventListener('resize', () => {
     grid.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 500);
   });
-  grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  grid.zIndex = 20;
-  grid.paddingTop = "5px";
-  grid.isPointerBlocker = true;
-  grid.addColumnDefinition(35, true);
   grid.addColumnDefinition(1.0);
   grid.addColumnDefinition(35, true);
-  grid.color = "white";
   const modeDisplayButton = buildTopMenuButton(currentMode);
   modeDisplayButton.onPointerClickObservable.add(() => {
     ipcRenderer.emit("toggleModeSelectionVisibility");
@@ -159,9 +190,9 @@ const buildTopMenu = () => {
   deletePoseButton.onPointerOutObservable.add(() => grid.color = "white");
   storePoseButton.isVisible = false;
   deletePoseButton.isVisible = false;
-  grid.addControl(modeDisplayButton, 0, 1);
-  grid.addControl(storePoseButton, 0, 2);
-  grid.addControl(deletePoseButton, 0, 2);
+  grid.addControl(modeDisplayButton, 0, 0);
+  grid.addControl(storePoseButton, 0, 1);
+  grid.addControl(deletePoseButton, 0, 1);
   return grid;
 }
 
