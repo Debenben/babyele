@@ -19,7 +19,7 @@ export type LegPositions = Record <LegName, Vector3>
 
 export type Move = string[]
 
-export const reservedNames = ["OFFLINE", "WAITING", "MANUAL", "BUTTON"] as const
+export const reservedNames = ["OFFLINE", "MANUAL", "STOP", "BUTTON", "SYNC"] as const
 
 export const pad = (str: string, size: number) => {
   const s = "          " + str;

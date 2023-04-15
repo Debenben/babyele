@@ -309,6 +309,14 @@ export class Dog {
     }
   }
 
+  synchronize() {
+    for(const id of legNames) {
+      for(const motorName of motorNames) {
+        this.legs[id].synchronize(motorName);
+      }
+    }
+  }
+
   shutdown() {
     for(const hubNum of Object.keys(this.hubs)) {
       this.hubs[hubNum].shutdown();

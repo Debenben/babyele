@@ -1,7 +1,7 @@
 import * as BABYLON from 'babylonjs';
 import { Rectangle, Control, TextBlock, Button, StackPanel, ScrollViewer, InputText, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Move } from './tools';
+import { Move, reservedNames } from './tools';
 
 export class ModeSelection extends Container {
   modalBlocker : Rectangle
@@ -47,7 +47,7 @@ class ModesScroll extends ScrollViewer {
         updateMovesPanel(this.panel, modes, enabled);
       }
       else {
-        updatePosesPanel(this.panel, ["OFFLINE"].concat(modes));
+        updatePosesPanel(this.panel, reservedNames.concat(modes));
       }
     });
   }

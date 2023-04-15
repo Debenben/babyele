@@ -35,7 +35,7 @@ export class MoveController {
           this.notifyAvailability();
         }
         else if (this.mode === "OFFLINE") {
-          this.mode = "WAITING";
+          this.mode = "MANUAL";
           this.send('notifyMode', this.mode, true);
           this.notifyAvailability();
         }
@@ -153,7 +153,6 @@ export class MoveController {
     if(destMode === "OFFLINE") {
       this.modeQueue = [];
       this.dog.shutdown();
-      this.notifyAvailability();
       return;
     }
     else if (this.mode === "OFFLINE") { // prevent predefined mode handling below
@@ -164,6 +163,16 @@ export class MoveController {
       // do not stop, manual request might be in progress already
       this.notifyAvailability();
       this.send('notifyMode', this.getNewPoseName(), false);
+      return;
+    }
+    else if (destMode === "SYNC") {
+      this.dog.synchronize();
+      return;
+    }
+    else if (destMode === "STOP") {
+      this.modeQueue = [];
+      this.dog.stop();
+      this.notifyAvailability();
       return;
     }
     else if (destMode === "BUTTON") {
@@ -228,9 +237,16 @@ export class MoveController {
       else if(this.moves.hasOwnProperty(dest)) {
         if(!this.moves[dest].length) return Promise.resolve();
         for(const poseId of this.moves[dest]) {
-          await Promise.all([this.dog.requestPose(this.poses[poseId]), new Promise(res => setTimeout(res, 10))]);
-          this.mode = poseId;
-          this.send('notifyMode', poseId, true);
+          if(!this.modeQueue.length) return Promise.resolve();
+	  if(reservedNames.includes(poseId as any)) this.requestMode(poseId);
+	  else if(this.poses.hasOwnProperty(poseId)) {
+            await Promise.all([this.dog.requestPose(this.poses[poseId]), new Promise(res => setTimeout(res, 10))]);
+            this.mode = poseId;
+            this.send('notifyMode', poseId, true);
+	  }
+	  else {
+            console.log("Pose " + poseId + " is unknown, discarding");
+	  }
         }
         if(this.modeQueue.length === 1 && this.allowSwitch(dest, dest)) continue;
         this.modeQueue.shift();
@@ -246,7 +262,7 @@ export class MoveController {
   allowSwitch = (origin, destination) => {
     if(origin === "OFFLINE") return false;
     if(destination === "OFFLINE") return true;
-    if(origin === "WAITING") return true;
+    if(origin === "MANUAL") return true;
     if(this.poses.hasOwnProperty(destination)) return true;
     if(this.moves.hasOwnProperty(destination) && this.moves[destination].length === 0) return true;
     if(this.poses.hasOwnProperty(origin) && this.moves.hasOwnProperty(destination)) return (origin === this.moves[destination][0]);
