@@ -135,7 +135,7 @@ export class Infobox extends Container {
     if(arg1 === this.name) {
       if(this.name.startsWith("leg")) {
         const slider = this.angleSlider.getChildByName("tiltSlider") as Container;
-        slider.rotation = arg2 + Math.PI;
+        slider.rotation = rotationToGauge(arg2);
       }
       else {
         this.tiltText.text = "tilt:" + printPosition(new BABYLON.Vector3(arg2._x, arg2._y, arg2._z).scale(180/Math.PI));
@@ -158,7 +158,7 @@ export class Infobox extends Container {
     if(arg1 === this.name) {
       this.scene.render(); // force calculation of slider.widthInPixels
       this.rotValue = arg2;
-      slider.rotation = Math.PI - this.rotValue;
+      slider.rotation = rotationToGauge(this.rotValue);
       if(text.color == "black") text.text = printDegree(this.rotValue);
     }
   }
@@ -236,6 +236,15 @@ const buildButton = (meshName: string, requestName: string, buttonText: string) 
   button.onPointerClickObservable.add(() => ipcRenderer.send(meshName, requestName));
   return button;
 }
+
+const gaugeToRotation = (angle: number) => {
+  return angle < 0 ? angle + Math.PI : angle - Math.PI;
+}
+const rotationToGauge = gaugeToRotation;
+const gaugeToSpeed = (angle: number) => {
+  return Math.round(200*angle/Math.PI);
+}
+
 
 const buildAngleSlider = (infobox: Infobox) => {
   const gauge = new Container();
@@ -326,27 +335,21 @@ const buildAngleSlider = (infobox: Infobox) => {
   text.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
   gauge.addControl(text);
 
-  const gaugeToRotation = (angle: number) => {
-    return angle < -0.5*Math.PI ? -1.5*Math.PI - angle : 0.5*Math.PI - angle;
-  }
-  const gaugeToSpeed = (angle: number) => {
-    return Math.round(100 + 200*angle/Math.PI);
-  }
   const mouseOverlay = new Container();
   mouseOverlay.widthInPixels = gauge.widthInPixels;
   mouseOverlay.heightInPixels = gauge.heightInPixels;
   mouseOverlay.onPointerMoveObservable.add((vec) => {
     const xval = vec.x - mouseOverlay.centerX;
-    const yval = vec.y - mouseOverlay.centerY;
+    const yval = -vec.y + mouseOverlay.centerY;
     const radius = Math.sqrt(xval**2 + yval**2)
-    const angle = Math.atan2(yval, xval);
-    if(radius < outerRadius && radius > middleRadius && angle < 0 && rect2.background == "black") {
+    const angle = Math.atan2(xval, yval);
+    if(radius < outerRadius && radius > middleRadius && yval > 0 && rect2.background == "black") {
       rect1.color = "lightgrey";
       ellipse1.alpha = 0.5;
       rect2.color = "black";
       ellipse3.alpha = 0.6;
-      arrow1.rotation = angle + 0.5*Math.PI;
-      arrow2.rotation = Math.PI - infobox.rotValue;
+      arrow1.rotation = angle;
+      arrow2.rotation = rotationToGauge(infobox.rotValue);
       text.color = "lightgrey";
       text.text = gaugeToSpeed(angle).toString();
       if(rect1.background != "black") {
@@ -359,7 +362,7 @@ const buildAngleSlider = (infobox: Infobox) => {
       rect2.color = "lightgrey";
       ellipse3.alpha = 0.5;
       arrow1.rotation = 0;
-      arrow2.rotation = angle + 0.5*Math.PI;
+      arrow2.rotation = angle;
       text.color = "lightgrey";
       text.text = printDegree(gaugeToRotation(angle));
       if(rect2.background != "black"){
@@ -372,17 +375,17 @@ const buildAngleSlider = (infobox: Infobox) => {
       rect2.color = "black";
       ellipse3.alpha = 0.6;
       arrow1.rotation = 0;
-      arrow2.rotation = Math.PI - infobox.rotValue;
+      arrow2.rotation = rotationToGauge(infobox.rotValue);
       text.color = "black";
       text.text = printDegree(infobox.rotValue);
     }
   });
   mouseOverlay.onPointerDownObservable.add((vec) => {
     const xval = vec.x - mouseOverlay.centerX;
-    const yval = vec.y - mouseOverlay.centerY;
+    const yval = -vec.y + mouseOverlay.centerY;
     const radius = Math.sqrt(xval**2 + yval**2)
-    const angle = Math.atan2(yval, xval);
-    if(radius < outerRadius && radius > middleRadius && angle < 0) {
+    const angle = Math.atan2(xval, yval);
+    if(radius < outerRadius && radius > middleRadius && yval > 0) {
       rect1.background = infobox.color;
       ipcRenderer.send(infobox.name, "requestRotationSpeed", gaugeToSpeed(angle));
     }
