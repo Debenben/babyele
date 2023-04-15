@@ -14,10 +14,10 @@ export const ACCEL_SIDEWAYS_TOLERANCE = 0.1; // maximum difference in sideways t
 
 export const NO_MOVE_MOTOR_ANGLE = 4; // minimum motor rotation in degree, values below are ignored
 export const MOTOR_UPDATE_INTERVAL = 100; // interval in milliseconds for updating motor commands
-const TOP_MOTOR_RANGE = 4168; // motor rotation in degree needed for rotation of top leg segment by pi
-const TOP_MOTOR_SPEED = 630; // degree per second at 7.5V
-const BOTTOM_MOTOR_RANGE = 22486; // motor rotation in degree needed for rotation of bottom leg segment by pi
-const BOTTOM_MOTOR_SPEED = 846; // degree per second at 7.5V
+const TOP_MOTOR_RANGE = 20833; // motor rotation in degree needed for rotation of top leg segment by pi
+const TOP_MOTOR_SPEED = 756; // degree per second at 7.5V
+const BOTTOM_MOTOR_RANGE = 24300; // motor rotation in degree needed for rotation of bottom leg segment by pi
+const BOTTOM_MOTOR_SPEED = 630; // degree per second at 7.5V
 const MOUNT_MOTOR_RANGE = 433; // motor rotation in degree needed for one millimeter piston extension
 const MOUNT_MOTOR_SPEED = 882; // degree per second at 7.5V
 const POSITION_ZERO = {x: 0, y: 0, z: 0};
