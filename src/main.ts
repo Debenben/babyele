@@ -13,7 +13,7 @@ function createWindow() {
     webPreferences: { nodeIntegration: true, contextIsolation: false },
   });
 
-  const fileName = process.argv.includes('--txt') ? "../txtindex.html" : "../guiindex.html";
+  const fileName = process.argv.includes('--txt') ? "../public/txtindex.html" : "../public/guiindex.html";
   mainWindow.loadURL(url.format({
     pathname: path.join(__dirname, fileName),
     protocol: "file:",
