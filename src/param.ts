@@ -7,6 +7,7 @@ export const LEG_MOUNT_WIDTH = 84.0; // distance from middle of leg to mount rot
 export const LEG_PISTON_HEIGHT = 101.0; // distance from bottom of leg mount to top of piston
 export const LEG_PISTON_WIDTH = 112.0; // distance from bottom of leg mount to bottom of piston
 export const LEG_PISTON_LENGTH = 175.0; // length of piston when leg is vertical
+export const LEG_FOOT_DIAMETER = 86.0; // diameter of turntable at foot
 
 export const ACCEL_NORM_MAX = 1050.0; // acceleration in mG, values above are ignored
 export const ACCEL_NORM_MIN = 950.0; // acceleration in mG, values below are ignored
