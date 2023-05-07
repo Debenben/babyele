@@ -10,7 +10,7 @@ export const LEG_PISTON_LENGTH = 175.0; // length of piston when leg is vertical
 
 export const ACCEL_NORM_MAX = 1050.0; // acceleration in mG, values above are ignored
 export const ACCEL_NORM_MIN = 950.0; // acceleration in mG, values below are ignored
-export const ACCEL_SIDEWAYS_TOLERANCE = 0.1; // maximum difference in sideways tilt angle of legs, measured in radians
+export const ACCEL_SIDEWAYS_TOLERANCE = 9999999; // maximum difference in sideways tilt angle of legs, measured in radians
 
 export const NO_MOVE_MOTOR_ANGLE = 4; // minimum motor rotation in degree, values below are ignored
 export const MOTOR_UPDATE_INTERVAL = 100; // interval in milliseconds for updating motor commands
@@ -72,14 +72,14 @@ export const MotorMap = {
     "name"          : "hubBackRight",
     "ACCELEROMETER" : {"name": "legBackRightTopTilt", "rotation": POSITION_UP_RIGHT, "offset": {x: 9.14052648462668 , y: -11.399257997403645 , z: 6.6247577529308685 }},
     "A"             : {"name": "legBackRightBottom", "range": BOTTOM_MOTOR_RANGE, "speed": BOTTOM_MOTOR_SPEED},
-    "C"             : {"name": "legBackRightBottomTilt", "rotation": POSITION_UP, "offset": POSITION_ZERO},
+    "B"             : {"name": "legBackRightBottomTilt", "rotation": POSITION_UP, "offset": POSITION_ZERO},
   },
 
   "BeneLego5":
   {
     "name"          : "hubBackLeft",
     "ACCELEROMETER" : {"name": "legBackLeftTopTilt", "rotation": POSITION_UP_LEFT, "offset": {x: -2.4691926825874586 , y: -37.32943122852581 , z: -8.373090629947134 }},
-    "B"             : {"name": "legBackLeftBottom", "range": -BOTTOM_MOTOR_RANGE, "speed": BOTTOM_MOTOR_SPEED},
-    "D"             : {"name": "legBackLeftBottomTilt", "rotation": POSITION_UP, "offset": POSITION_ZERO},
+    "A"             : {"name": "legBackLeftBottom", "range": -BOTTOM_MOTOR_RANGE, "speed": BOTTOM_MOTOR_SPEED},
+    "B"             : {"name": "legBackLeftBottomTilt", "rotation": POSITION_UP, "offset": POSITION_ZERO},
   },
 }

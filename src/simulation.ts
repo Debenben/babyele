@@ -27,6 +27,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   firmwareVersion: string = "simulation"
   batteryLevel: number
   rssi: number
+  devices: (SimulationTiltSensor | SimulationMotor)[] = [];
 
   constructor(hubName: string) {
     super();
@@ -34,6 +35,23 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     this.batteryLevel = Math.floor(100 * Math.random());
     this.rssi = Math.floor(100 * Math.random() - 80);
     console.log("creating simulation hub " + this.name);
+    this.devices["ACCELEROMETER"] = new SimulationTiltSensor("ACCELEROMETER", hubName);
+    switch(this.name) {
+      case "BeneLego4":
+      case "BeneLego6":
+        this.devices["A"] = new SimulationMotor("A", 882);
+        this.devices["B"] = new SimulationMotor("B", 882);
+        this.devices["C"] = new SimulationMotor("C", 630);
+        this.devices["D"] = new SimulationMotor("D", 630);
+	break;
+      case "BeneLego2":
+      case "BeneLego3":
+      case "BeneLego1":
+      case "BeneLego5":
+        this.devices["A"] = new SimulationMotor("A", 846);
+        this.devices["B"] = new SimulationTiltSensor("B", hubName);
+	break;
+    }
   }
   connect() {
     console.log("connecting to simulation hub " + this.name);
@@ -50,47 +68,8 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     return Promise.resolve();
   }
   getDeviceAtPort(portName: string) {
-    if(portName === "ACCELEROMETER") {
-      console.log("simulation hub " + this.name + " returns tilt sensor at port " + portName);
-      return new SimulationTiltSensor(portName, this.name);
-    }
-    switch(this.name) {
-      case "BeneLego4":
-      case "BeneLego6":
-        switch(portName) {
-          case "A":
-          case "B":
-            console.log("simulation hub " + this.name + " returns motor at port " + portName);
-            return new SimulationMotor(portName, 882);
-          case "C":
-          case "D":
-            console.log("simulation hub " + this.name + " returns motor at port " + portName);
-            return new SimulationMotor(portName, 630);
-        }
-      case "BeneLego2":
-      case "BeneLego3":
-      case "BeneLego1":
-        if(portName === "A") {
-          console.log("simulation hub " + this.name + " returns motor at port " + portName);
-          return new SimulationMotor(portName, 846);
-        }
-        else {
-          console.log("simulation hub " + this.name + " returns tilt sensor at port " + portName);
-          return new SimulationTiltSensor(portName, this.name);
-        }
-      case "BeneLego5":
-        if(portName === "B") {
-          console.log("simulation hub " + this.name + " returns motor at port " + portName);
-          return new SimulationMotor(portName, 846);
-        }
-        else {
-          console.log("simulation hub " + this.name + " returns tilt sensor at port " + portName);
-          return new SimulationTiltSensor(portName, this.name);
-        }
-      default:
-        console.log("simulation hub " + this.name + " returns null at port " + portName);
-        return null;
-    }
+    console.log("simulation hub " + this.name + " returns device at port " + portName);
+    return this.devices[portName];
   }
   waitForDeviceByType(deviceType: number) {
     return new Promise((resolve) => {
@@ -100,7 +79,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
       }
       else if(deviceType === 57) {
         console.log("simulation hub " + this.name + " returns simulationAccelerometer");
-        return resolve(new SimulationTiltSensor("ACCELEROMETER", this.name));
+        return resolve(this.devices["ACCELEROMETER"]);
       }
       return true;
     });
@@ -138,6 +117,7 @@ export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbst
   x: number
   y: number
   z: number
+  t: number
 
   get type() {
     return 57;
@@ -145,17 +125,25 @@ export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbst
   constructor(portName: string, hubName: string) {
     super();
     this.portId = toPortId(portName);
-    if(hubName === "BeneLego4" || hubName === "BeneLego0") {
+    if(hubName === "BeneLego4" || hubName === "BeneLego6") {
       this.x = 0;
-      this.y = 0;
-      this.z = 1000;
+      this.y = 280;
+      this.z = 960;
+      this.t = 0;
+      setInterval(() => {
+        this.x = Math.sin(this.t)*280;
+        this.y = Math.cos(this.t)*280;
+	this.t += 0.01;
+	this.emit('accel', {x: this.x, y: this.y, z: this.z});
+        // console.log("simulation hub " + hubName + " emitting tilt at " + this.t + ": " + this.x + " " + this.y + " " + this.z);
+      }, 100*Math.random()); 
     }
     else {
       this.x = -960;
       this.y = 0;
       this.z = 280;
+      setInterval(() => this.emit('accel', {x: this.x, y: this.y, z: this.z}), 1000*Math.random());
     }
-    setInterval(() => this.emit('accel', {x: this.x, y: this.y, z: this.z}), 10000*Math.random());
   }
   send(message: Buffer) {
     return Promise.resolve();
