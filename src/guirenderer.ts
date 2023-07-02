@@ -8,6 +8,7 @@ export default class Renderer {
   canvas: HTMLCanvasElement;
   engine: BABYLON.Engine;
   scene: BABYLON.Scene;
+  camera: BABYLON.ArcRotateCamera;
   greyMaterial: BABYLON.StandardMaterial;
   greenMaterial: BABYLON.StandardMaterial;
   pickMaterial: BABYLON.StandardMaterial;
@@ -36,13 +37,13 @@ export default class Renderer {
     this.actionManager = new BABYLON.ActionManager(scene);
     this.guiTexture = new GuiTexture(scene);
 
-    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/3, Math.PI/3, 1200, new BABYLON.Vector3(0,250,0), scene);
-    camera.attachControl(canvas, true);
-    camera.wheelPrecision = 0.2;
-    camera.useAutoRotationBehavior = true;
+    this.camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/3, Math.PI/3, 1200, new BABYLON.Vector3(0,250,0), scene);
+    this.camera.attachControl(canvas, true);
+    this.camera.wheelPrecision = 0.2;
+    this.camera.useAutoRotationBehavior = true;
     const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(1000, -2000, 1000), scene);
     dirLight.intensity = 0.2;
-    dirLight.parent = camera;
+    dirLight.parent = this.camera;
     const hemLight = new BABYLON.HemisphericLight("hemLight", new BABYLON.Vector3(0, 1, 0), scene);
     hemLight.intensity = 0.5;
 
@@ -494,6 +495,7 @@ ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
 });
 ipcRenderer.on('toggleGridLinesVisibility', (event) => {
   if(!renderer.displacementLines.isVisible) {
+    renderer.camera.useAutoRotationBehavior = false;
     renderer.displacementLines.isVisible = true;
     renderer.guiTexture.setTopMenuButton(0, "green");
   }
@@ -502,6 +504,7 @@ ipcRenderer.on('toggleGridLinesVisibility', (event) => {
     renderer.guiTexture.setTopMenuButton(0, "red");
   }
   else {
+    renderer.camera.useAutoRotationBehavior = true;
     renderer.displacementLines.isVisible = false;
     renderer.gravityLines.isVisible = false;
     renderer.guiTexture.setTopMenuButton(0, "white");

@@ -27,7 +27,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   firmwareVersion: string = "simulation"
   batteryLevel: number
   rssi: number
-  devices: (SimulationTiltSensor | SimulationMotor)[] = [];
+  devices = [];
 
   constructor(hubName: string) {
     super();
@@ -59,13 +59,13 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   }
   disconnect() {
     console.log("disconnecting from simulation hub " + this.name);
+    Object.keys(this.devices).forEach(id => this.devices[id].destructor());
     this.emit('disconnect');
     return Promise.resolve();
   }
   shutdown() {
     console.log("shutdown simulation hub " + this.name);
-    this.emit('disconnect');
-    return Promise.resolve();
+    return this.disconnect();
   }
   getDeviceAtPort(portName: string) {
     console.log("simulation hub " + this.name + " returns device at port " + portName);
@@ -118,6 +118,7 @@ export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbst
   y: number
   z: number
   t: number
+  accelIntervalID: NodeJS.Timeout
 
   get type() {
     return 57;
@@ -130,7 +131,7 @@ export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbst
       this.y = 280;
       this.z = 960;
       this.t = 0;
-      setInterval(() => {
+      this.accelIntervalID = setInterval(() => {
         this.x = Math.sin(this.t)*280;
         this.y = Math.cos(this.t)*280;
 	this.t += 0.01;
@@ -142,8 +143,11 @@ export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbst
       this.x = -960;
       this.y = 0;
       this.z = 280;
-      setInterval(() => this.emit('accel', {x: this.x, y: this.y, z: this.z}), 1000*Math.random());
+      this.accelIntervalID = setInterval(() => this.emit('accel', {x: this.x, y: this.y, z: this.z}), 1000*Math.random());
     }
+  }
+  destructor() {
+    clearInterval(this.accelIntervalID);
   }
   send(message: Buffer) {
     return Promise.resolve();
@@ -176,6 +180,9 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
     this.maxSpeed = maximumSpeed;
     this.rotation = 0;
     this.speed = 0;
+  }
+  destructor() {
+    clearInterval(this.speedIntervalID);
   }
   setBrakingStyle(style: number) {
     return Promise.resolve();

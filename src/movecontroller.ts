@@ -11,14 +11,15 @@ export class MoveController {
   mode: string = "OFFLINE"
   color: number = 0
   modeQueue: string[] = []
+  ledTimerID: NodeJS.Timeout
 
   constructor(mainWindow: BrowserWindow, dog: Dog) {
     this.mainWindow = mainWindow;
     this.dog = dog;
 
-    setInterval(() => {
+    this.ledTimerID = setInterval(() => {
       for(const ledNum in this.dog.leds) {
-        if(this.dog && this.dog.leds[ledNum]) {
+	if(this.dog && this.dog.leds[ledNum]) {
           this.dog.leds[ledNum].send(Buffer.from([0x81, 0x32, 0x10, 0x51, 0x00, this.color%2]));
         }
       }
@@ -96,6 +97,11 @@ export class MoveController {
       this.requestMode(modeName);
     });
   };
+  
+  destructor() {
+    this.requestMode("OFFLINE");
+    clearInterval(this.ledTimerID);
+  }
 
   retrieveData = () => {
     fs.readFile('storage.json', (err, data) => {

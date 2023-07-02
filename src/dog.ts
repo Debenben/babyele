@@ -242,8 +242,6 @@ export class Dog {
 
   requestMoveSpeed() {
     if(!this.positionSpeed && !this.rotationSpeed) {
-      clearInterval(this.moveSpeedIntervalID);
-      this.moveSpeedIntervalID = null;
       this.stop();
     }
     else if(this.moveSpeedIntervalID) {
@@ -304,6 +302,8 @@ export class Dog {
   }
 
   stop() {
+    clearInterval(this.moveSpeedIntervalID);
+    this.moveSpeedIntervalID = null;
     for(const id of legNames) {
       this.legs[id].stop();
     }
@@ -318,6 +318,7 @@ export class Dog {
   }
 
   shutdown() {
+    this.stop();
     for(const hubNum of Object.keys(this.hubs)) {
       this.hubs[hubNum].shutdown();
     }

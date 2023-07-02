@@ -253,8 +253,6 @@ export class Leg {
   requestPositionSpeed(speed: Vector3) {
     this.positionSpeed = speed;
     if(!speed) {
-      clearInterval(this.positionSpeedIntervalID);
-      this.positionSpeedIntervalID = null;
       this.stop();
     }
     else if(this.positionSpeedIntervalID) {
@@ -282,6 +280,8 @@ export class Leg {
   }
 
   stop = () => {
+    clearInterval(this.positionSpeedIntervalID);
+    this.positionSpeedIntervalID = null;
     for(const id in this.motors) {
       if(this.motors[id]) this.motors[id].setSpeed(0, undefined, true);
       this.destMotorAngles[id] = this.motorAngles[id];

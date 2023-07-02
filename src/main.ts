@@ -78,9 +78,7 @@ app.on("ready", () => {
 });
 
 app.on("window-all-closed", () => {
-  if(controller) {
-    controller.requestMode("OFFLINE");
-  }
+  if(controller) controller.destructor();
   controller = null;
   mainWindow = null;
   app.quit();

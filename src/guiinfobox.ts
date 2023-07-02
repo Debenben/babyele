@@ -405,6 +405,7 @@ const buildAngleSlider = (infobox: Infobox) => {
     }
   };
   mouseOverlay.onPointerMoveObservable.add(gaugeOnPointer);
+  mouseOverlay.onPointerOutObservable.add(gaugeOnPointer);
   mouseOverlay.onPointerDownObservable.add((vec) => {
     const xval = vec.x - mouseOverlay.centerX;
     const yval = -vec.y + mouseOverlay.centerY;
