@@ -107,8 +107,6 @@ export class Leg {
           return this.requestRotation(motorName, arg2);
         case "requestSync":
           return this.synchronize(motorName);
-        case "requestReset":
-          return setMotorAngle(motor, 0);
       }
     });
     motor.removeAllListeners('rotate');

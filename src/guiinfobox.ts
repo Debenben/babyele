@@ -94,16 +94,6 @@ export class Infobox extends Container {
       this.angleSlider = buildAngleSlider(this);
       this.panel.addControl(this.angleSlider);
       ipcRenderer.on('notifyLegRotation', this.updateAngle);
-      /*const syncButton = buildButton(this.name, "requestSync", "synchronize");
-      const resetButton = buildButton(this.name, "requestReset", "reset");
-      const grid = new Grid("hubColumn");
-      grid.heightInPixels = syncButton.heightInPixels + 20;
-      grid.widthInPixels = this.widthInPixels - 20;
-      grid.addColumnDefinition(0.5);
-      grid.addColumnDefinition(0.5);
-      grid.addControl(syncButton, 0, 0);
-      grid.addControl(resetButton, 0, 1);
-      this.panel.addControl(grid);*/
       ipcRenderer.send(this.name.replace("Top","").replace("Bottom","").replace("Mount",""), "getProperties");
     }
   }
@@ -229,20 +219,6 @@ const buildText = (content: string) => {
   block.paddingLeft = "5px";
   block.color = "black";
   return block;
-}
-
-const buildButton = (meshName: string, requestName: string, buttonText: string) => {
-  const button = Button.CreateSimpleButton("button", buttonText);
-  button.paddingTop = "5px";
-  button.paddingRight = "5px";
-  button.width = "120px";
-  button.height = "30px";
-  button.background = "black";
-  button.thickness = 0
-  button.onPointerEnterObservable.add(() => button.thickness = 1);
-  button.onPointerOutObservable.add(() => button.thickness = 0);
-  button.onPointerClickObservable.add(() => ipcRenderer.send(meshName, requestName));
-  return button;
 }
 
 const gaugeToRotation = (angle: number) => {
