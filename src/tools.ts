@@ -33,14 +33,6 @@ export const printDegree = (rad: number) => {
   return pad((180*rad/Math.PI).toFixed(2), 8) + "°";
 }
 
-export const parsePosition = (directionName: string, value: number) => {
-  if(!value) return null;
-  else if(directionName.endsWith("Forward")) return new Vector3(value, 0, 0);
-  else if(directionName.endsWith("Height")) return new Vector3(0, value, 0);
-  else if(directionName.endsWith("Sideways")) return new Vector3(0, 0, value);
-  return null;
-}
-
 export const cosLaw = (rSide: number, lSide: number, angle: number) => {
   // returns the side length opposite of the angle in a triangle with rSide and lSide side lengths adjacent to the angle
   return Math.sqrt(Math.abs(rSide**2 + lSide**2 - 2*rSide*lSide*Math.cos(angle)));

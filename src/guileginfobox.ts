@@ -18,7 +18,7 @@ export class LegInfobox extends Infobox {
     this.addControls();
   }
   addControls() {
-    this.gauge = buildGauge(this);
+    this.gauge = buildAngleGauge(this);
     this.panel.addControl(this.gauge);
     ipcRenderer.on('notifyLegRotation', this.updateAngle);
     ipcRenderer.on('notifyTilt', this.updateTilt);
@@ -57,7 +57,7 @@ const gaugeToSpeed = (angle: number) => {
   return Math.round(200*angle/Math.PI);
 }
 
-const buildGauge = (infobox: LegInfobox) => {
+const buildAngleGauge = (infobox: LegInfobox) => {
   const gauge = new Container();
   gauge.widthInPixels = 0.8*infobox.widthInPixels;
   gauge.heightInPixels = 0.8*infobox.widthInPixels;

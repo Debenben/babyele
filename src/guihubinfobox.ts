@@ -1,7 +1,7 @@
 import * as BABYLON from 'babylonjs';
 import { Grid, TextBlock, Checkbox, StackPanel, Control } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Infobox, buildText, buildCorrectionSlider } from './guiinfobox';
+import { Infobox, buildText, buildGauge } from './guiinfobox';
 import { printPosition } from './tools';
 
 export class HubInfobox extends Infobox {
@@ -30,15 +30,14 @@ export class HubInfobox extends Infobox {
     this.panel.addControl(grid);
     if(!this.name.endsWith("Center")) {
       const sliderDest = this.name.replace("hub","leg");
-      ipcRenderer.on('notifyLegPosition', this.updatePosition);
       this.bendForward = buildCheckBox(sliderDest, "setBendForward");
       this.panel.addControl(this.bendForward);
       ipcRenderer.on('notifyBendForward', this.updateBendForward);
       this.positionText = buildText("pos.: --");
+      ipcRenderer.on('notifyLegPosition', this.updatePosition);
       this.panel.addControl(this.positionText);
-      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedForward", "⮿"));
-      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedHeight", "⭥"));
-      this.panel.addControl(buildCorrectionSlider(sliderDest, "requestPositionSpeedSideways", "⭤"));
+      const gauge = buildGauge(this, false);
+      this.panel.addControl(gauge);
       ipcRenderer.send(sliderDest, "getProperties");
     }
     ipcRenderer.send(this.name, "getProperties");

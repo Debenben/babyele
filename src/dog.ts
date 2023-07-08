@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { Leg } from "./leg";
 import { HubAbstraction, LEDAbstraction, TiltSensorAbstraction, MotorAbstraction } from "./interfaces";
-import { legNames, LegName, motorNames, Vector3, Quaternion, Pose, LegPositions, parsePosition } from "./tools";
+import { legNames, LegName, motorNames, Vector3, Quaternion, Pose, LegPositions } from "./tools";
 import { MotorMap, NO_MOVE_MOTOR_ANGLE, MOTOR_UPDATE_INTERVAL, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, TILT_TYPES, ACCEL_NORM_MIN, ACCEL_NORM_MAX } from "./param";
 
 const defaultLegPositions: LegPositions =
@@ -54,14 +54,14 @@ export class Dog {
       this.legs[id].setDogTilt(this.dogTilt);
     }
     ipcMain.on("dog", (event, arg1, arg2) => {
-      if(arg1.startsWith("requestPositionSpeed")) {
+      if(arg1 === "requestPositionSpeed") {
         ipcMain.emit('requestMode', 'internal', 'MANUAL');
-        this.positionSpeed = parsePosition(arg1, arg2);
+        this.positionSpeed = new Vector3(...arg2)
         this.requestMoveSpeed();
       }
-      else if(arg1.startsWith("requestRotationSpeed")) {
+      else if(arg1 === "requestRotationSpeed") {
         ipcMain.emit('requestMode', 'internal', 'MANUAL');
-        this.rotationSpeed = parsePosition(arg1, arg2);
+        this.rotationSpeed = new Vector3(...arg2);
         this.requestMoveSpeed();
       }
       else if(arg1 === "getProperties") {
@@ -241,7 +241,7 @@ export class Dog {
   }
 
   requestMoveSpeed() {
-    if(!this.positionSpeed && !this.rotationSpeed) {
+    if((!this.positionSpeed || this.positionSpeed.length() === 0) && (!this.rotationSpeed || this.rotationSpeed.length() === 0)) {
       this.stop();
     }
     else if(this.moveSpeedIntervalID) {

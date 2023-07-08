@@ -1,5 +1,5 @@
 import * as BABYLON from 'babylonjs';
-import { Rectangle, Control, Slider, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
+import { Rectangle, Ellipse, Control, Slider, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { printPosition, printDegree } from './tools';
 
@@ -12,7 +12,7 @@ export class Infobox extends Container {
   constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
     super(name);
     this.scene = scene;
-    this.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 600);
+    this.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 0.5*window.innerHeight);
     this.adaptHeightToChildren = true;
     this.setPaddingInPixels(10);
     this.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
@@ -98,26 +98,158 @@ export const buildText = (content: string) => {
   return block;
 }
 
-export const buildCorrectionSlider = (meshName: string, requestName: string, buttonText: string) => {
-  const grid = new Grid("sliderGrid");
-  grid.width = 1;
-  grid.height = "35px";
-  grid.paddingTop = "5px";
-  grid.paddingBottom = "5px";
-  const slider = new Slider("correctionSlider");
-  slider.minimum = -100;
-  slider.maximum = 100;
-  slider.value = 0;
-  grid.addControl(slider);
-  const sliderThumb = Button.CreateSimpleButton("sliderThumb", buttonText);
-  sliderThumb.widthInPixels = slider.thumbWidthInPixels;
-  sliderThumb.thickness = 0;
-  sliderThumb.isEnabled = false;
-  grid.addControl(sliderThumb);
-  slider.onValueChangedObservable.add((value) => {
-    sliderThumb.leftInPixels = value/(slider.maximum - slider.minimum)*(slider.widthInPixels - slider.thumbWidthInPixels);
-    ipcRenderer.send(meshName, requestName, value);
+export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
+  const gauge = new Container();
+  const scaling = 0.8*infobox.widthInPixels;
+  gauge.widthInPixels = infobox.widthInPixels;
+  gauge.heightInPixels = scaling;
+
+  const buildScale = (angle: number) => {
+    const scale = new Container();
+    for(let i = 0; i<=10; i++) {
+      const mark1 = new Rectangle();
+      mark1.widthInPixels = 0.01*scaling;
+      mark1.heightInPixels = (i % 5 == 0 ? 0.5 : 0.03)*scaling;
+      mark1.background = "black";
+      mark1.alpha = 0.8;
+      mark1.thickness = 0;
+      mark1.rotation = Math.PI/6;
+      mark1.topInPixels = 0.5*mark1.heightInPixels*Math.cos(Math.PI/6);
+      mark1.leftInPixels = (i-5)*0.05*scaling - 0.5*mark1.heightInPixels*Math.sin(Math.PI/6);
+      scale.addControl(mark1);
+      const mark2 = mark1.clone();
+      mark2.rotation = -Math.PI/6;
+      mark2.topInPixels = -mark1.topInPixels;
+      scale.addControl(mark2);
+    }
+    scale.topInPixels = 0.25*Math.sin(angle)*scaling;
+    scale.leftInPixels = 0.25*Math.cos(angle)*scaling;
+    scale.rotation = angle;
+    gauge.addControl(scale);
+    return scale;
+  }
+  const axis1 = buildScale(0*Math.PI/3);
+  const axis2 = buildScale(2*Math.PI/3);
+  const axis3 = buildScale(4*Math.PI/3);
+
+  const setKnob = (knob: Ellipse, angles: number[]) => {
+    let top = 0;
+    let left = 0;
+    for(let i = 0; i < 3; i++) {
+      top += angles[i]*Math.sin((1+2*i)*Math.PI/3)*0.25*scaling;
+      left += angles[i]*Math.cos((1+2*i)*Math.PI/3)*0.25*scaling;
+    }
+    knob.topInPixels = top;
+    knob.leftInPixels = left;
+    knob.color = "black";
+  }
+  const buildKnob = (angles: number[]) => {
+    const knob = new Ellipse()
+    knob.widthInPixels = 0.1*scaling;
+    knob.heightInPixels = 0.1*scaling;
+    knob.thickness = 0.015*scaling;
+    setKnob(knob, angles);
+    gauge.addControl(knob);
+    return knob;
+  }
+  const knob1 = buildKnob([0, -1, -1]);
+  const knob2 = buildKnob([-1, 0, -1]);
+  const knob3 = buildKnob([-1, -1, 0]);
+
+  const sendRequest = (vec: number[]) => {
+    if(pointerDown) {
+      const destName = infobox.name.replace("hub", "leg");
+      if(isRotationGauge) ipcRenderer.send(destName, "requestRotationSpeed", vec.map(x => 100*x));
+      else ipcRenderer.send(destName, "requestPositionSpeed", vec.map(x => 100*x));
+    }
+  }
+
+  let pointerDown = false;
+  const mouseOverlay = new Container();
+  mouseOverlay.widthInPixels = gauge.widthInPixels;
+  mouseOverlay.heightInPixels = gauge.heightInPixels;
+  const gaugeOnPointer = (vec) => {
+    const xval = 4*(vec.x - mouseOverlay.centerX)/scaling;
+    const yval = 4*(vec.y - mouseOverlay.centerY)/scaling;
+
+    let base = [];
+    for(let i = 0; i < 3; i++) {
+      base[i] = [Math.sin((1+2*i)*Math.PI/3), Math.cos((1+2*i)*Math.PI/3)];
+    }
+    let s = [[],[],[]];
+    for(let i = 0; i < 3; i++) {
+      for(let j = 0; j < 3; j++) {
+        s[i][j] = (xval/base[i][1] - yval/base[i][0])/(base[j][0]/base[i][0] - base[j][1]/base[i][1]);
+	if(Math.abs(s[i][j] - 1) < 0.1) s[i][j] = 1; //snap to neutral
+	if(s[i][j] > 2) s[i][j] = 2; //snap to border
+      }
+    }
+    if(knob3.color == infobox.color || (knob1.color != infobox.color && knob2.color != infobox.color && s[0][1] > 0 && s[1][0] > 0)) {
+      if(s[0][1] < 0) s[0][1] = 0;
+      if(s[1][0] < 0) s[1][0] = 0;
+      setKnob(knob3, [-s[1][0], -s[0][1], 0]);
+      knob3.color = pointerDown? infobox.color : "lightgrey";
+      if(isRotationGauge) {
+        sendRequest([1-s[1][0], 0, 1-s[0][1]]);
+        setKnob(knob1, [0, -1, -2+s[1][0]]);
+        setKnob(knob2, [-1, 0, -2+s[0][1]]);
+      }
+      else {
+        sendRequest([1-s[0][1], 0, 1-s[1][0]]);
+        setKnob(knob1, [0, -s[0][1], -1]);
+        setKnob(knob2, [-s[1][0], 0, -1]);
+      }
+    }
+    else if(knob1.color == infobox.color || (knob2.color != infobox.color && s[1][2] > 0 && s[2][1] > 0)) {
+      if(s[1][2] < 0) s[1][2] = 0;
+      if(s[2][1] < 0) s[2][1] = 0;
+      setKnob(knob1, [0, -s[2][1], -s[1][2]]);
+      knob1.color = pointerDown? infobox.color : "lightgrey";
+      if(isRotationGauge) {
+        sendRequest([1-s[1][2], 1-s[2][1], 0]);
+        setKnob(knob2, [-2+s[2][1], 0, -1]);
+        setKnob(knob3, [-2+s[1][2], -1, 0]);
+      }
+      else {
+        sendRequest([1-s[2][1], 1-s[1][2], 0]);
+        setKnob(knob2, [-1, 0, -s[1][2]]);
+        setKnob(knob3, [-1, -s[2][1], 0]);
+      }
+    }
+    else if(knob2.color == infobox.color || (s[0][2] > 0 && s[2][0] > 0)) {
+      if(s[0][2] < 0) s[0][2] = 0;
+      if(s[2][0] < 0) s[2][0] = 0;
+      setKnob(knob2, [-s[2][0], 0, -s[0][2]]);
+      knob2.color = pointerDown? infobox.color : "lightgrey";
+      if(isRotationGauge) {
+        sendRequest([0, 1-s[2][0], 1-s[0][2]]);
+        setKnob(knob1, [0, -2+s[2][0], -1]);
+        setKnob(knob3, [-1, -2+s[0][2], 0]);
+      }
+      else {
+        sendRequest([0, 1-s[0][2], 1-s[2][0]]);
+        setKnob(knob1, [0, -1, -s[0][2]]);
+        setKnob(knob3, [-s[2][0], -1, 0]);
+      }
+    }
+    else {
+      sendRequest([0, 0, 0]);
+      setKnob(knob1, [0, -1, -1]);
+      setKnob(knob2, [-1, 0, -1]);
+      setKnob(knob3, [-1, -1, 0]);
+    }
+  }
+  mouseOverlay.onPointerMoveObservable.add(gaugeOnPointer);
+  mouseOverlay.onPointerOutObservable.add(gaugeOnPointer);
+  mouseOverlay.onPointerDownObservable.add((vec) => {
+    pointerDown = true;
+    gaugeOnPointer(vec); 
   });
-  slider.onPointerUpObservable.add(() => slider.value = 0);
-  return grid;
+  mouseOverlay.onPointerUpObservable.add((vec) => {
+    sendRequest([0, 0, 0]);
+    pointerDown = false;
+    gaugeOnPointer(vec); 
+  });
+  gauge.addControl(mouseOverlay);
+  return gauge;
 }

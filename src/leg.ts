@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { MotorAbstraction, TiltSensorAbstraction } from "./interfaces";
-import { MotorName, motorNames, LegName, MotorVec, Vector3, Quaternion, parsePosition, cosLaw, invCosLaw } from "./tools";
+import { MotorName, motorNames, LegName, MotorVec, Vector3, Quaternion, cosLaw, invCosLaw } from "./tools";
 import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH } from "./param";
 import { NO_MOVE_MOTOR_ANGLE, MOTOR_UPDATE_INTERVAL, ACCEL_NORM_MIN, ACCEL_NORM_MAX, ACCEL_SIDEWAYS_TOLERANCE, MOTOR_TYPES, TILT_TYPES } from "./param";
 
@@ -31,9 +31,10 @@ export class Leg {
     this.legName = legName;
     this.mainWindow = mainWindow;
     ipcMain.on(this.legName, (event, arg1, arg2) => {
-      if(arg1.startsWith("requestPositionSpeed")) {
+      if(arg1 === "requestPositionSpeed") {
         ipcMain.emit('requestMode', 'internal', 'MANUAL');
-        this.requestPositionSpeed(parsePosition(arg1, arg2));
+	console.log("request recieved", arg2);
+        this.requestPositionSpeed(new Vector3(...arg2));
       }
       else if(arg1 === "setBendForward") {
         this.bendForward = arg2;
@@ -252,7 +253,7 @@ export class Leg {
 
   requestPositionSpeed(speed: Vector3) {
     this.positionSpeed = speed;
-    if(!speed) {
+    if(!speed || speed.length() === 0) {
       this.stop();
     }
     else if(this.positionSpeedIntervalID) {

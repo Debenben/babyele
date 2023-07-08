@@ -1,7 +1,7 @@
 import * as BABYLON from 'babylonjs';
 import { TextBlock, Control } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Infobox, buildText, buildCorrectionSlider } from './guiinfobox';
+import { Infobox, buildText, buildGauge } from './guiinfobox';
 import { printPosition } from './tools';
 
 export class DogInfobox extends Infobox {
@@ -20,15 +20,13 @@ export class DogInfobox extends Infobox {
     this.rotationText = buildText("rot.: --");
     this.panel.addControl(this.rotationText);
     ipcRenderer.on('notifyDogRotation', this.updateRotation);
-    this.panel.addControl(buildCorrectionSlider("dog", "requestRotationSpeedForward", "⮊"));
-    this.panel.addControl(buildCorrectionSlider("dog", "requestRotationSpeedHeight", "🗘"));
-    this.panel.addControl(buildCorrectionSlider("dog", "requestRotationSpeedSideways", "⮉"));
+    const rotationGauge = buildGauge(this, true);
+    this.panel.addControl(rotationGauge);
     this.positionText = buildText("pos.: --");
     this.panel.addControl(this.positionText);
     ipcRenderer.on('notifyDogPosition', this.updatePosition);
-    this.panel.addControl(buildCorrectionSlider("dog", "requestPositionSpeedForward", "⮿"));
-    this.panel.addControl(buildCorrectionSlider("dog", "requestPositionSpeedHeight", "⭥"));
-    this.panel.addControl(buildCorrectionSlider("dog", "requestPositionSpeedSideways", "⭤"));
+    const positionGauge = buildGauge(this, false);
+    this.panel.addControl(positionGauge);
     ipcRenderer.send("dog", "getProperties");
   }
   removeControls() {
