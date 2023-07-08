@@ -21,7 +21,7 @@ function createWindow() {
   }));
 
   mainWindow.removeMenu();
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 }
 
 async function createPoweredUP() {

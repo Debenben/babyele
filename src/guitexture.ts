@@ -2,6 +2,9 @@ import * as BABYLON from 'babylonjs';
 import { AdvancedDynamicTexture, Rectangle, Control, TextBlock, Button, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Infobox } from './guiinfobox';
+import { LegInfobox } from './guileginfobox';
+import { HubInfobox } from './guihubinfobox';
+import { DogInfobox } from './guidoginfobox';
 import { ModeSelection } from './guimodeselection';
 import { reservedNames } from './tools';
 
@@ -43,10 +46,21 @@ export class GuiTexture {
       this.infobox.setPreview(preview);
       return;
     }
-    else if (this.infobox) {
+    if (this.infobox) {
       this.removeInfobox();
     }
-    this.infobox = new Infobox(meshName, preview, this.scene);
+    if(meshName.startsWith("leg")) {
+      this.infobox = new LegInfobox(meshName, preview, this.scene);
+    }
+    else if(meshName.startsWith("hub")) {
+      this.infobox = new HubInfobox(meshName, preview, this.scene);
+    }
+    else if(meshName === "dog") {
+      this.infobox = new DogInfobox(meshName, preview, this.scene);
+    }
+    else {
+      this.infobox = new Infobox(meshName, preview, this.scene);
+    }
     this.texture.addControl(this.infobox);
   }
   toggleModeSelectionVisibility() {
