@@ -1,18 +1,18 @@
-import * as BABYLON from 'babylonjs';
 import { Rectangle, Ellipse, Control, Slider, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
+import { GuiTexture } from './guitexture';
 import { printPosition, printDegree } from './tools';
 
 export class Infobox extends Container {
-  scene: BABYLON.Scene;
+  guiTexture: GuiTexture;
   panel: StackPanel;
   fillRectangle: Rectangle;
   heading: Rectangle;
 
-  constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
+  constructor(name: string, preview: boolean, guiTexture: GuiTexture) {
     super(name);
-    this.scene = scene;
-    this.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 0.5*window.innerHeight);
+    this.guiTexture = guiTexture;
+    this.widthInPixels = 300;
     this.adaptHeightToChildren = true;
     this.setPaddingInPixels(10);
     this.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
@@ -57,7 +57,7 @@ const buildHeading = (infobox: Infobox) => {
     heading.thickness = 1;
   });
   block.onPointerUpObservable.add((vec) => {
-    ipcRenderer.emit('stopGuiDrag', 'dragEvent', infobox, vec);
+    ipcRenderer.emit('stopGuiDrag', 'dragEvent', infobox);
     heading.thickness = 0;
   });
   block.onPointerEnterObservable.add(() => {
@@ -74,6 +74,7 @@ const buildHeading = (infobox: Infobox) => {
   button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
   button.width = "30px";
   button.height = "30px";
+  button.fontSize = "60%";
   button.setPaddingInPixels(2);
   button.color = "lightgrey";
   button.textBlock.color = "black";
@@ -169,8 +170,8 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
   mouseOverlay.widthInPixels = gauge.widthInPixels;
   mouseOverlay.heightInPixels = gauge.heightInPixels;
   const gaugeOnPointer = (vec) => {
-    const xval = 4*(vec.x - mouseOverlay.centerX)/scaling;
-    const yval = 4*(vec.y - mouseOverlay.centerY)/scaling;
+    const xval = 4*(vec.x - mouseOverlay.centerX)/(scaling*infobox.guiTexture.getScale());
+    const yval = 4*(vec.y - mouseOverlay.centerY)/(scaling*infobox.guiTexture.getScale());
 
     let base = [];
     for(let i = 0; i < 3; i++) {

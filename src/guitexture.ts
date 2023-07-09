@@ -20,6 +20,7 @@ export class GuiTexture {
     this.scene = scene;
     this.scene.onKeyboardObservable.add(onKeyPress);
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
+    this.texture.idealHeight = 600;
     this.topMenu = buildTopMenu();
     this.texture.addControl(this.topMenu);
     this.modeMenu = buildModeMenu();
@@ -29,6 +30,9 @@ export class GuiTexture {
     ipcRenderer.on("toggleModeSelectionVisibility", () => {
       this.toggleModeSelectionVisibility();
     });
+  }
+  getScale() {
+    return this.texture.getSize().height/this.texture.idealHeight;
   }
   removeInfobox() {
     if(this.infobox) {
@@ -50,16 +54,16 @@ export class GuiTexture {
       this.removeInfobox();
     }
     if(meshName.startsWith("leg")) {
-      this.infobox = new LegInfobox(meshName, preview, this.scene);
+      this.infobox = new LegInfobox(meshName, preview, this);
     }
     else if(meshName.startsWith("hub")) {
-      this.infobox = new HubInfobox(meshName, preview, this.scene);
+      this.infobox = new HubInfobox(meshName, preview, this);
     }
     else if(meshName === "dog") {
-      this.infobox = new DogInfobox(meshName, preview, this.scene);
+      this.infobox = new DogInfobox(meshName, preview, this);
     }
     else {
-      this.infobox = new Infobox(meshName, preview, this.scene);
+      this.infobox = new Infobox(meshName, preview, this);
     }
     this.texture.addControl(this.infobox);
   }
@@ -91,9 +95,9 @@ class DragHelper extends Container {
     this.zIndex = 30;
     this.onPointerMoveObservable.add((vec) => {
       if(this.container && this.startPosition) {
-        this.container.leftInPixels = vec.x - this.startPosition.x;
-        this.container.topInPixels = vec.y - this.startPosition.y;
-        ipcRenderer.emit("notifyGuiDrag", "dragEvent", vec.x, vec.y);
+        this.container.leftInPixels = (vec.x - this.startPosition.x)/this.guiTexture.getScale();
+        this.container.topInPixels = (vec.y - this.startPosition.y)/this.guiTexture.getScale();
+        ipcRenderer.emit("notifyGuiDrag", "dragEvent", vec, this.guiTexture.getScale());
         if(!this.container.isVisible) {
           this.container.isVisible = true; // switch moveDummy to visible only on Pointer move
         }
@@ -102,24 +106,18 @@ class DragHelper extends Container {
     this.onPointerDownObservable.add((vec) => {
       // used if stopDrag was not called by container.onPointerUpObservable
       // when dragging poses from moves, "dropClickEvent" does not delete pose
-      ipcRenderer.emit('stopGuiDrag', 'dropClickEvent', this.container, vec);
+      ipcRenderer.emit('stopGuiDrag', 'dropClickEvent', this.container);
       this.stopDrag();
     });
     ipcRenderer.on("startGuiDrag", (event, original, startPosition, moveDummy) => {
       if(moveDummy) {
-        this.startPosition = new BABYLON.Vector2(0.5*original.widthInPixels,0.5*original.heightInPixels);
-        this.container = Button.CreateSimpleButton("moveDummy", original.textBlock.text);
-        this.container.widthInPixels = original.widthInPixels;
-        this.container.heightInPixels = original.heightInPixels;
-        this.container.color = original.color;
-        this.container.background = original.background;
-        this.container.paddingTop = original.paddingTop;
-        this.container.paddingLeft = original.paddingLeft;
-        this.container.paddingRight = original.paddingRight;
+        this.startPosition = new BABYLON.Vector2(original.widthInPixels,original.heightInPixels).scaleInPlace(0.5);
+        this.container = original.clone();
+        this.container.widthInPixels = original.widthInPixels; // fixed width
         this.container.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         this.container.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-        this.container.scaleX = 0.9;
-        this.container.scaleY = 0.9;
+        this.container.scaleX = 0.9/this.guiTexture.getScale();
+        this.container.scaleY = 0.9/this.guiTexture.getScale();
         this.container.isVisible = false; // switch to visible after Pointer move
         this.container.isEnabled = false;
         this.addControl(this.container);

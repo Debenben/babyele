@@ -1,4 +1,3 @@
-import * as BABYLON from 'babylonjs';
 import { Rectangle, Ellipse, TextBlock, Container, Control } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { printDegree } from './tools';
@@ -13,8 +12,8 @@ export class LegInfobox extends Infobox {
   tiltValue: number;
   infoText: TextBlock;
 
-  constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
-    super(name, preview, scene);
+  constructor(name: string, preview: boolean, guiTexture) {
+    super(name, preview, guiTexture);
     this.addControls();
   }
   addControls() {
@@ -39,7 +38,6 @@ export class LegInfobox extends Infobox {
   }
   updateAngle = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.scene.render(); // force calculation of slider.widthInPixels
       this.rotationValue = arg2;
       if(this.angleArrow.getDescendants()[0].getDescendants()[0].color == "black") {
         this.angleArrow.rotation = rotationToGauge(this.rotationValue);
@@ -184,7 +182,7 @@ const buildAngleGauge = (infobox: LegInfobox) => {
   const gaugeOnPointer = (vec) => {
     const xval = vec.x - mouseOverlay.centerX;
     const yval = -vec.y + mouseOverlay.centerY;
-    const radius = Math.sqrt(xval**2 + yval**2)
+    const radius = Math.sqrt(xval**2 + yval**2)/infobox.guiTexture.getScale();
     const angle = Math.atan2(xval, yval);
     if(radius < outerRadius && radius > middleRadius && yval > 0 && rect2.background == "black" && rect3.background == "black") {
       rect1.color = "lightgrey";
@@ -237,7 +235,7 @@ const buildAngleGauge = (infobox: LegInfobox) => {
   mouseOverlay.onPointerDownObservable.add((vec) => {
     const xval = vec.x - mouseOverlay.centerX;
     const yval = -vec.y + mouseOverlay.centerY;
-    const radius = Math.sqrt(xval**2 + yval**2)
+    const radius = Math.sqrt(xval**2 + yval**2)/infobox.guiTexture.getScale();
     if(radius < outerRadius && radius > middleRadius && yval > 0) {
       rect1.background = infobox.color;
     }

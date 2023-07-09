@@ -1,8 +1,7 @@
-import * as BABYLON from 'babylonjs';
 import { Grid, TextBlock, Checkbox, StackPanel, Control } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Infobox, buildText, buildGauge } from './guiinfobox';
-import { printPosition } from './tools';
+import { printPosition, Vector3 } from './tools';
 
 export class HubInfobox extends Infobox {
   batteryText: TextBlock;
@@ -10,8 +9,8 @@ export class HubInfobox extends Infobox {
   positionText: TextBlock;
   bendForward: StackPanel;
 
-  constructor(name: string, preview: boolean, scene: BABYLON.Scene) {
-    super(name, preview, scene);
+  constructor(name: string, preview: boolean, guiTexture) {
+    super(name, preview, guiTexture);
     this.addControls();
   }
 
@@ -65,7 +64,7 @@ export class HubInfobox extends Infobox {
   }
   updatePosition = (event, arg1, arg2) => {
     if(arg1 === this.name.replace("hub", "leg")) {
-      this.positionText.text = "pos.:" + printPosition(new BABYLON.Vector3(arg2._x, arg2._y, arg2._z));
+      this.positionText.text = "pos.:" + printPosition(new Vector3(arg2._x, arg2._y, arg2._z));
     }
   }
 }

@@ -68,6 +68,7 @@ class MoveButton extends Container {
     this.adaptHeightToChildren = true;
     this.moveButton = Button.CreateSimpleButton("moveButton", modeName);
     this.moveButton.height = "25px";
+    this.moveButton.fontSize = "20px";
     this.moveButton.paddingRight = "25px";
     this.moveButton.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.moveButton.background = "grey";
@@ -76,7 +77,7 @@ class MoveButton extends Container {
       this.moveButton.color = "red";
     });
     this.moveButton.onPointerUpObservable.add((vec) => {
-      ipcRenderer.emit('stopGuiDrag', 'dragEvent', this.moveButton, vec);
+      ipcRenderer.emit('stopGuiDrag', 'dragEvent', this.moveButton);
       this.updateMoveColor();
     });
     this.moveButton.onPointerClickObservable.add(() => {
@@ -86,6 +87,7 @@ class MoveButton extends Container {
     this.expandButton = Button.CreateSimpleButton("expandMove","▼");
     this.expandButton.width = "25px";
     this.expandButton.height = "25px";
+    this.expandButton.fontSize = "15px";
     this.expandButton.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.expandButton.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
     this.expandButton.background = "grey";
@@ -154,12 +156,12 @@ class ExpandView extends StackPanel {
     this.spacer.background = "transparent";
   }
 
-  onNotifyGuiDrag = (event, vecx, vecy) => {
-    if(this.contains(vecx, vecy)) {
-      const coords = this.getLocalCoordinates(new BABYLON.Vector2(vecx, vecy));
+  onNotifyGuiDrag = (event, vec, scale) => {
+    if(this.contains(vec.x, vec.y)) {
+      const coords = this.getLocalCoordinates(vec);
       this.background = "green";
       const sectionHeight = 30; // height of poseButton
-      const spacerLocation = Math.floor(coords.y/sectionHeight);
+      const spacerLocation = Math.floor(coords.y/(sectionHeight*scale));
       this.updateSpacerLocation(spacerLocation);
       this.spacer.background = "red";
     }
@@ -271,6 +273,7 @@ const buildPoseButton = (poseName: string) => {
   button.paddingRight = "5px";
   button.paddingLeft = "5px";
   button.height = "30px";
+  button.fontSize = "20px";
   button.background = "grey";
   button.color = "black";
   button.onPointerDownObservable.add((vec) => {
@@ -279,7 +282,7 @@ const buildPoseButton = (poseName: string) => {
   });
   button.onPointerUpObservable.add((vec) => {
     button.color = "black";
-    ipcRenderer.emit('stopGuiDrag', 'dragEvent', button, vec);
+    ipcRenderer.emit('stopGuiDrag', 'dragEvent', button);
   });
   button.onPointerClickObservable.add(() => {
     ipcRenderer.send('requestMode', poseName);
@@ -291,6 +294,7 @@ const buildPoseButton = (poseName: string) => {
 const buildInput = () => {
   const input = new InputText("input");
   input.height = "30px";
+  input.fontSize = "20px";
   input.width = 1;
   input.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
   input.paddingRight = "5px";
@@ -322,9 +326,9 @@ const buildTrashIcon = (modeSelection: Container) => {
   button.textBlock.resizeToFit = true;
   button.adaptWidthToChildren = true;
   button.thickness = 0;
-  ipcRenderer.on("notifyGuiDrag", (event, vecx, vecy) => {
+  ipcRenderer.on("notifyGuiDrag", (event, vec, scale) => {
     if(!modeSelection.isVisible) return;
-    if(button.contains(vecx, vecy)) button.color = "red"
+    if(button.contains(vec.x, vec.y)) button.color = "red"
     else button.color = "lightgrey";
   });
   ipcRenderer.on("stopGuiDrag", (event, control) => {
