@@ -38,6 +38,7 @@ export class Leg {
       }
       else if(arg1 === "setBendForward") {
         this.bendForward = arg2;
+        this.send('notifyBendForward', this.legName, this.bendForward);
       }
       else if(arg1 === "getProperties") {
         this.send('notifyBendForward', this.legName, this.bendForward);

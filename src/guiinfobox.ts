@@ -17,6 +17,7 @@ export class Infobox extends Container {
     this.setPaddingInPixels(10);
     this.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
     this.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    this.zIndex = 20;
     this.fillRectangle = new Rectangle("background");
     this.fillRectangle.alpha = 0.6;
     this.fillRectangle.thickness = 0;

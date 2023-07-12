@@ -1,4 +1,4 @@
-import { Grid, TextBlock, Checkbox, StackPanel, Control } from "babylonjs-gui";
+import { Grid, TextBlock, Button, Control } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Infobox, buildText, buildGauge } from './guiinfobox';
 import { printPosition, Vector3 } from './tools';
@@ -7,7 +7,7 @@ export class HubInfobox extends Infobox {
   batteryText: TextBlock;
   rssiText: TextBlock;
   positionText: TextBlock;
-  bendForward: StackPanel;
+  bendForward: Button;
 
   constructor(name: string, preview: boolean, guiTexture) {
     super(name, preview, guiTexture);
@@ -29,14 +29,14 @@ export class HubInfobox extends Infobox {
     this.panel.addControl(grid);
     if(!this.name.endsWith("Center")) {
       const sliderDest = this.name.replace("hub","leg");
-      this.bendForward = buildCheckBox(sliderDest, "setBendForward");
-      this.panel.addControl(this.bendForward);
       ipcRenderer.on('notifyBendForward', this.updateBendForward);
       this.positionText = buildText("pos.: --");
       ipcRenderer.on('notifyLegPosition', this.updatePosition);
       this.panel.addControl(this.positionText);
       const gauge = buildGauge(this, false);
       this.panel.addControl(gauge);
+      this.bendForward = buildToggleButton(sliderDest, "setBendForward");
+      this.panel.addControl(this.bendForward);
       ipcRenderer.send(sliderDest, "getProperties");
     }
     ipcRenderer.send(this.name, "getProperties");
@@ -59,7 +59,7 @@ export class HubInfobox extends Infobox {
   }
   updateBendForward = (event, arg1, arg2) => {
     if(arg1 === this.name.replace("hub", "leg")) {
-      (this.bendForward.getChildByName("bendForwardBox") as Checkbox).isChecked = arg2;
+      this.bendForward.textBlock.text = arg2 ? "bend backward >" : "< bend forward";
     }
   }
   updatePosition = (event, arg1, arg2) => {
@@ -69,22 +69,19 @@ export class HubInfobox extends Infobox {
   }
 }
 
-const buildCheckBox = (meshName: string, requestName: string) => {
-  const panel = new StackPanel("checkBoxPanel");
-  panel.isVertical = false;
-  panel.height = "25px";
-  panel.paddingLeft = "5px";
-  panel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-  const box = new Checkbox("bendForwardBox");
-  box.width = "20px";
-  box.height = "20px";
-  box.color = "lightgrey";
-  box.onIsCheckedChangedObservable.add((checked) => {
-    ipcRenderer.send(meshName, requestName, checked);
+const buildToggleButton = (meshName: string, requestName: string) => {
+  const button = Button.CreateSimpleButton("button", "");
+  button.paddingBottom = "5px";
+  button.width = "200px";
+  button.height = "30px";
+  button.background = "black";
+  button.thickness = 0
+  button.alpha = 0.8;
+  button.fontSize = "20px";
+  button.onPointerEnterObservable.add(() => button.thickness = 1);
+  button.onPointerOutObservable.add(() => button.thickness = 0);
+  button.onPointerClickObservable.add(() => {
+    ipcRenderer.send(meshName, requestName, button.textBlock.text.includes("forward"));
   });
-  panel.addControl(box);
-  const label = buildText(requestName);
-  label.width = "200px";
-  panel.addControl(label);
-  return panel;
+  return button;
 }
