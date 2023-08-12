@@ -1,6 +1,6 @@
 {
   "name": "babyele",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "program to control lego walker",
   "main": "./app/main.js",
   "scripts": {
@@ -18,6 +18,7 @@
     "@debenben/node-poweredup": "^9.0.3",
     "babylonjs": "^6.11.2",
     "babylonjs-gui": "^6.11.2",
+    "babylonjs-loaders": "^6.11.2",
     "electron-squirrel-startup": "^1.0.0",
     "ml-matrix": "^6.10.4"
   },
