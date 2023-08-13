@@ -8,6 +8,8 @@ export { Quaternion } from 'babylonjs';
 export const legNames = ['legFrontRight', 'legFrontLeft', 'legBackRight', 'legBackLeft'] as const
 export type LegName = typeof legNames[number];
 
+export const jointNames = [...legNames.map(e => e+'Shoulder'), ...legNames.map(e => e+'Knee'), ...legNames.map(e => e+'Foot')] as const
+
 export const motorNames = ['top', 'bottom', 'mount'] as const
 export type MotorName = typeof motorNames[number];
 

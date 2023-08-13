@@ -234,33 +234,32 @@ const onKeyPress = (kbInfo: BABYLON.KeyboardInfo) => {
         case "M":
           ipcRenderer.emit("toggleModeSelectionVisibility");
           break;
-      }
-    case BABYLON.KeyboardEventTypes.KEYUP:
-      const value = kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN ? 100 : 0
-      switch (kbInfo.event.key) {
         case "a":
         case "A":
-          ipcRenderer.send("dog", "requestPositionSpeedSideways", -value);
+          ipcRenderer.send("dog", "requestPositionSpeed", [0, 0, 100]);
           break;
         case "d":
         case "D":
-          ipcRenderer.send("dog", "requestPositionSpeedSideways", value);
+          ipcRenderer.send("dog", "requestPositionSpeed", [0, 0, -100]);
           break;
         case "w":
         case "W":
-          ipcRenderer.send("dog", "requestPositionSpeedForward", value);
+          ipcRenderer.send("dog", "requestPositionSpeed", [100, 0, 0]);
           break;
         case "s":
         case "S":
-          ipcRenderer.send("dog", "requestPositionSpeedForward", -value);
+          ipcRenderer.send("dog", "requestPositionSpeed", [-100, 0, 0]);
           break;
         case "CapsLock":
-          ipcRenderer.send("dog", "requestPositionSpeedHeight", value);
+          ipcRenderer.send("dog", "requestPositionSpeed", [0, 100, 0]);
           break;
         case "Shift":
-          ipcRenderer.send("dog", "requestPositionSpeedHeight", -value);
+          ipcRenderer.send("dog", "requestPositionSpeed", [0, -100, 0]);
           break;
       }
+      break;
+    case BABYLON.KeyboardEventTypes.KEYUP:
+      ipcRenderer.send("dog", "requestPositionSpeed", [0, 0, 0]);
       break;
   }
 }

@@ -2,7 +2,7 @@ import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from "./guitexture";
-import { reservedNames, legNames, Vector3 } from "./tools";
+import { reservedNames, legNames, jointNames, Vector3 } from "./tools";
 import * as Param from './param';
 
 export default class Renderer {
@@ -28,9 +28,8 @@ export default class Renderer {
     const scene = new BABYLON.Scene(engine);
     // scene.debugLayer.show();
     scene.imageProcessingConfiguration.toneMappingEnabled = true;
-    scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-    scene.fogDensity = 0.0002;
     this.scene = scene;
+
     const glow = new BABYLON.GlowLayer("glow", scene);
     glow.intensity = 0.5;
     const background = buildBackground(scene, engine);
@@ -41,8 +40,12 @@ export default class Renderer {
     const cameraCenter = new Vector3(0, Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM, 0).scale(0.5);
     this.camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/3, Math.PI/3, 3*Param.LEG_SEPARATION_LENGTH, cameraCenter, scene);
     this.camera.attachControl(canvas, true);
-    this.camera.wheelPrecision = 0.2;
     this.camera.useAutoRotationBehavior = true;
+    this.camera.lowerRadiusLimit = 0.5*Param.LEG_SEPARATION_LENGTH;
+    this.camera.minZ = 0.1*this.camera.lowerRadiusLimit;
+    this.camera.upperRadiusLimit = 5.0*Param.LEG_SEPARATION_LENGTH;
+    this.camera.maxZ = 10*this.camera.upperRadiusLimit;
+    this.camera.wheelPrecision = 10/this.camera.minZ;
     const dirLight = new BABYLON.DirectionalLight("dirLight", new Vector3(1, -2, 1).scale(Param.LEG_SEPARATION_LENGTH), scene);
     dirLight.intensity = 0.2;
     dirLight.parent = this.camera;
@@ -68,7 +71,6 @@ export default class Renderer {
     const dogScaling = new Vector3(Param.LEG_SEPARATION_LENGTH - 3.0*Param.LEG_MOUNT_HEIGHT, 3.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
     const dog = await importMesh(scene, "dog", "middle.glb", dogScaling);
     dog.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
-    dog.parent = ground;
 
     const axleScaling = new Vector3(3.0*Param.LEG_MOUNT_HEIGHT, 3.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
     const frontHub = await importMesh(scene, "hubFrontCenter", "axle.glb", axleScaling);
@@ -103,7 +105,6 @@ export default class Renderer {
 
     this.gravityLines = buildGravityLines(scene);
     this.displacementLines = buildDisplacementLines(scene);
-    this.displacementLines.parent = ground;
     scene.registerBeforeRender(() => {
       setBodyHeight(scene);
       if(this.gravityLines.isVisible) {
@@ -174,7 +175,6 @@ export default class Renderer {
         mesh.showBoundingBox = false;
         mesh.isPickable = true;
     }
-    mesh.material.wireframe = this.gravityLines.isVisible;
     this.guiTexture.showInfobox(renderer.selectedItem, renderer.selectedItemIsPreview);
   }
 
@@ -195,12 +195,8 @@ export default class Renderer {
 }
 
 const setBodyHeight = (scene: BABYLON.Scene) => {
-  let meshes = [];
-  meshes.push(...legNames.map(e => e + 'Shoulder'));
-  meshes.push(...legNames.map(e => e + 'Knee'));
-  meshes.push(...legNames.map(e => e + 'Foot'));
   const dog = scene.getMeshByName('dogRoot');
-  dog.position.y -= Math.min(...meshes.map(e => getClearance(scene, e)));
+  dog.position.y -= Math.min(...jointNames.map(e => getClearance(scene, e)));
 }
 
 const getClearance = (scene: BABYLON.Scene, meshName: string) => {
@@ -230,15 +226,11 @@ const getGravityLinesPath = (scene: BABYLON.Scene) => {
 
 const getDisplacementLinesPath = () => {
   const system = [];
-  for (let x=-120; x<=120; x+=30) {
-    const path1 = [];
-    path1.push(new Vector3(Param.LEG_SEPARATION_LENGTH/2 + x,0,Param.LEG_SEPARATION_WIDTH));
-    path1.push(new Vector3(Param.LEG_SEPARATION_LENGTH/2 + x,0,-Param.LEG_SEPARATION_WIDTH));
-    system.push(path1);
-    const path2 = [];
-    path2.push(new Vector3(-Param.LEG_SEPARATION_LENGTH/2 + x,0,Param.LEG_SEPARATION_WIDTH));
-    path2.push(new Vector3(-Param.LEG_SEPARATION_LENGTH/2 + x,0,-Param.LEG_SEPARATION_WIDTH));
-    system.push(path2);
+  for (let x=-12; x<=12; x++) {
+    const path = [];
+    path.push(new Vector3(x*Param.LEG_SEPARATION_LENGTH/12, 0, Param.LEG_SEPARATION_WIDTH));
+    path.push(new Vector3(x*Param.LEG_SEPARATION_LENGTH/12, 0, -Param.LEG_SEPARATION_WIDTH));
+    system.push(path);
   }
   return system;
 }
@@ -256,9 +248,7 @@ const selectItem = (event) => {
 
 const previewItem = (event) => {
   if(renderer.selectedItem) {
-    if(!renderer.selectedItemIsPreview) {
-      return;
-    }
+    if(!renderer.selectedItemIsPreview) return;
     renderer.setState(renderer.selectedItem, "online");
   }
   renderer.setState(event.meshUnderPointer.name, "preview");
@@ -266,9 +256,7 @@ const previewItem = (event) => {
 
 const unpreviewItem = (event) => {
   if(renderer.selectedItem) {
-    if(!renderer.selectedItemIsPreview) {
-      return;
-    }
+    if(!renderer.selectedItemIsPreview) return;
     renderer.setState(renderer.selectedItem, "online");
   }
 }
@@ -370,6 +358,7 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   shoulder.position = new Vector3(0, Param.LEG_MOUNT_HEIGHT, Param.LEG_MOUNT_WIDTH);
   shoulder.parent = mount;
   shoulder.isPickable = false;
+  shoulder.isVisible = false;
   const topScaling = new Vector3(Param.LEG_LENGTH_TOP, Param.LEG_LENGTH_TOP, Param.LEG_MOUNT_WIDTH);
   const topLeg = await importMesh(scene, meshName + "Top", "upper.glb", topScaling);
   topLeg.parent = shoulder;
@@ -377,6 +366,7 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   knee.position.y = -Param.LEG_LENGTH_TOP;
   knee.parent = topLeg;
   knee.isPickable = false;
+  knee.isVisible = false;
   const hubScaling = new Vector3(56, 70, 40).scale(Param.LEG_LENGTH_TOP/160);
   const hub = await importMesh(scene, meshName.replace("leg", "hub"), "hub.glb", hubScaling);
   hub.position.y = -Param.LEG_LENGTH_TOP/2;
@@ -388,6 +378,7 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   foot.position.y = -Param.LEG_LENGTH_BOTTOM;
   foot.parent = bottomLeg;
   foot.isPickable = false;
+  foot.isVisible = false;
   return leg;
 }
 
@@ -424,7 +415,6 @@ ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
 });
 ipcRenderer.on('toggleGridLinesVisibility', (event) => {
   if(!renderer.displacementLines.isVisible) {
-    renderer.camera.useAutoRotationBehavior = false;
     renderer.displacementLines.isVisible = true;
     renderer.guiTexture.setTopMenuButton(0, "green");
   }
@@ -433,11 +423,16 @@ ipcRenderer.on('toggleGridLinesVisibility', (event) => {
     renderer.guiTexture.setTopMenuButton(0, "red");
   }
   else {
-    renderer.camera.useAutoRotationBehavior = true;
     renderer.displacementLines.isVisible = false;
     renderer.gravityLines.isVisible = false;
     renderer.guiTexture.setTopMenuButton(0, "white");
   }
+  renderer.camera.useAutoRotationBehavior = !renderer.gravityLines.isVisible;
+  renderer.greyMaterial.wireframe = renderer.gravityLines.isVisible;
+  renderer.greenMaterial.wireframe = renderer.gravityLines.isVisible;
+  renderer.pickMaterial.wireframe = renderer.gravityLines.isVisible;
+  renderer.redMaterial.wireframe = renderer.gravityLines.isVisible;
+  jointNames.map(e => renderer.scene.getMeshByName(e).isVisible = renderer.displacementLines.isVisible);
 });
 ipcRenderer.on('toggleUseRotation', (event) => {
   renderer.useRotation = !renderer.useRotation;

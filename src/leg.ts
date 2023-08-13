@@ -45,7 +45,9 @@ export class Leg {
         for(const id in this.motors) {
           if(this.motors[id]) this.motors[id].requestUpdate();
         }
-        this.calculateTiltAngles();
+        for(const id in this.tiltSensors) {
+          if(this.tiltSensors[id]) this.tiltSensors[id].requestUpdate();
+        }
       }
     });
   }
