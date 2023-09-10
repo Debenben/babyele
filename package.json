@@ -16,9 +16,9 @@
   "license": "ISC",
   "dependencies": {
     "@debenben/node-poweredup": "^9.0.3",
-    "babylonjs": "^6.11.2",
-    "babylonjs-gui": "^6.11.2",
-    "babylonjs-loaders": "^6.11.2",
+    "babylonjs": "6.19.1",
+    "babylonjs-gui": "6.19.1",
+    "babylonjs-loaders": "6.19.1",
     "electron-squirrel-startup": "^1.0.0",
     "ml-matrix": "^6.10.4"
   },
@@ -28,7 +28,7 @@
     "@electron-forge/maker-rpm": "^6.0.0",
     "@electron-forge/maker-squirrel": "^6.0.0",
     "@electron-forge/maker-zip": "^6.0.0",
-    "electron": "^25.2.0",
+    "electron": "^26.1.0",
     "@electron/rebuild": "3.2.10",
     "typescript": "^5.0.4"
   },
