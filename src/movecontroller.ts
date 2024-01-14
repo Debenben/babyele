@@ -1,36 +1,25 @@
 import { BrowserWindow, ipcMain } from "electron";
 import * as fs from 'fs';
-import { Dog } from "./dog"
-import { Pose, Move, reservedNames } from "./tools";
+import { DogAbstraction } from "./dog"
+import { Vec43, Move, reservedNames } from "./tools";
 
 export class MoveController {
   mainWindow: BrowserWindow
-  dog: Dog
-  poses: Record<string, Pose> = {}
+  dog: DogAbstraction
+  poses: Record<string, Vec43> = {}
   moves: Record<string, Move> = {}
-  mode: string = "OFFLINE"
-  color: number = 0
+  mode = "OFFLINE"
   modeQueue: string[] = []
-  ledTimerID: NodeJS.Timeout
 
-  constructor(mainWindow: BrowserWindow, dog: Dog) {
+  constructor(mainWindow: BrowserWindow, dog: DogAbstraction) {
     this.mainWindow = mainWindow;
     this.dog = dog;
 
-    this.ledTimerID = setInterval(() => {
-      for(const ledNum in this.dog.leds) {
-	if(this.dog && this.dog.leds[ledNum]) {
-          this.dog.leds[ledNum].send(Buffer.from([0x81, 0x32, 0x10, 0x51, 0x00, this.color%2]));
-        }
-      }
-      this.color++;
-    }, 1000);
-
     this.retrieveData();
 
-    ipcMain.on('notifyState', (event, arg1, arg2) => {
+    ipcMain.on('notifyStatus', (event, arg1, arg2) => {
       if(arg1 === 'dog') {
-        if(arg2 === 'offline') {
+        if(!arg2) {
           this.mode = "OFFLINE";
           this.send('notifyMode', this.mode, true);
           this.notifyAvailability();
@@ -60,7 +49,7 @@ export class MoveController {
 
     ipcMain.on('storePose', (event, poseName) => {
       if(reservedNames.includes(poseName)) return;
-      this.poses[poseName] = this.dog.getPose();
+      this.poses[poseName] = this.dog.motorAngles;
       const prefix = poseName.split('-')[0];
       const num = poseName.split('-')[1];
       if(this.moves.hasOwnProperty(prefix)) {
@@ -96,11 +85,10 @@ export class MoveController {
     ipcMain.on('requestMode', (event, modeName) => {
       this.requestMode(modeName);
     });
-  };
+  }
   
   destructor() {
     this.requestMode("OFFLINE");
-    clearInterval(this.ledTimerID);
   }
 
   retrieveData = () => {
@@ -158,7 +146,7 @@ export class MoveController {
     /* special predefined mode requests */
     if(destMode === "OFFLINE") {
       this.modeQueue = [];
-      this.dog.shutdown();
+      this.dog.requestShutdown();
       return;
     }
     else if (this.mode === "OFFLINE") { // prevent predefined mode handling below
@@ -172,19 +160,19 @@ export class MoveController {
       return;
     }
     else if (destMode === "SYNC") {
-      this.dog.synchronize();
+      this.dog.requestSync(this.dog.motorAngles);
       return;
     }
     else if (destMode === "STOP") {
       this.modeQueue = [];
-      this.dog.stop();
+      this.dog.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
       this.notifyAvailability();
       return;
     }
     else if (destMode === "BUTTON") {
       if(this.modeQueue.length) {
         this.modeQueue = [];
-        this.dog.stop();
+        this.dog.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
         this.notifyAvailability();
       }
       else {
@@ -235,7 +223,7 @@ export class MoveController {
     while(this.modeQueue.length) {
       const dest = this.modeQueue[0];
       if(this.poses.hasOwnProperty(dest)) {
-        await this.dog.requestPose(this.poses[dest]);
+        await this.dog.requestMotorAngles(this.poses[dest]);
         this.mode = dest;
         this.send('notifyMode', dest, true);
         this.modeQueue.shift();
@@ -244,15 +232,15 @@ export class MoveController {
         if(!this.moves[dest].length) return Promise.resolve();
         for(const poseId of this.moves[dest]) {
           if(!this.modeQueue.length) return Promise.resolve();
-	  if(reservedNames.includes(poseId as any)) this.requestMode(poseId);
-	  else if(this.poses.hasOwnProperty(poseId)) {
-            await Promise.all([this.dog.requestPose(this.poses[poseId]), new Promise(res => setTimeout(res, 10))]);
+          if(reservedNames.includes(poseId as any)) this.requestMode(poseId);
+          else if(this.poses.hasOwnProperty(poseId)) {
+            await Promise.all([this.dog.requestMotorAngles(this.poses[poseId]), new Promise(res => setTimeout(res, 10))]);
             this.mode = poseId;
             this.send('notifyMode', poseId, true);
-	  }
-	  else {
+          }
+          else {
             console.log("Pose " + poseId + " is unknown, discarding");
-	  }
+          }
         }
         if(this.modeQueue.length === 1 && this.allowSwitch(dest, dest)) continue;
         this.modeQueue.shift();

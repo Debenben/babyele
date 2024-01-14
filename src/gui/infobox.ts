@@ -1,7 +1,7 @@
-import { Rectangle, Ellipse, Control, Slider, TextBlock, Button, StackPanel, Grid, Container } from "babylonjs-gui";
+import { Rectangle, Ellipse, Control, TextBlock, Button, StackPanel, Container } from "babylonjs-gui";
+import { Vector3 } from '../tools';
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from './guitexture';
-import { printPosition, printDegree } from './tools';
 
 export class Infobox extends Container {
   guiTexture: GuiTexture;
@@ -36,8 +36,8 @@ export class Infobox extends Container {
     this.fillRectangle.background = this.color;
     this.heading.background = this.color;
   }
-  addControls(){}
-  removeControls(){}
+  addControls(){return}
+  removeControls(){return}
 }
 
 const buildHeading = (infobox: Infobox) => {
@@ -57,7 +57,7 @@ const buildHeading = (infobox: Infobox) => {
     ipcRenderer.emit('startGuiDrag', 'dragEvent', infobox, vec);
     heading.thickness = 1;
   });
-  block.onPointerUpObservable.add((vec) => {
+  block.onPointerUpObservable.add(() => {
     ipcRenderer.emit('stopGuiDrag', 'dragEvent', infobox);
     heading.thickness = 0;
   });
@@ -83,10 +83,23 @@ const buildHeading = (infobox: Infobox) => {
   button.onPointerEnterObservable.add(() => button.thickness = 1);
   button.onPointerOutObservable.add(() => button.thickness = 0);
   button.onPointerClickObservable.add(() => {
-    ipcRenderer.emit("notifyState", "closeEvent", infobox.name, "online");
+    ipcRenderer.emit("notifyStatus", "closeEvent", infobox.name, true);
   });
   heading.addControl(button);
   return heading;
+}
+
+export const pad = (str: string, size: number) => {
+  const s = "          " + str;
+  return s.substr(s.length - size);
+}
+
+export const printPosition = (pos: number[]) => {
+  return pos.map(e => pad(e.toFixed(0), 5)).join();
+}
+
+export const printDegree = (rad: number) => {
+  return pad((180*rad/Math.PI).toFixed(2), 8) + "°";
 }
 
 export const buildText = (content: string) => {
@@ -130,9 +143,9 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
     gauge.addControl(scale);
     return scale;
   }
-  const axis1 = buildScale(0*Math.PI/3);
-  const axis2 = buildScale(2*Math.PI/3);
-  const axis3 = buildScale(4*Math.PI/3);
+  buildScale(0*Math.PI/3);
+  buildScale(2*Math.PI/3);
+  buildScale(4*Math.PI/3);
 
   const setKnob = (knob: Ellipse, angles: number[]) => {
     let top = 0;
@@ -174,11 +187,11 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
     const xval = 4*(vec.x - mouseOverlay.centerX)/(scaling*infobox.guiTexture.getScale());
     const yval = 4*(vec.y - mouseOverlay.centerY)/(scaling*infobox.guiTexture.getScale());
 
-    let base = [];
+    const base = [];
     for(let i = 0; i < 3; i++) {
       base[i] = [Math.sin((1+2*i)*Math.PI/3), Math.cos((1+2*i)*Math.PI/3)];
     }
-    let s = [[],[],[]];
+    const s = [[],[],[]];
     for(let i = 0; i < 3; i++) {
       for(let j = 0; j < 3; j++) {
         s[i][j] = (xval/base[i][1] - yval/base[i][0])/(base[j][0]/base[i][0] - base[j][1]/base[i][1]);

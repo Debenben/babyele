@@ -1,9 +1,9 @@
 import { EventEmitter } from "events";
-import { PoweredAbstraction, HubAbstraction, LEDAbstraction, MotorAbstraction, TiltSensorAbstraction } from "./interfaces";
+import { PoweredAbstraction, HubAbstraction, LEDAbstraction, MotorAbstraction, AccelerometerAbstraction } from "./interfaces";
 
 export class SimulationPowered extends EventEmitter implements PoweredAbstraction {
   hubList: string[] = ["BeneLego6", "BeneLego1", "BeneLego2", "BeneLego3", "BeneLego4", "BeneLego5", "differentHub"]
-  restart: boolean = false
+  restart = false
 
   public async scan() {
     console.log("scanning for simulation hubs");
@@ -24,7 +24,7 @@ export class SimulationPowered extends EventEmitter implements PoweredAbstractio
 
 export class SimulationHub extends EventEmitter implements HubAbstraction {
   name: string
-  firmwareVersion: string = "simulation"
+  firmwareVersion = "simulation"
   batteryLevel: number
   rssi: number
   devices = [];
@@ -37,7 +37,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     console.log("creating simulation hub " + this.name);
     this.devices["ACCELEROMETER"] = new SimulationTiltSensor("ACCELEROMETER", hubName);
     switch(this.name) {
-      case "BeneLego4":
+      case "BeneLego5":
       case "BeneLego6":
         this.devices["A"] = new SimulationMotor("A", 882);
         this.devices["B"] = new SimulationMotor("B", 882);
@@ -47,7 +47,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
       case "BeneLego2":
       case "BeneLego3":
       case "BeneLego1":
-      case "BeneLego5":
+      case "BeneLego4":
         this.devices["A"] = new SimulationMotor("A", 846);
         this.devices["B"] = new SimulationTiltSensor("B", hubName);
 	break;
@@ -60,6 +60,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   disconnect() {
     console.log("disconnecting from simulation hub " + this.name);
     Object.keys(this.devices).forEach(id => this.devices[id].destructor());
+    Object.keys(this.devices).forEach(id => this.devices[id] = null);
     this.emit('disconnect');
     return Promise.resolve();
   }
@@ -74,7 +75,7 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
   waitForDeviceByType(deviceType: number) {
     return new Promise((resolve) => {
       if(deviceType === 23) {
-        console.log("simulation hub " + this.name + " returns simulationLED");
+        // console.log("simulation hub " + this.name + " returns simulationLED");
         return resolve(new SimulationLED());
       }
       else if(deviceType === 57) {
@@ -112,7 +113,7 @@ export class SimulationLED extends EventEmitter implements LEDAbstraction {
 }
 
 
-export class SimulationTiltSensor extends EventEmitter implements TiltSensorAbstraction {
+export class SimulationTiltSensor extends EventEmitter implements AccelerometerAbstraction {
   portId: number
   x: number
   y: number
@@ -168,7 +169,7 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   destRotation: number
   maxSpeed: number
   speed: number
-  speedIntervalID: NodeJS.Timeout
+  speedIntervalID: NodeJS.Timeout = null
   token: Token
 
   get type() {
@@ -244,6 +245,10 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
       console.log("simulation motor requested speed " + speed + " is out of bounds");
       return;
     }
+    if(degrees < 0) {
+      console.log("simulation motor requested degrees " + degrees + " is negative");
+      return;
+    }
     if(this.speedIntervalID) {
       this.setSpeed(0, undefined);
     }
@@ -312,5 +317,5 @@ function toPortId(portName) {
 }
 
 class Token {
-  isCancellationRequested: boolean = false;
+  isCancellationRequested = false;
 }

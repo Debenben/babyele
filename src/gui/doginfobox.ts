@@ -1,7 +1,7 @@
-import { TextBlock, Control } from "babylonjs-gui";
+import { TextBlock } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Infobox, buildText, buildGauge } from './guiinfobox';
-import { printPosition, Vector3 } from './tools';
+import { Infobox, buildText, buildGauge, printPosition } from './infobox';
+import { Vector3 } from '../tools';
 
 export class DogInfobox extends Infobox {
   tiltText: TextBlock;
@@ -35,17 +35,17 @@ export class DogInfobox extends Infobox {
   }
   updateTilt = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.tiltText.text = "tilt:" + printPosition(new Vector3(arg2._x, arg2._y, arg2._z).scale(180/Math.PI));
+      //this.tiltText.text = "tilt:" + printPosition(new Vector3(arg2._x, arg2._y, arg2._z).scale(180/Math.PI));
     }
   }
   updateRotation = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.rotationText.text = "rot.:" + printPosition(new Vector3(arg2._x, arg2._y, arg2._z).scale(180/Math.PI));
+      this.rotationText.text = "rot.:" + printPosition(arg2.map(e => e*180/Math.PI));
     }
   }
   updatePosition = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.positionText.text = "pos.:" + printPosition(new Vector3(arg2._x, arg2._y, arg2._z));
+      this.positionText.text = "pos.:" + printPosition(arg2);
     }
   }
 }

@@ -1,7 +1,6 @@
-import * as BABYLON from 'babylonjs';
-import { Rectangle, Control, TextBlock, Button, StackPanel, ScrollViewer, InputText, Grid, Container } from "babylonjs-gui";
+import { Rectangle, Control, Button, StackPanel, ScrollViewer, InputText, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Move, reservedNames } from './tools';
+import { Move, reservedNames } from '../tools';
 
 export class ModeSelection extends Container {
   modalBlocker : Rectangle
@@ -76,7 +75,7 @@ class MoveButton extends Container {
       ipcRenderer.emit('startGuiDrag', 'dragEvent', this.moveButton, vec, true);
       this.moveButton.color = "red";
     });
-    this.moveButton.onPointerUpObservable.add((vec) => {
+    this.moveButton.onPointerUpObservable.add(() => {
       ipcRenderer.emit('stopGuiDrag', 'dragEvent', this.moveButton);
       this.updateMoveColor();
     });
@@ -166,7 +165,7 @@ class ExpandView extends StackPanel {
       this.spacer.background = "red";
     }
     else {
-      if(this.background === "green" || "#303030") {
+      if(this.background === "green" || this.background === "#303030") {
         this.background = "lightgrey";
         this.spacer.background = "transparent";
         this.removeControl(this.spacer);
@@ -280,7 +279,7 @@ const buildPoseButton = (poseName: string) => {
     button.color = "red";
     ipcRenderer.emit('startGuiDrag', 'dragEvent', button, vec, true);
   });
-  button.onPointerUpObservable.add((vec) => {
+  button.onPointerUpObservable.add(() => {
     button.color = "black";
     ipcRenderer.emit('stopGuiDrag', 'dragEvent', button);
   });

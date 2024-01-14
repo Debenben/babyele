@@ -8,9 +8,9 @@
     "configure": "sudo setcap cap_net_raw+eip ./node_modules/electron/dist/electron && sudo bash -c 'echo $(pwd)/node_modules/electron/dist > /etc/ld.so.conf.d/electron-node.conf' && sudo bash -c 'chown root:root $(pwd)/node_modules/electron/dist/chrome-sandbox && chmod 4755 $(pwd)/node_modules/electron/dist/chrome-sandbox'",
     "start": "tsc && electron-forge start",
     "test": "tsc && electron-forge start -- --simulation",
-    "calibrate": "tsc && electron-forge start -- --calibrate",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "lint": "eslint --ext .ts,.tsx ."
   },
   "author": "bene",
   "license": "ISC",
@@ -19,18 +19,21 @@
     "babylonjs": "6.19.1",
     "babylonjs-gui": "6.19.1",
     "babylonjs-loaders": "6.19.1",
-    "electron-squirrel-startup": "^1.0.0",
     "ml-matrix": "^6.10.4"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^6.0.0",
-    "@electron-forge/maker-deb": "^6.0.0",
-    "@electron-forge/maker-rpm": "^6.0.0",
-    "@electron-forge/maker-squirrel": "^6.0.0",
-    "@electron-forge/maker-zip": "^6.0.0",
-    "electron": "^26.1.0",
-    "@electron/rebuild": "3.2.10",
-    "typescript": "^5.0.4"
+    "@electron-forge/cli": "^7.2.0",
+    "@electron-forge/maker-deb": "^7.2.0",
+    "@electron-forge/maker-rpm": "^7.2.0",
+    "@electron-forge/maker-squirrel": "^7.2.0",
+    "@electron-forge/maker-zip": "^7.2.0",
+    "electron": "^28.0.0",
+    "@electron/rebuild": "^3.6.0",
+    "typescript": "^5.0.4",
+    "eslint": "^8.0.1",
+    "eslint-plugin-import": "^2.25.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.2",
+    "@typescript-eslint/parser": "^7.0.2"
   },
   "config": {
     "forge": {

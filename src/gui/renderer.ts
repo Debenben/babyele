@@ -2,8 +2,8 @@ import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from "./guitexture";
-import { reservedNames, legNames, jointNames, Vector3 } from "./tools";
-import * as Param from './param';
+import { legNames, jointNames, Vector3 } from "../tools";
+import * as Param from '../param';
 
 export default class Renderer {
   canvas: HTMLCanvasElement;
@@ -19,7 +19,7 @@ export default class Renderer {
   displacementLines: BABYLON.LinesMesh;
   selectedItem: string;
   selectedItemIsPreview: boolean;
-  useRotation: boolean = true;
+  useRotation = true;
   guiTexture: GuiTexture;
 
   async createScene(canvas: HTMLCanvasElement, engine: BABYLON.Engine) {
@@ -32,8 +32,8 @@ export default class Renderer {
 
     const glow = new BABYLON.GlowLayer("glow", scene);
     glow.intensity = 0.5;
-    const background = buildBackground(scene, engine);
-    const ground = buildGround(scene, engine);
+    buildBackground(scene, engine);
+    buildGround(scene, engine);
     this.actionManager = new BABYLON.ActionManager(scene);
     this.guiTexture = new GuiTexture(scene);
 
@@ -77,14 +77,14 @@ export default class Renderer {
 
     const legFrontLeft = await buildLeg(scene, "legFrontLeft");
     legFrontLeft.position = new Vector3(0, -Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH/2 - Param.LEG_MOUNT_WIDTH);
-    legFrontLeft.scaling.z = -1;
+    legFrontLeft.rotation.y = Math.PI;
     legFrontLeft.parent = frontHub;
     const legFrontRight = await buildLeg(scene, "legFrontRight");
     legFrontRight.position = new Vector3(0, -Param.LEG_MOUNT_HEIGHT, -(Param.LEG_SEPARATION_WIDTH/2 - Param.LEG_MOUNT_WIDTH));
     legFrontRight.parent = frontHub;
     const legBackLeft = await buildLeg(scene, "legBackLeft");
     legBackLeft.position = new Vector3(0, -Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH/2 - Param.LEG_MOUNT_WIDTH);
-    legBackLeft.scaling.z = -1;
+    legBackLeft.rotation.y = Math.PI;
     legBackLeft.parent = backHub;
     const legBackRight = await buildLeg(scene, "legBackRight");
     legBackRight.position = new Vector3(0, -Param.LEG_MOUNT_HEIGHT, -(Param.LEG_SEPARATION_WIDTH/2 - Param.LEG_MOUNT_WIDTH));
@@ -110,14 +110,14 @@ export default class Renderer {
 
   setDogRotation(tilt: Vector3) {
     const dog = this.scene.getMeshByName("dogRoot");
-    for(let i of ['x', 'y', 'z']) {
+    for(const i of ['x', 'y', 'z']) {
       if(!(tilt[i] === null)) dog.rotation[i] = tilt[i];
     }
   }
 
   setDogPosition(position: Vector3) {
     const dog = this.scene.getMeshByName("dogRoot");
-    for(let i of ['x', 'y', 'z']) {
+    for(const i of ['x', 'y', 'z']) {
       if(!(position[i] === null)) dog.position[i] = position[i];
     }
   }
@@ -202,7 +202,7 @@ const getClearance = (scene: BABYLON.Scene, meshName: string) => {
 
 const getProjection = (scene: BABYLON.Scene, meshName: string) => {
   const mesh = scene.getMeshByName(meshName);
-  let position = Vector3.TransformCoordinates(new Vector3(0, 0, 0), mesh.getWorldMatrix());
+  const position = Vector3.TransformCoordinates(new Vector3(0, 0, 0), mesh.getWorldMatrix());
   position.y = 0;
   return position;
 }
@@ -249,7 +249,7 @@ const previewItem = (event) => {
   renderer.setState(event.meshUnderPointer.name, "preview");
 }
 
-const unpreviewItem = (event) => {
+const unpreviewItem = () => {
   if(renderer.selectedItem) {
     if(!renderer.selectedItemIsPreview) return;
     renderer.setState(renderer.selectedItem, "online");
@@ -377,8 +377,8 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
 const renderer = new Renderer();
 renderer.initialize(document.getElementById('canvas') as HTMLCanvasElement);
 
-ipcRenderer.on('notifyState', (event, arg1, arg2) => {
-  renderer.setState(arg1, arg2);
+ipcRenderer.on('notifyStatus', (event, arg1, arg2) => {
+  renderer.setState(arg1, arg2 ? 'online' : 'offline');
 });
 ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
   if(!renderer.useRotation) return;
@@ -387,25 +387,25 @@ ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
 ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
   if(renderer.useRotation) return;
   if(arg1 === "dog") {
-    renderer.setDogRotation(new Vector3(arg2._x, null, arg2._z));
+    renderer.setDogRotation(new Vector3(arg2[0], null, arg2[2]));
   }
   else if(arg1.startsWith("leg")) {
     renderer.setLegRotation(arg1, arg2);
   }
 });
 ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
-  renderer.setDogRotation(new Vector3(null, arg2._y, null));
   if(renderer.useRotation) {
-    renderer.setDogRotation(new Vector3(arg2._x, null, arg2._z));
+    renderer.setDogRotation(Vector3.FromArray(arg2));
   }
+  else renderer.setDogRotation(new Vector3(null, arg2[1], null));
 });
 ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
-  renderer.setDogPosition(new Vector3(-arg2._x, null, -arg2._z));
+  renderer.setDogPosition(new Vector3(-arg2[0], null, -arg2[2]));
 });
 ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
   document.getElementById('title').innerHTML = "lego walker: " + modeName;
 });
-ipcRenderer.on('toggleGridLinesVisibility', (event) => {
+ipcRenderer.on('toggleGridLinesVisibility', () => {
   if(!renderer.displacementLines.isVisible) {
     renderer.displacementLines.isVisible = true;
     renderer.guiTexture.setTopMenuButton(0, "green");
@@ -426,7 +426,7 @@ ipcRenderer.on('toggleGridLinesVisibility', (event) => {
   renderer.redMaterial.wireframe = renderer.gravityLines.isVisible;
   jointNames.map(e => renderer.scene.getMeshByName(e).isVisible = renderer.displacementLines.isVisible);
 });
-ipcRenderer.on('toggleUseRotation', (event) => {
+ipcRenderer.on('toggleUseRotation', () => {
   renderer.useRotation = !renderer.useRotation;
   renderer.guiTexture.setTopMenuButton(1, renderer.useRotation ? "white" : "green");
   ["dog"].concat(legNames).map(e => ipcRenderer.send(e, "getProperties"));

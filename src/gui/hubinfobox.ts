@@ -1,7 +1,7 @@
-import { Grid, TextBlock, Button, Control } from "babylonjs-gui";
+import { Grid, TextBlock, Button } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Infobox, buildText, buildGauge } from './guiinfobox';
-import { printPosition, Vector3 } from './tools';
+import { Infobox, buildText, buildGauge, printPosition } from './infobox';
+import { Vector3 } from '../tools';
 
 export class HubInfobox extends Infobox {
   batteryText: TextBlock;
@@ -64,7 +64,7 @@ export class HubInfobox extends Infobox {
   }
   updatePosition = (event, arg1, arg2) => {
     if(arg1 === this.name.replace("hub", "leg")) {
-      this.positionText.text = "pos.:" + printPosition(new Vector3(arg2._x, arg2._y, arg2._z));
+      this.positionText.text = "pos.:" + printPosition(arg2);
     }
   }
 }

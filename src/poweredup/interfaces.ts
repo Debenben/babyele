@@ -23,7 +23,7 @@ export interface LEDAbstraction {
   send: (message: Buffer) => Promise<void>;
 }
 
-export interface TiltSensorAbstraction extends EventEmitter {
+export interface AccelerometerAbstraction extends EventEmitter {
   readonly portId: number;
   readonly type: number;
   send: (message: Buffer) => Promise<void>;

@@ -1,327 +1,254 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { Leg } from "./leg";
-import { HubAbstraction, LEDAbstraction, TiltSensorAbstraction, MotorAbstraction } from "./interfaces";
-import { legNames, LegName, motorNames, Vector3, Quaternion, Pose, LegPositions } from "./tools";
-import { MotorMap, NO_MOVE_MOTOR_ANGLE, MOTOR_UPDATE_INTERVAL, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, TILT_TYPES, ACCEL_NORM_MIN, ACCEL_NORM_MAX } from "./param";
+import { CommanderAbstraction } from "./commanderinterface";
+import { SensorAbstraction } from "./sensorinterface";
+import { legAnglesFromMotorAngles, legPositionsFromMotorAngles, dogRotationFromMotorAngles, dogPositionFromMotorAngles, motorAnglesFromLegPositions, motorAnglesFromLegAngles, durationsFromMotorAngles } from "./conversions";
+import { Vec3, Vec43, Vector3, Quaternion, hubNames, motorNames, legNames } from "./tools";
 
-const defaultLegPositions: LegPositions =
-  {legFrontRight: new Vector3(LEG_SEPARATION_LENGTH/2,  0, -LEG_SEPARATION_WIDTH/2),
-   legBackRight:  new Vector3(-LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2),
-   legFrontLeft:  new Vector3(LEG_SEPARATION_LENGTH/2,  0,  LEG_SEPARATION_WIDTH/2),
-   legBackLeft:   new Vector3(-LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2)};
+const MOTOR_UPDATE_INTERVAL = 100; // interval in milliseconds for updating motor commands
 
-const setHubProperty =
-  (hub: HubAbstraction, property: number, value: number) => {
-    return hub.send(Buffer.from([0x01, property, value]), "00001624-1212-efde-1623-785feabcd123");
-  };
+const compareArrays = (a, b) => a.length === b.length && a.every((element, index) => element === b[index]);
+const vec3IsZero = (vec: Vec3) => compareArrays(vec, [0,0,0]);
+const vec43IsZero = (vec: Vec43) => vec.every(e => vec3IsZero(e));
+const absMax = (vec: Vec43) => Math.max.apply(null, vec.map(e => Math.max.apply(null, e.map(f => Math.abs(f)))));
 
-const dogPositionFromLegPositions = (legPositions: LegPositions) => {
-    let position = new Vector3(0, 0, 0);
-    for(const id of legNames) {
-      position.addInPlace(legPositions[id].scale(0.25));
-    }
-    return position;
-  };
-
-const dogRotationFromLegPositions = (legPositions: LegPositions) => {
-  const dogPosition = dogPositionFromLegPositions(legPositions);
-  let averageRotation = Quaternion.Zero();
-  for(const id of legNames) {
-    const absolutePosition = legPositions[id].subtract(dogPosition);
-    let legRotation = Quaternion.Identity();
-    Quaternion.FromUnitVectorsToRef(absolutePosition.normalize(), defaultLegPositions[id].normalizeToNew(), legRotation);
-    legRotation.scaleAndAddToRef(0.25, averageRotation);
-  }
-  return averageRotation;
+export interface DogAbstraction extends SensorAbstraction, CommanderAbstraction {
+  attachCommander: (commander : CommanderAbstraction) => void;
 };
 
-export class Dog {
+export class Dog implements DogAbstraction {
   mainWindow: BrowserWindow
-  legs: Record<LegName, Leg> = {} as Record<LegName, Leg>
-  hubs: Record<string, HubAbstraction> = {}
-  leds: Record<string, LEDAbstraction> = {}
-  positionSpeed: Vector3
-  rotationSpeed: Vector3
-  startMovePositions: LegPositions = {} as LegPositions
-  dogTilt: Quaternion = Quaternion.Identity()
-  moveSpeedIntervalID: NodeJS.Timeout
-  isComplete: boolean = false
+  commander: CommanderAbstraction
+
+  _hubStatus: boolean[] = new Array(6).fill(false)
+  _motorStatus: boolean[] = new Array(12).fill(false)
+  _accelerometerStatus: boolean[] = new Array(10).fill(false)
+
+  _motorAngles: Vec43 = [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]
+  _topAcceleration: Vec43 = [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]
+  _bottomAcceleration: Vec43 = [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]
+  _dogAcceleration: Vec3 = [0,0,0]
+
+  _bendForward: boolean[] = [false, true, false, true]
+  _positionSpeed: Vec43 = [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]
+  _rotationSpeed: Vec3 = [0,0,0]
+  _startMoveMotorAngles: Vec43 = null
+  moveSpeedIntervalID: NodeJS.Timeout = null
+
+  get hubStatus() {
+    return JSON.parse(JSON.stringify(this._hubStatus));
+  }
+
+  get motorStatus() {
+    return JSON.parse(JSON.stringify(this._motorStatus));
+  }
+
+  get accelerometerStatus() {
+    return JSON.parse(JSON.stringify(this._accelerometerStatus));
+  }
+
+  get motorAngles() {
+    return JSON.parse(JSON.stringify(this._motorAngles));
+  }
+
+  get topAcceleration() {
+    return JSON.parse(JSON.stringify(this._topAcceleration));
+  }
+
+  get bottomAcceleration() {
+    return JSON.parse(JSON.stringify(this._bottomAcceleration));
+  }
+
+  get dogAcceleration() {
+    return JSON.parse(JSON.stringify(this._dogAcceleration));
+  }
+
+  get bendForward() {
+    return JSON.parse(JSON.stringify(this._bendForward));
+  }
+
+  get positionSpeed() {
+    return JSON.parse(JSON.stringify(this._positionSpeed));
+  }
+
+  get rotationSpeed() {
+    return JSON.parse(JSON.stringify(this._rotationSpeed));
+  }
+
+  get startMoveMotorAngles() {
+    return JSON.parse(JSON.stringify(this._startMoveMotorAngles));
+  }
+
+  connect() {
+    return this.commander.connect();
+  }
+
+  disconnect() {
+    return this.commander.disconnect();
+  }
+
+  requestShutdown() {
+    return this.commander.requestShutdown();
+  }
+
+  requestMotorSpeeds(motorSpeeds) {
+    clearInterval(this.moveSpeedIntervalID);
+    this.moveSpeedIntervalID = null;
+    return this.commander.requestMotorSpeeds(motorSpeeds);
+  }
+
+  requestMotorAngles(motorAngles) {
+    clearInterval(this.moveSpeedIntervalID);
+    this.moveSpeedIntervalID = null;
+    return this.commander.requestMotorAngles(motorAngles);
+  }
+
+  requestSync(motorAngles) {
+    return this.commander.requestSync(motorAngles);
+  }
+
+  attachCommander(commander: CommanderAbstraction) {
+    this.commander = commander;
+  }
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
-    for(const id of legNames) {
-      this.legs[id] = new Leg(id, mainWindow);
-      this.legs[id].setDogTilt(this.dogTilt);
-    }
     ipcMain.on("dog", (event, arg1, arg2) => {
       if(arg1 === "requestPositionSpeed") {
-        ipcMain.emit('requestMode', 'internal', 'MANUAL');
-        this.positionSpeed = new Vector3(...arg2)
+        this._positionSpeed = [arg2, arg2, arg2, arg2];
         this.requestMoveSpeed();
       }
       else if(arg1 === "requestRotationSpeed") {
-        ipcMain.emit('requestMode', 'internal', 'MANUAL');
-        this.rotationSpeed = new Vector3(...arg2);
+        this._rotationSpeed = arg2;
         this.requestMoveSpeed();
       }
-      else if(arg1 === "getProperties") {
-        this.send('notifyDogPosition', "dog", this.getDogPosition());
-        this.send('notifyDogRotation', "dog", this.getDogRotation().toEulerAngles());
-        this.send('notifyTilt', "dog", this.getDogTilt());
+      if(arg1 === "getProperties") {
+        this.send('notifyDogPosition', "dog", dogPositionFromMotorAngles(this.motorAngles));
+        const rotation = dogRotationFromMotorAngles(this.motorAngles).toEulerAngles();
+        this.send('notifyDogRotation', "dog", [rotation.x, rotation.y, rotation.z]);
       }
     });
-  }
-
-  async addHub(hub: HubAbstraction) {
-    await hub.connect();
-    console.log("Connected to " + hub.name + " firmware " + hub.firmwareVersion);
-    if(MotorMap[hub.name]) {
-      const hubName = MotorMap[hub.name]["name"];
-      this.hubs[hubName] = hub;
-      this.leds[hubName] = await hub.waitForDeviceByType(23); // Consts.DeviceType.HUB_LED
-      this.send('notifyState', hubName, 'online');
-      hub.removeAllListeners("attach");
-      hub.on("attach", (device) => {
-        this.init();
-      });
-      hub.removeAllListeners("detach");
-      hub.on("detach", (device) => {
-        this.init();
-      });
-      hub.removeAllListeners("button");
-      hub.on("button", ({ event }) => {
-        if(event === 2) { // Consts.ButtonState.PRESSED
-          ipcMain.emit('requestMode', 'internal', 'BUTTON');
+    for(let i = 0; i < 4; i++)  {
+      ipcMain.on(legNames[i], (event, arg1, arg2) => {
+        if(arg1 === "requestPositionSpeed") {
+	  this._positionSpeed[i] = arg2;
+          this.requestMoveSpeed();
+        }
+        else if(arg1 === "setBendForward") {
+          this._bendForward[i] = arg2;
+          this.send('notifyBendForward', legNames[i], this.bendForward[i]);
+        }
+        else if(arg1 === "getProperties") {
+          this.send('notifyBendForward', legNames[i], this.bendForward[i]);
+          this.send('notifyLegPosition', legNames[i], legPositionsFromMotorAngles(this.motorAngles)[i]);
         }
       });
-      hub.removeAllListeners("disconnect");
-      hub.on("disconnect", () => {
-        ipcMain.removeAllListeners(hubName);
-        this.send('notifyState', hubName, 'offline');
-        delete this.hubs[hubName];
-        delete this.leds[hubName];
-        this.init();
-      });
-      hub.removeAllListeners("batteryLevel");
-      hub.on("batteryLevel", (level) => {
-        return this.send('notifyBattery', hubName, Number(level.batteryLevel));
-      });
-      hub.removeAllListeners("rssi");
-      hub.on("rssi", (rssi) => {
-        return this.send('notifyRssi', hubName, Number(rssi.rssi));
-      });
-      ipcMain.on(hubName, (event, arg1) => {
-        if(arg1 === "getProperties") {
-          this.send('notifyBattery', hubName, hub.batteryLevel); // battery is only emitted on change
-          setHubProperty(hub, 0x05, 0x05); // request rssi update
-          setHubProperty(hub, 0x06, 0x05); // request battery update
+    }
+    for(let i = 0; i < 12; i++) {
+      ipcMain.on(motorNames[i], (event, arg1, arg2) => {
+        if(arg1 === "requestRotationSpeed") {
+          const speeds = [[0,0,0], [0,0,0], [0,0,0], [0,0,0]];
+          speeds[Math.floor(i/3)][i%3] = arg2;
+          this.requestMotorSpeeds(speeds as Vec43);
+        }
+	else if(arg1 === "requestRotationAngle") {
+          const angles = legAnglesFromMotorAngles(this.motorAngles);
+          angles[Math.floor(i/3)][i%3] = arg2;
+          this.requestMotorAngles(motorAnglesFromLegAngles(angles));
         }
       });
-      setHubProperty(hub, 0x05, 0x03); // disable rssi update
-      setHubProperty(hub, 0x06, 0x03); // disable battery update
-      this.init();
-      return;
-    }
-    console.log("HubName " + hub.name + " not known, disconnecting");
-    hub.disconnect();
-  }
-
-  async addDogTiltSensor(sensor: TiltSensorAbstraction, rotation, offset) {
-    if(!sensor || !TILT_TYPES.includes(sensor.type)) return false;
-    sensor.removeAllListeners("accel");
-    sensor.on('accel', (accel) => {
-      let acceleration = new Vector3(accel.x, accel.z, accel.y)
-      acceleration.addInPlaceFromFloats(offset.x, offset.y, offset.z);
-      if(acceleration.length() < ACCEL_NORM_MIN || acceleration.length() > ACCEL_NORM_MAX) return;
-      acceleration.normalize();
-      acceleration.applyRotationQuaternionInPlace(Quaternion.FromEulerAngles(rotation.x, rotation.y, rotation.z));
-      Quaternion.FromUnitVectorsToRef(new Vector3(0, 1, 0), acceleration, this.dogTilt);
-      this.send('notifyTilt', "dog", this.getDogTilt());
-      for(const id of legNames) {
-        this.legs[id].setDogTilt(this.dogTilt);
-      }
-    });
-    sensor.send(Buffer.from([0x41, 0x61, 0x00, 0x20, 0x00, 0x00, 0x00, 0x01])); // subscribing again with larger delta interval
-    return true
-  }
-
-  async init() {
-    let complete = true;
-    for(const hubNum of Object.keys(MotorMap)) {
-      const hub = this.hubs[MotorMap[hubNum]["name"]];
-      for(const portNum in MotorMap[hubNum]) {
-        if(portNum === "name") continue;
-        const deviceName = MotorMap[hubNum][portNum]["name"].toString();
-        let device = null;
-        if(hub) {
-          device = hub.getDeviceAtPort(portNum);
-	  if(!device) complete = false;
-        }
-        else {
-          complete = false;
-        }
-	if(deviceName.startsWith("dog")) {
-          const rotation = MotorMap[hubNum][portNum]["rotation"];
-          const offset = MotorMap[hubNum][portNum]["offset"];
-          complete = await this.addDogTiltSensor(device, rotation, offset) && complete;
-	}
-        for(const legNum in this.legs) {
-          if(deviceName.startsWith(legNum)) {
-            if(deviceName.endsWith("Tilt")) {
-              const rotation = MotorMap[hubNum][portNum]["rotation"];
-              const offset = MotorMap[hubNum][portNum]["offset"];
-              complete = await this.legs[legNum].addTiltSensor(deviceName, device, rotation, offset) && complete;
-            }
-            else {
-              const range = MotorMap[hubNum][portNum]["range"];
-              const speed = MotorMap[hubNum][portNum]["speed"];
-              complete = await this.legs[legNum].addMotor(deviceName, device, range, speed) && complete;
-            }
-          }
-        }
-      }
-    }
-    try {
-      if(this.isComplete !== complete) {
-        this.isComplete = complete;
-        const state = this.isComplete ? "online" : "offline";
-        this.send('notifyState', 'dog', state);
-        ipcMain.emit('notifyState', 'internal', 'dog', state);
-      }
-    }
-    catch(e) {
-      console.log("unable to notify state change: " + e);
-      return;
     }
   }
 
-  buildLegRecord = (recordName) => {
-    const record = {}
-    for(const legName of legNames) {
-      for(const motorName of motorNames) {
-        record[legName + motorName] = this.legs[legName][recordName][motorName];
-      }
+  async notifyHubStatus(hubStatus: boolean[]) {
+    if(compareArrays(this._hubStatus, hubStatus)) return;
+    this._hubStatus = hubStatus;
+    for(let i = 0; i < 6; i++) {
+      this.send('notifyStatus', hubNames[i], this.hubStatus[i]);
     }
-    return record;
-  }
+    this.send('notifyStatus', 'dog', this.getDogStatus());
+    ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
+  };
 
-  getPose() {
-    const pose = {} as Pose;
-    for(const id of legNames) {
-      pose[id] = JSON.parse(JSON.stringify(this.legs[id].motorAngles));
+  async notifyMotorStatus(motorStatus: boolean[]) {
+    if(compareArrays(this._motorStatus, motorStatus)) return;
+    this._motorStatus = motorStatus;
+    for(let i = 0; i < 12; i++) {
+      this.send('notifyStatus', motorNames[i], this.motorStatus[i]);
     }
-    return pose;
-  }
+    this.send('notifyStatus', 'dog', this.getDogStatus());
+    ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
+  };
 
-  getDogTilt() {
-    return this.dogTilt.toEulerAngles();
-  }
+  async notifyAccelerometerStatus(accelerometerStatus: boolean[]) {
+    if(compareArrays(this._accelerometerStatus, accelerometerStatus)) return;
+    this._accelerometerStatus = accelerometerStatus;
+    this.send('notifyStatus', 'dog', this.getDogStatus());
+    ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
+  };
 
-  getDogPosition() {
-    return dogPositionFromLegPositions(this.legPositionsFromPose(this.getPose()));
-  }
+  async notifyMotorAngles(motorAngles: Vec43) {
+    this._motorAngles = motorAngles;
+    const legAngles = legAnglesFromMotorAngles(this.motorAngles);
+    for(let i = 0; i < 12; i++) {
+      this.send('notifyLegRotation', motorNames[i], legAngles[Math.floor(i/3)][i % 3]);
+    }
+    const legPositions = legPositionsFromMotorAngles(this.motorAngles);
+    for(let i = 0; i < 4; i++) {
+      this.send('notifyLegPosition', legNames[i], legPositions[i]);
+    }
+    this.send('notifyDogPosition', 'dog', dogPositionFromMotorAngles(this.motorAngles));
+    const rotation = dogRotationFromMotorAngles(this.motorAngles).toEulerAngles();
+    this.send('notifyDogRotation', 'dog', [rotation.x, rotation.y, rotation.z]);
+  };
 
-  getDogRotation() {
-    return dogRotationFromLegPositions(this.legPositionsFromPose(this.getPose()));
-  }
+  async notifyTopAcceleration(acceleration: Vec43) {
+    this._topAcceleration = acceleration;
+  };
 
-  motorLoop() {
-    const motors = this.buildLegRecord('motors');
-    const motorAngles = this.buildLegRecord('motorAngles');
-    const motorSpeeds = this.buildLegRecord('motorSpeeds');
-    const destMotorAngles = this.buildLegRecord('destMotorAngles');
-    let motorNames = Object.keys(motors);
-    motorNames = motorNames.filter(n => motors[n] && Math.abs(destMotorAngles[n] - motorAngles[n]) > NO_MOVE_MOTOR_ANGLE);
-    const diffMotorAngles = motorNames.map(n => (destMotorAngles[n] - motorAngles[n]))
-    const durations = motorNames.map((n,i) => Math.abs(diffMotorAngles[i])/motorSpeeds[n]);
-    const maxDuration = Math.max.apply(null, durations);
-    const speeds = diffMotorAngles.map((n,i) => Math.sign(n)*(90*durations[i]/maxDuration + 10));
-    const promises = motorNames.map((n,i) => motors[n].rotateByDegrees(Math.abs(diffMotorAngles[i]), Math.round(speeds[i]), true));
-    return Promise.all(promises);
-  }
+  async notifyBottomAcceleration(acceleration: Vec43) {
+    this._bottomAcceleration = acceleration;
+  };
+
+  async notifyDogAcceleration(acceleration: Vec3) {
+    this._dogAcceleration = acceleration;
+  };
 
   requestMoveSpeed() {
-    if((!this.positionSpeed || this.positionSpeed.length() === 0) && (!this.rotationSpeed || this.rotationSpeed.length() === 0)) {
-      this.stop();
+    ipcMain.emit('requestMode', 'internal', 'MANUAL');
+    if(vec43IsZero(this.positionSpeed) && vec3IsZero(this.rotationSpeed)) {
+      this.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
     }
     else if(this.moveSpeedIntervalID) {
       return;
     }
     else {
-      this.startMovePositions = this.legPositionsFromPose(this.getPose());
+      this._startMoveMotorAngles = this.motorAngles;
       this.moveSpeedIntervalID = setInterval(() => {
-        const startDogPosition = dogPositionFromLegPositions(this.startMovePositions);
-        const averagePositionDiff = this.getDogPosition().subtract(startDogPosition);
-        const startDogRotation = dogRotationFromLegPositions(this.startMovePositions);
-        const averageRotation = this.getDogRotation().multiply(startDogRotation.invert());
-	const destPositions = {} as LegPositions;
-	for(const id of legNames) {
-	  destPositions[id] = this.startMovePositions[id].clone();
-	  if(this.rotationSpeed) {
-            destPositions[id].applyRotationQuaternionInPlace(Quaternion.RotationAxis(this.rotationSpeed.normalizeToNew(), averageRotation.toEulerAngles().length()));
-            destPositions[id].applyRotationQuaternionInPlace(Quaternion.RotationAxis(this.rotationSpeed.normalizeToNew(), this.rotationSpeed.length()*0.001));
-	  }
-	  if(this.positionSpeed) {
-            destPositions[id].addInPlace(this.positionSpeed.normalizeToNew().scale(averagePositionDiff.length()));
-            destPositions[id].addInPlace(this.positionSpeed.scale(0.1));
-	  }
+        const averagePositionDiff = Vector3.FromArray(dogPositionFromMotorAngles(this.motorAngles)).subtract(Vector3.FromArray(dogPositionFromMotorAngles(this.startMoveMotorAngles)));
+        const averageRotation = dogRotationFromMotorAngles(this.motorAngles).multiply(dogRotationFromMotorAngles(this.startMoveMotorAngles).invert());
+	let destPositions = [];
+	for(let i = 0; i < 4; i++) {
+          destPositions[i] = Vector3.FromArray(legPositionsFromMotorAngles(this.startMoveMotorAngles)[i]);
+          if(!vec3IsZero(this.rotationSpeed)) {
+            destPositions[i].applyRotationQuaternionInPlace(Quaternion.RotationAxis(Vector3.FromArray(this.rotationSpeed).normalize(), averageRotation.toEulerAngles().length()));
+            destPositions[i].applyRotationQuaternionInPlace(Quaternion.RotationAxis(Vector3.FromArray(this.rotationSpeed).normalize(), Vector3.FromArray(this.rotationSpeed).length()*0.001));
+          }
+          if(!vec43IsZero(this.positionSpeed)) {
+            destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).normalize().scale(averagePositionDiff.length()));
+            destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).scale(0.1));
+          }
 	}
-	return this.requestPose(this.poseFromLegPositions(destPositions));
+	const destMotorAngles = motorAnglesFromLegPositions(destPositions.map(e => [e.x, e.y, e.z]) as Vec43, this.bendForward);
+	const durations = durationsFromMotorAngles(this.motorAngles, destMotorAngles);
+	const maxDuration = absMax(JSON.parse(JSON.stringify(durations)));
+        const destMotorSpeeds = durations.map(e => e.map(f => 1000*f/maxDuration));
+	return this.commander.requestMotorSpeeds(destMotorSpeeds as Vec43);
       }, MOTOR_UPDATE_INTERVAL);
     }
   }
 
-  legPositionsFromPose(pose: Pose) {
-    const legPositions = {} as LegPositions;
-    for(const id of legNames) {
-      legPositions[id] = this.legs[id].positionFromMotorAngles(pose[id]);
-      legPositions[id].addInPlace(defaultLegPositions[id]);
-    }
-    return legPositions;
-  }
-
-  poseFromLegPositions(legPositions: LegPositions) {
-    const pose: Pose = {} as Pose;
-    for(const id of legNames) {
-      const position = legPositions[id].subtractInPlace(defaultLegPositions[id]);
-      pose[id] = this.legs[id].motorAnglesFromPosition(position);
-    }
-    return pose;
-  }
-
-  durationOfMoveTo(pose: Pose) {
-    const durations = legNames.map(n => this.legs[n].durationOfMoveTo(this.legs[n].positionFromMotorAngles[n]));
-    return Math.max.apply(null, durations);
-  }
-
-  requestPose(pose: Pose) {
-    for(const id of legNames) {
-      this.legs[id].destMotorAngles = JSON.parse(JSON.stringify(pose[id]));
-    }
-    return this.motorLoop();
-  }
-
-  stop() {
-    clearInterval(this.moveSpeedIntervalID);
-    this.moveSpeedIntervalID = null;
-    for(const id of legNames) {
-      this.legs[id].stop();
-    }
-  }
-
-  synchronize() {
-    for(const id of legNames) {
-      for(const motorName of motorNames) {
-        this.legs[id].synchronize(motorName);
-      }
-    }
-  }
-
-  shutdown() {
-    this.stop();
-    for(const hubNum of Object.keys(this.hubs)) {
-      this.hubs[hubNum].shutdown();
-    }
+  getDogStatus() {
+    return this.hubStatus.concat(this.motorStatus).concat(this.accelerometerStatus).every(e => e);
   }
 
   send = (arg1, arg2, arg3) => {

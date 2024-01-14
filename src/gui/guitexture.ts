@@ -1,12 +1,12 @@
 import * as BABYLON from 'babylonjs';
-import { AdvancedDynamicTexture, Rectangle, Control, TextBlock, Button, Grid, Container } from "babylonjs-gui";
+import { AdvancedDynamicTexture, Control, Button, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Infobox } from './guiinfobox';
-import { LegInfobox } from './guileginfobox';
-import { HubInfobox } from './guihubinfobox';
-import { DogInfobox } from './guidoginfobox';
-import { ModeSelection } from './guimodeselection';
-import { reservedNames } from './tools';
+import { Infobox } from './infobox';
+import { LegInfobox } from './leginfobox';
+import { HubInfobox } from './hubinfobox';
+import { DogInfobox } from './doginfobox';
+import { ModeSelection } from './modeselection';
+import { reservedNames } from '../tools';
 
 export class GuiTexture {
   scene: BABYLON.Scene;
@@ -103,7 +103,7 @@ class DragHelper extends Container {
         }
       }
     });
-    this.onPointerDownObservable.add((vec) => {
+    this.onPointerDownObservable.add(() => {
       // used if stopDrag was not called by container.onPointerUpObservable
       // when dragging poses from moves, "dropClickEvent" does not delete pose
       ipcRenderer.emit('stopGuiDrag', 'dropClickEvent', this.container);

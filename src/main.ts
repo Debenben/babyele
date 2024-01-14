@@ -1,12 +1,13 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import * as path from "path";
-import * as url from "url";
 import { MoveController } from "./movecontroller"
+import { PoweredUpCommander } from "./poweredup/poweredupcommander"
+import { Dog } from "./dog"
 
 let mainWindow: Electron.BrowserWindow;
 let controller: MoveController;
 
-function createWindow() {
+async function createWindow() {
   mainWindow = new BrowserWindow({
     height: 600,
     width: 800,
@@ -14,65 +15,26 @@ function createWindow() {
   });
 
   const fileName = process.argv.includes('--txt') ? "../public/txtindex.html" : "../public/guiindex.html";
-  mainWindow.loadURL(url.format({
-    pathname: path.join(__dirname, fileName),
-    protocol: "file:",
-    slashes: true,
-  }));
+  mainWindow.loadFile(path.join(__dirname, fileName));
 
   mainWindow.removeMenu();
-  //mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 }
 
 async function createPoweredUP() {
   if(process.argv.includes('--simulation')) {
     console.log("Starting simulation...");
-    const library = await import("./simulation");
+    const library = await import("./poweredup/simulation");
     return new library.SimulationPowered();
   }
   const library = await import("@debenben/node-poweredup");
   return new library.PoweredUP();
 }
 
-async function createCalibrator() {
-  const library = await import("./calibrator");
-  const calibrator = new library.Calibrator();
-  const poweredUP = await createPoweredUP();
-  poweredUP.on('discover', async (hub) => {
-    calibrator.calibrate(hub);
-  });
-  poweredUP.scan();
-  console.log("Looking for Hubs...");
-}
-
-async function createDog() {
-  const library = await import("./dog");
-  const dog = new library.Dog(mainWindow);
-  controller = new MoveController(mainWindow, dog);
-  const poweredUP = await createPoweredUP();
-  poweredUP.on('discover', (hub) => {
-    dog.addHub(hub);
-  });
-  ipcMain.on('notifyState', (event, arg1, arg2) => {
-    if(arg1 === "dog" && arg2 === "online") {
-      poweredUP.stop();
-    }
-    else if (arg1 === "dog" && arg2 === "offline") {
-      poweredUP.scan();
-    }
-  });
-  poweredUP.scan();
-  console.log("Looking for Hubs...");
-}
-
 app.on("ready", () => {
   if(process.argv.includes('--version')) {
     console.log(app.getName() + " " + app.getVersion());
     return app.quit();
-  }
-  if(process.argv.includes('--calibrate')) {
-    createCalibrator();
-    return;
   }
   createWindow();
 });
@@ -84,6 +46,10 @@ app.on("window-all-closed", () => {
   app.quit();
 });
 
-ipcMain.on('rendererInitialized', async (event, arg) => {
-  createDog();
+ipcMain.on('rendererInitialized', async () => {
+  const dog = new Dog(mainWindow);
+  const commander = new PoweredUpCommander(dog, await createPoweredUP());
+  const controller = new MoveController(mainWindow, dog);
+  dog.attachCommander(commander);
+  dog.connect();
 });

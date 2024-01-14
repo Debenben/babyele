@@ -1,15 +1,14 @@
 import { Rectangle, Ellipse, TextBlock, Container, Control } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { printDegree } from './tools';
-import { Infobox, buildText } from './guiinfobox';
+import { Infobox, buildText, printDegree } from './infobox';
 
 export class LegInfobox extends Infobox {
   gauge: Container;
   speedArrow: Container;
   angleArrow: Container;
   tiltArrow: Container;
-  rotationValue: number;
-  tiltValue: number;
+  rotationValue: number = 0;
+  tiltValue: number = 0;
   infoText: TextBlock;
 
   constructor(name: string, preview: boolean, guiTexture) {
@@ -33,7 +32,7 @@ export class LegInfobox extends Infobox {
       this.tiltArrow.rotation = rotationToGauge(this.tiltValue);
       if(this.tiltArrow.getDescendants()[0].getDescendants()[0].color == "lightgrey") {
 	this.infoText.text = printDegree(this.tiltValue);
-      };
+      }
     }
   }
   updateAngle = (event, arg1, arg2) => {
@@ -42,17 +41,17 @@ export class LegInfobox extends Infobox {
       if(this.angleArrow.getDescendants()[0].getDescendants()[0].color == "black") {
         this.angleArrow.rotation = rotationToGauge(this.rotationValue);
         if(this.infoText.color == "black") this.infoText.text = printDegree(this.rotationValue);
-      };
+      }
     }
   }
 }
 
 const gaugeToRotation = (angle: number) => {
-  return angle < 0 ? angle + Math.PI : angle - Math.PI;
+  return angle > 0 ? Math.PI - angle : -Math.PI - angle;
 }
 const rotationToGauge = gaugeToRotation;
 const gaugeToSpeed = (angle: number) => {
-  return Math.round(200*angle/Math.PI);
+  return Math.round(2000*angle/Math.PI);
 }
 
 const buildAngleGauge = (infobox: LegInfobox) => {
@@ -205,7 +204,7 @@ const buildAngleGauge = (infobox: LegInfobox) => {
       infobox.infoText.color = "lightgrey";
       infobox.infoText.text = printDegree(gaugeToRotation(angle));
       if(rect2.background != "black"){
-        ipcRenderer.send(infobox.name, "requestRotation", gaugeToRotation(angle));
+        ipcRenderer.send(infobox.name, "requestRotationAngle", gaugeToRotation(angle));
       }
     }
     else if (radius < innerRadius && rect1.background == "black" && rect2.background == "black") {
