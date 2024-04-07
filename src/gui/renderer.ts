@@ -63,23 +63,24 @@ export default class Renderer {
     this.redMaterial.baseColor = new BABYLON.Color3(0.9,0.3,0.3);
     this.redMaterial.emissiveColor = new BABYLON.Color3(0.1,0.01,0.01);
 
-    const dogScaling = new Vector3(Param.LEG_SEPARATION_LENGTH - 3.0*Param.LEG_MOUNT_HEIGHT, 3.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
+    const dogScaling = new Vector3(Param.LEG_SEPARATION_LENGTH - 4.0*Param.LEG_MOUNT_HEIGHT, 4.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
     const dog = await importMesh(scene, "dog", "middle.glb", dogScaling);
     dog.position.y = Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM;
 
-    const axleScaling = new Vector3(3.0*Param.LEG_MOUNT_HEIGHT, 3.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
+    const axleScaling = new Vector3(4.0*Param.LEG_MOUNT_HEIGHT, 4.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
     const frontHub = await importMesh(scene, "hubFrontCenter", "axle.glb", axleScaling);
     frontHub.parent = dog;
     frontHub.position.x = Param.LEG_SEPARATION_LENGTH/2;
+    frontHub.rotation.y = Math.PI;
     const backHub = await importMesh(scene, "hubBackCenter", "axle.glb", axleScaling);
     backHub.parent = dog;
     backHub.position.x = -Param.LEG_SEPARATION_LENGTH/2;
 
-    const legFrontLeft = await buildLeg(scene, "legFrontLeft");
+    const legFrontLeft = await buildLeg(scene, "legFrontRight");
     legFrontLeft.position = new Vector3(0, -Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH/2 - Param.LEG_MOUNT_WIDTH);
     legFrontLeft.rotation.y = Math.PI;
     legFrontLeft.parent = frontHub;
-    const legFrontRight = await buildLeg(scene, "legFrontRight");
+    const legFrontRight = await buildLeg(scene, "legFrontLeft");
     legFrontRight.position = new Vector3(0, -Param.LEG_MOUNT_HEIGHT, -(Param.LEG_SEPARATION_WIDTH/2 - Param.LEG_MOUNT_WIDTH));
     legFrontRight.parent = frontHub;
     const legBackLeft = await buildLeg(scene, "legBackLeft");

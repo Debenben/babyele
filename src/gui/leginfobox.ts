@@ -27,8 +27,8 @@ export class LegInfobox extends Infobox {
     ipcRenderer.removeListener('notifyTilt', this.updateTilt);
   }
   updateTilt = (event, arg1, arg2) => {
-    if(arg1 === this.name) {
-      this.tiltValue = arg2;
+    if(this.name.startsWith(arg1)) {
+      this.tiltValue = extractCoordinate(arg2, this.name);
       this.tiltArrow.rotation = rotationToGauge(this.tiltValue);
       if(this.tiltArrow.getDescendants()[0].getDescendants()[0].color == "lightgrey") {
 	this.infoText.text = printDegree(this.tiltValue);
@@ -36,8 +36,8 @@ export class LegInfobox extends Infobox {
     }
   }
   updateAngle = (event, arg1, arg2) => {
-    if(arg1 === this.name) {
-      this.rotationValue = arg2;
+    if(this.name.startsWith(arg1)) {
+      this.rotationValue = extractCoordinate(arg2, this.name);;
       if(this.angleArrow.getDescendants()[0].getDescendants()[0].color == "black") {
         this.angleArrow.rotation = rotationToGauge(this.rotationValue);
         if(this.infoText.color == "black") this.infoText.text = printDegree(this.rotationValue);
@@ -46,6 +46,11 @@ export class LegInfobox extends Infobox {
   }
 }
 
+const extractCoordinate = (vec3: number[], partName: string) => {
+  if(partName.endsWith("Mount")) return vec3[0];
+  else if(partName.endsWith("Top")) return vec3[1];
+  else if(partName.endsWith("Bottom")) return vec3[2];
+}
 const gaugeToRotation = (angle: number) => {
   return angle > 0 ? Math.PI - angle : -Math.PI - angle;
 }

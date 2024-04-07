@@ -140,6 +140,7 @@ export class Dog implements DogAbstraction {
         else if(arg1 === "getProperties") {
           this.send('notifyBendForward', legNames[i], this.bendForward[i]);
           this.send('notifyLegPosition', legNames[i], legPositionsFromMotorAngles(this.motorAngles)[i]);
+          this.send('notifyLegRotation', legNames[i], legAnglesFromMotorAngles(this.motorAngles)[i]);
         }
       });
     }
