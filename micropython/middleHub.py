@@ -91,13 +91,13 @@ def executeCommand(data):
     elif cmd == _CMD_ANGLE:
         for i in range(0, 3):
             try:
-                motors[i].track_target(val[i])
+                motors[i].track_target(val[i]*10)
             except:
                 getMotor(_MOTORPORTS[i])
     elif cmd == _CMD_RESET:
         for i in range(0, 3):
             try:
-                motors[i].reset_angle(val[i])
+                motors[i].reset_angle(val[i]*10)
             except:
                 getMotor(_MOTORPORTS[i])
     elif cmd == _CMD_SHUTDOWN:
@@ -194,7 +194,7 @@ def setLedColor():
 
 
 def transmitSensorValues():
-    data = (pack('<Bhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), angles[0], angles[1], angles[2], angles[3]))
+    data = (pack('<Bhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), angles[0]/10, angles[1]/10, angles[2]/10, angles[3]/10))
     #print("data is", data)
     hub.ble.broadcast(data)
 

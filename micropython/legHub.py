@@ -118,7 +118,7 @@ def executeCommand(data):
             getMotor(_MOTORPORT)
     elif cmd == _CMD_ANGLE:
         try:
-            motor.track_target(bottom)
+            motor.track_target(bottom*10)
         except:
             getMotor(_MOTORPORT)
     elif cmd == _CMD_RESET:
@@ -189,9 +189,9 @@ def setLedColor():
     h = 0
     s = 100
     v = 0
-    if(status & 0b01110011 == 0b00100011): # battery, motor, bluetooth
+    if(status & 0b01110111 == 0b00100111): # battery, motor, accelerometer, ignored, empty port, bluetooth commander, not selected
         h = 240
-    elif(status & 0b01110011 == 0b00000011): # battery, motor
+    elif(status & 0b01110111 == 0b00000111): # battery, motor, accelerometer, ignored, empty port, no bluetooth commander, not selected
         h = 160
     elif(status & 0b01000000 == 0b01000000): # selected
         h = 10 + floor(loopCounter/250)*30
@@ -212,7 +212,7 @@ def setLedColor():
 
 
 def transmitSensorValues():
-    data = (pack('<Bhhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), angle, tiltA[0], tiltA[1], tiltA[2], distance))
+    data = (pack('<Bhhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), angle/10, tiltA[0], tiltA[1], tiltA[2], distance))
     #print("data is", data)
     hub.ble.broadcast(data)
 

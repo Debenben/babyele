@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import * as path from "path";
 import { MoveController } from "./movecontroller"
 import { PoweredUpCommander } from "./poweredup/poweredupcommander"
+import { PybricksCommander } from "./pybricks/pybrickscommander"
 import { Dog } from "./dog"
 
 let mainWindow: Electron.BrowserWindow;
@@ -48,7 +49,8 @@ app.on("window-all-closed", () => {
 
 ipcMain.on('rendererInitialized', async () => {
   const dog = new Dog(mainWindow);
-  const commander = new PoweredUpCommander(dog, await createPoweredUP());
+  //const commander = new PoweredUpCommander(dog, await createPoweredUP());
+  const commander = new PybricksCommander(dog);
   const controller = new MoveController(mainWindow, dog);
   dog.attachCommander(commander);
   dog.connect();
