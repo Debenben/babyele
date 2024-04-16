@@ -64,11 +64,10 @@ def getTiltSensor(port):
     global tiltSensor
     try:
         tiltSensor = PUPDevice(port)
-        if(tiltSensor.info()["id"] == 34):
-            wait(0)
-            #print("tilt found")
-        else:
+        if(tiltSensor.info()["id"] != 34):
             tiltSensor = 0
+        #else:
+            #print("tilt found")
     except:
         tiltSensor = 0
 
@@ -113,7 +112,10 @@ def executeCommand(data):
         pass
     elif cmd == _CMD_SPEED:
         try:
-            motor.run(motor.control.limits()[0]*bottom/1000)
+            if bottom == 0:
+                motor.brake()
+            else:
+                motor.run(motor.control.limits()[0]*bottom/1000)
         except:
             getMotor(_MOTORPORT)
     elif cmd == _CMD_ANGLE:
@@ -123,7 +125,7 @@ def executeCommand(data):
             getMotor(_MOTORPORT)
     elif cmd == _CMD_RESET:
         try:
-            motor.reset_angle(bottom)
+            motor.reset_angle(bottom*10)
         except:
             getMotor(_MOTORPORT)
     elif cmd == _CMD_SHUTDOWN:
@@ -212,9 +214,9 @@ def setLedColor():
 
 
 def transmitSensorValues():
-    data = (pack('<Bhhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), angle/10, tiltA[0], tiltA[1], tiltA[2], distance))
+    data = pack('<Bhhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), floor(angle/10), tiltA[0], tiltA[1], tiltA[2], distance)
     #print("data is", data)
-    hub.ble.broadcast(data)
+    hub.ble.broadcast([data])
 
 
 while(True):

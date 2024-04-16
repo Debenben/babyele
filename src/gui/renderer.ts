@@ -123,14 +123,10 @@ export default class Renderer {
     }
   }
 
-  setLegRotation(meshName: string, rotation: number) {
-    const mesh = this.scene.getMeshByName(meshName + "Root");
-    if(meshName.endsWith("Mount")) {
-      mesh.rotation.x = rotation;
-    }
-    else if(meshName.endsWith("Top") || meshName.endsWith("Bottom")){
-      mesh.rotation.z = rotation;
-    }
+  setLegRotation(legName: string, rotation: number[]) {
+    this.scene.getMeshByName(legName + "MountRoot").rotation.x = rotation[0]
+    this.scene.getMeshByName(legName + "TopRoot").rotation.z = rotation[1]
+    this.scene.getMeshByName(legName + "BottomRoot").rotation.z = rotation[2]
   }
 
   setState(meshName: string, state: string) {

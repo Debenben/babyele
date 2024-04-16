@@ -8,30 +8,59 @@
 
 <body>
   <p>Current mode is <strong id="currentMode">OFFLINE</strong></p>
-  <p>
-    <span id="hubFrontRight">FrontRight</span>
-    <button id="legFrontRightTop">0.00°</button>
-    <button id="legFrontRightBottom">0.00°</button>
-    <button id="legFrontRightMount">0.00°</button>
-  </p>
-  <p>
-    <span id="hubFrontLeft">FrontLeft</span>
-    <button id="legFrontLeftTop">0.00°</button>
-    <button id="legFrontLeftBottom">0.00°</button>
-    <button id="legFrontLeftMount">0.00°</button>
-  </p>
-  <p>
-    <span id="hubBackRight">BackRight</span>
-    <button id="legBackRightTop">0.00°</button>
-    <button id="legBackRightBottom">0.00°</button>
-    <button id="legBackRightMount">0.00°</button>
-  </p>
-  <p>
-    <span id="hubBackLeft">BackLeft</span>
-    <button id="legBackLeftTop">0.00°</button>
-    <button id="legBackLeftBottom">0.00°</button>
-    <button id="legBackLeftMount">0.00°</button>
-  </p>
+  <table>
+    <tr>
+      <th id="hubFrontLeft" colspan="3">FrontLeft</th>
+      <th id="hubFrontRight" colspan="3">FrontRight</th>
+    </tr>
+    <tr align="right">
+      <td><button id="legFrontLeftMount">0.00°</button></td>
+      <td><button id="legFrontLeftTop">0.00°</button></td>
+      <td><button id="legFrontLeftBottom">0.00°</button></td>
+      <td><button id="legFrontRightMount">0.00°</button></td>
+      <td><button id="legFrontRightTop">0.00°</button></td>
+      <td><button id="legFrontRightBottom">0.00°</button></td>
+    </tr>
+    <tr align="right">
+      <td><button id="legFrontLeftX">0</button></td>
+      <td><button id="legFrontLeftY">0</button></td>
+      <td><button id="legFrontLeftZ">0</button></td>
+      <td><button id="legFrontRightX">0</button></td>
+      <td><button id="legFrontRightY">0</button></td>
+      <td><button id="legFrontRightZ">0</button></td>
+    </tr>
+    <tr><td colspan="6" align="center"><table>
+    <tr>
+      <th id="dog" colspan="3">Dog</th>
+    </tr>
+    <tr align="right">
+      <td><button id="dogX">0</button></td>
+      <td><button id="dogY">0</button></td>
+      <td><button id="dogZ">0</button></td>
+    </tr>
+    </table></td></tr>
+    <tr>
+      <th id="hubBackLeft" colspan="3">BackLeft</th>
+      <th id="hubBackRight" colspan="3">BackRight</th>
+    </tr>
+    <tr align="right">
+      <td><button id="legBackLeftMount">0.00°</button></td>
+      <td><button id="legBackLeftTop">0.00°</button></td>
+      <td><button id="legBackLeftBottom">0.00°</button></td>
+      <td><button id="legBackRightMount">0.00°</button></td>
+      <td><button id="legBackRightTop">0.00°</button></td>
+      <td><button id="legBackRightBottom">0.00°</button></td>
+    </tr>
+    <tr align="right">
+      <td><button id="legBackLeftX">0</button></td>
+      <td><button id="legBackLeftY">0</button></td>
+      <td><button id="legBackLeftZ">0</button></td>
+      <td><button id="legBackRightX">0</button></td>
+      <td><button id="legBackRightY">0</button></td>
+      <td><button id="legBackRightZ">0</button></td>
+    </tr>
+  </table>
+
   <script>
     require('../app/gui/txtrenderer.js');
   </script>

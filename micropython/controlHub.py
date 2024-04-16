@@ -164,19 +164,20 @@ def getSensorData():
     for i in range(1, 7):
         receive = hub.ble.observe(i)
         if receive:
-            hubSensorData[i] = receive
+            hubSensorData[i] = receive[0]
             try:
-                status = unpack_from('<B', receive, 0)[0]
+                status = receive[0][0]
             except:
                 #print("failed to unpack", receive)
                 status = 0
+            #print("receive", i, hubSensorData[i], status)
             if (i <= 4 and (status & 0b00110011 == 0b00100011)) or (i > 4 and (status & 0b00111111 == 0b00111111)):
                 hubTimestamps[i].reset()
 
 
 def getCommand():
     global buttonMode, selection, loopCounter
-    print("button mode is", buttonMode, selection)
+    #print("button mode is", buttonMode, selection)
     if buttonMode == _BUTTON_IDLE:
         if hub.buttons.pressed() == {Button.CENTER}:
             hub.ble.broadcast(getSpeedCmd(0, 0))

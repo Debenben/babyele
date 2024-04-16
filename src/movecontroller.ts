@@ -87,10 +87,6 @@ export class MoveController {
     });
   }
   
-  destructor() {
-    this.requestMode("OFFLINE");
-  }
-
   retrieveData = () => {
     fs.readFile('storage.json', (err, data) => {
       if(err) {

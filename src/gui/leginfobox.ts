@@ -37,7 +37,7 @@ export class LegInfobox extends Infobox {
   }
   updateAngle = (event, arg1, arg2) => {
     if(this.name.startsWith(arg1)) {
-      this.rotationValue = extractCoordinate(arg2, this.name);;
+      this.rotationValue = extractCoordinate(arg2, this.name);
       if(this.angleArrow.getDescendants()[0].getDescendants()[0].color == "black") {
         this.angleArrow.rotation = rotationToGauge(this.rotationValue);
         if(this.infoText.color == "black") this.infoText.text = printDegree(this.rotationValue);

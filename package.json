@@ -1,13 +1,13 @@
 {
   "name": "babyele",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "program to control lego walker",
   "main": "./app/main.js",
   "scripts": {
     "build": "tsc && electron-rebuild",
     "configure": "sudo setcap cap_net_raw+eip ./node_modules/electron/dist/electron && sudo bash -c 'echo $(pwd)/node_modules/electron/dist > /etc/ld.so.conf.d/electron-node.conf' && sudo bash -c 'chown root:root $(pwd)/node_modules/electron/dist/chrome-sandbox && chmod 4755 $(pwd)/node_modules/electron/dist/chrome-sandbox'",
     "start": "tsc && electron-forge start",
-    "test": "tsc && electron-forge start -- --simulation",
+    "test": "tsc && electron-forge start -- --simulation --poweredup",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "lint": "eslint --ext .ts,.tsx ."
@@ -19,8 +19,7 @@
     "@abandonware/bluetooth-hci-socket": "^0.5.3-12",
     "babylonjs": "^7.2.2",
     "babylonjs-gui": "^7.2.2",
-    "babylonjs-loaders": "^7.2.2",
-    "ml-matrix": "^6.10.4"
+    "babylonjs-loaders": "^7.2.2"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.2.0",

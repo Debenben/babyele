@@ -13,7 +13,7 @@ const absMax = (vec: Vec43) => Math.max.apply(null, vec.map(e => Math.max.apply(
 
 export interface DogAbstraction extends SensorAbstraction, CommanderAbstraction {
   attachCommander: (commander : CommanderAbstraction) => void;
-};
+}
 
 export class Dog implements DogAbstraction {
   mainWindow: BrowserWindow
@@ -130,7 +130,7 @@ export class Dog implements DogAbstraction {
     for(let i = 0; i < 4; i++)  {
       ipcMain.on(legNames[i], (event, arg1, arg2) => {
         if(arg1 === "requestPositionSpeed") {
-	  this._positionSpeed[i] = arg2;
+          this._positionSpeed[i] = arg2;
           this.requestMoveSpeed();
         }
         else if(arg1 === "setBendForward") {
@@ -168,7 +168,7 @@ export class Dog implements DogAbstraction {
     }
     this.send('notifyStatus', 'dog', this.getDogStatus());
     ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
-  };
+  }
 
   async notifyMotorStatus(motorStatus: boolean[]) {
     if(compareArrays(this._motorStatus, motorStatus)) return;
@@ -178,20 +178,20 @@ export class Dog implements DogAbstraction {
     }
     this.send('notifyStatus', 'dog', this.getDogStatus());
     ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
-  };
+  }
 
   async notifyAccelerometerStatus(accelerometerStatus: boolean[]) {
     if(compareArrays(this._accelerometerStatus, accelerometerStatus)) return;
     this._accelerometerStatus = accelerometerStatus;
     this.send('notifyStatus', 'dog', this.getDogStatus());
     ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
-  };
+  }
 
   async notifyMotorAngles(motorAngles: Vec43) {
     this._motorAngles = motorAngles;
     const legAngles = legAnglesFromMotorAngles(this.motorAngles);
-    for(let i = 0; i < 12; i++) {
-      this.send('notifyLegRotation', motorNames[i], legAngles[Math.floor(i/3)][i % 3]);
+    for(let i = 0; i < 4; i++) {
+      this.send('notifyLegRotation', legNames[i], legAngles[i]);
     }
     const legPositions = legPositionsFromMotorAngles(this.motorAngles);
     for(let i = 0; i < 4; i++) {
@@ -200,19 +200,19 @@ export class Dog implements DogAbstraction {
     this.send('notifyDogPosition', 'dog', dogPositionFromMotorAngles(this.motorAngles));
     const rotation = dogRotationFromMotorAngles(this.motorAngles).toEulerAngles();
     this.send('notifyDogRotation', 'dog', [rotation.x, rotation.y, rotation.z]);
-  };
+  }
 
   async notifyTopAcceleration(acceleration: Vec43) {
     this._topAcceleration = acceleration;
-  };
+  }
 
   async notifyBottomAcceleration(acceleration: Vec43) {
     this._bottomAcceleration = acceleration;
-  };
+  }
 
   async notifyDogAcceleration(acceleration: Vec3) {
     this._dogAcceleration = acceleration;
-  };
+  }
 
   requestMoveSpeed() {
     ipcMain.emit('requestMode', 'internal', 'MANUAL');
@@ -227,7 +227,7 @@ export class Dog implements DogAbstraction {
       this.moveSpeedIntervalID = setInterval(() => {
         const averagePositionDiff = Vector3.FromArray(dogPositionFromMotorAngles(this.motorAngles)).subtract(Vector3.FromArray(dogPositionFromMotorAngles(this.startMoveMotorAngles)));
         const averageRotation = dogRotationFromMotorAngles(this.motorAngles).multiply(dogRotationFromMotorAngles(this.startMoveMotorAngles).invert());
-	let destPositions = [];
+	const destPositions = [];
 	for(let i = 0; i < 4; i++) {
           destPositions[i] = Vector3.FromArray(legPositionsFromMotorAngles(this.startMoveMotorAngles)[i]);
           if(!vec3IsZero(this.rotationSpeed)) {

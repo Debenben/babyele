@@ -49,7 +49,7 @@ def getMotor(port):
         motors[i].close()
     try:
         motors[i] = Motor(port)
-        #print("motor found")
+        #print("motor found", port)
     except:
         motors[i] = 0
 
@@ -58,7 +58,7 @@ def getStatus():
     status = 0
     if(hub.battery.voltage() > 7000):
         status += 1
-    for i in range(0, 3):
+    for i in range(0, 4):
         if motors[i]:
             status += 2**(i+1)
     if(commandTimestamp.time() < 100):
@@ -83,19 +83,22 @@ def executeCommand(data):
     if cmd == _CMD_KEEPALIVE:
         pass
     elif cmd == _CMD_SPEED:
-        for i in range(0, 3):
+        for i in range(0, 4):
             try:
-                motors[i].run(motors[i].control.limits()[0]*val[i]/1000)
+                if val[i] == 0:
+                    motors[i].brake()
+                else:
+                    motors[i].run(motors[i].control.limits()[0]*val[i]/1000)
             except:
                 getMotor(_MOTORPORTS[i])
     elif cmd == _CMD_ANGLE:
-        for i in range(0, 3):
+        for i in range(0, 4):
             try:
                 motors[i].track_target(val[i]*10)
             except:
                 getMotor(_MOTORPORTS[i])
     elif cmd == _CMD_RESET:
-        for i in range(0, 3):
+        for i in range(0, 4):
             try:
                 motors[i].reset_angle(val[i]*10)
             except:
@@ -108,7 +111,7 @@ def executeCommand(data):
 def getSensorValues():
     global motors, imuA, angles
     imuA = hub.imu.acceleration()
-    for i in range(0, 3):
+    for i in range(0, 4):
         try:
             angles[i] = motors[i].angle()
             #print("angle is", angles[i])
@@ -194,9 +197,9 @@ def setLedColor():
 
 
 def transmitSensorValues():
-    data = (pack('<Bhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), angles[0]/10, angles[1]/10, angles[2]/10, angles[3]/10))
+    data = pack('<Bhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), floor(angles[0]/10), floor(angles[1]/10), floor(angles[2]/10), floor(angles[3]/10))
     #print("data is", data)
-    hub.ble.broadcast(data)
+    hub.ble.broadcast([data])
 
 
 while(True):

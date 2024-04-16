@@ -51,7 +51,8 @@ export class PoweredUpCommander implements CommanderAbstraction {
 
   async disconnect() {
     clearInterval(this.ledTimerID);
-    return this.poweredUp.stop();
+    this.poweredUp.stop();
+    console.log("disconnecting");
   }
 
   async addHub(hub: HubAbstraction) {

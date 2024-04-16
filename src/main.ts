@@ -1,12 +1,12 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import * as path from "path";
 import { MoveController } from "./movecontroller"
-import { PoweredUpCommander } from "./poweredup/poweredupcommander"
-import { PybricksCommander } from "./pybricks/pybrickscommander"
+import { CommanderAbstraction } from "./commanderinterface"
 import { Dog } from "./dog"
 
 let mainWindow: Electron.BrowserWindow;
 let controller: MoveController;
+let commander: CommanderAbstraction;
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -41,17 +41,24 @@ app.on("ready", () => {
 });
 
 app.on("window-all-closed", () => {
-  if(controller) controller.destructor();
+  if(commander) commander.disconnect();
   controller = null;
+  commander = null;
   mainWindow = null;
   app.quit();
 });
 
 ipcMain.on('rendererInitialized', async () => {
   const dog = new Dog(mainWindow);
-  //const commander = new PoweredUpCommander(dog, await createPoweredUP());
-  const commander = new PybricksCommander(dog);
-  const controller = new MoveController(mainWindow, dog);
+  if(process.argv.includes('--poweredup')) {
+    const library = await import("./poweredup/poweredupcommander");
+    commander = new library.PoweredUpCommander(dog, await createPoweredUP());
+  }
+  else {
+    const library = await import("./pybricks/pybrickscommander");
+    commander = new library.PybricksCommander(dog);
+  }
+  controller = new MoveController(mainWindow, dog);
   dog.attachCommander(commander);
   dog.connect();
 });
