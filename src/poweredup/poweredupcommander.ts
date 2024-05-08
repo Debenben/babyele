@@ -128,17 +128,17 @@ export class PoweredUpCommander implements CommanderAbstraction {
       this.accelerometers[id] = accelerometer;
       accelerometer.removeAllListeners('accel');
       accelerometer.on("accel", (accel) => {
-        if(id > 7) {
-          this.dog.notifyDogAcceleration([accel.x, accel.y, accel.z]);
+        if(id == 8) {
+          this.dog.notifyDogAcceleration([-accel.y, accel.z, accel.x]);
         }
 	else if(port == "B") {
           const acceleration = this.dog.bottomAcceleration;
-          acceleration[Math.floor(id/2)] = [accel.x, accel.y, accel.z];
+          acceleration[Math.floor(id/2)] = [-accel.y, accel.z, accel.x];
           this.dog.notifyBottomAcceleration(acceleration);
         }
         else {
           const acceleration = this.dog.topAcceleration;
-          acceleration[Math.round(id/2)] = [accel.x, accel.y, accel.z];
+          acceleration[Math.round(id/2)] = [-accel.y, accel.z, accel.x];
           this.dog.notifyTopAcceleration(acceleration);
         }
       });

@@ -41,14 +41,14 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
       case "BeneLego6":
         this.devices["A"] = new SimulationMotor("A", 882);
         this.devices["B"] = new SimulationMotor("B", 882);
-        this.devices["C"] = new SimulationMotor("C", 630);
-        this.devices["D"] = new SimulationMotor("D", 630);
+        this.devices["C"] = new SimulationMotor("C", 756);
+        this.devices["D"] = new SimulationMotor("D", 756);
 	break;
+      case "BeneLego1":
       case "BeneLego2":
       case "BeneLego3":
-      case "BeneLego1":
       case "BeneLego4":
-        this.devices["A"] = new SimulationMotor("A", 846);
+        this.devices["A"] = new SimulationMotor("A", 756);
         this.devices["B"] = new SimulationTiltSensor("B", hubName);
 	break;
     }
@@ -127,7 +127,7 @@ export class SimulationTiltSensor extends EventEmitter implements AccelerometerA
   constructor(portName: string, hubName: string) {
     super();
     this.portId = toPortId(portName);
-    if(hubName === "BeneLego4" || hubName === "BeneLego6") {
+    if(hubName === "BeneLego5" || hubName === "BeneLego6") {
       this.x = 0;
       this.y = 280;
       this.z = 960;
@@ -144,7 +144,11 @@ export class SimulationTiltSensor extends EventEmitter implements AccelerometerA
       this.x = -960;
       this.y = 0;
       this.z = 280;
-      this.accelIntervalID = setInterval(() => this.emit('accel', {x: this.x, y: this.y, z: this.z}), 1000*Math.random());
+      this.accelIntervalID = setInterval(() => this.emit('accel', {
+        x: this.x + 100*(Math.random() - 0.5),
+        y: this.y + 100*(Math.random() - 0.5),
+        z: this.z + 100*(Math.random() - 0.5)
+      }), 100*Math.random());
     }
   }
   destructor() {

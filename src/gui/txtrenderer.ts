@@ -27,6 +27,7 @@ ipcRenderer.on('notifyStatus', (event, legName, value) => {
   if(!element) return
   if(value) element.style.color = 'green';
   else element.style.color = 'red';
+  ipcRenderer.send(legName.replace("Top","").replace("Bottom","").replace("Mount",""), "getProperties");
 });
 
 for(const id of motorNames) {
