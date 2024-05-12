@@ -1,4 +1,4 @@
-import { Rectangle, Ellipse, Control, TextBlock, Button, StackPanel, Container } from "babylonjs-gui";
+import { Rectangle, Ellipse, Control, TextBlock, Button, StackPanel, Container, Image } from "babylonjs-gui";
 import { Vector3 } from '../tools';
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from './guitexture';
@@ -119,35 +119,10 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
   gauge.widthInPixels = infobox.widthInPixels;
   gauge.heightInPixels = scaling;
 
-  const buildScale = (angle: number) => {
-    const scale = new Container();
-    for(let i = 0; i<=10; i++) {
-      const mark1 = new Rectangle();
-      mark1.widthInPixels = 0.01*scaling;
-      mark1.heightInPixels = (i % 5 == 0 ? 0.5 : 0.03)*scaling;
-      mark1.background = "black";
-      mark1.alpha = 0.8;
-      mark1.thickness = 0;
-      mark1.rotation = Math.PI/6;
-      mark1.topInPixels = 0.5*mark1.heightInPixels*Math.cos(Math.PI/6);
-      mark1.leftInPixels = (i-5)*0.05*scaling - 0.5*mark1.heightInPixels*Math.sin(Math.PI/6);
-      scale.addControl(mark1);
-      const mark2 = mark1.clone();
-      mark2.rotation = -Math.PI/6;
-      mark2.topInPixels = -mark1.topInPixels;
-      scale.addControl(mark2);
-    }
-    scale.topInPixels = 0.25*Math.sin(angle)*scaling;
-    scale.leftInPixels = 0.25*Math.cos(angle)*scaling;
-    scale.rotation = angle;
-    gauge.addControl(scale);
-    return scale;
-  }
-  buildScale(0*Math.PI/3);
-  buildScale(2*Math.PI/3);
-  buildScale(4*Math.PI/3);
+  const scale = new Image("scale", "../public/cube.svg");
+  gauge.addControl(scale);
 
-  const setKnob = (knob: Ellipse, angles: number[]) => {
+  const setKnob = (knob: Container, angles: number[]) => {
     let top = 0;
     let left = 0;
     for(let i = 0; i < 3; i++) {
@@ -167,6 +142,7 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
     gauge.addControl(knob);
     return knob;
   }
+
   const knob1 = buildKnob([0, -1, -1]);
   const knob2 = buildKnob([-1, 0, -1]);
   const knob3 = buildKnob([-1, -1, 0]);
