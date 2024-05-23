@@ -12,7 +12,7 @@ export class ModeSelection extends Container {
     this.name = "modeSelection"
     this.modalBlocker = buildModalBlocker();
     this.modalBlocker.onPointerClickObservable.add(() => {
-      ipcRenderer.emit("toggleModeSelectionVisibility");
+      this.isVisible = false;
     });
     this.addControl(this.modalBlocker);
     this.layoutGrid = buildLayoutGrid();

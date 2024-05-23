@@ -89,7 +89,7 @@ const buildAngleGauge = (infobox: LegInfobox) => {
   rect1.rotation = Math.PI/4;
   rect1.background = "black";
   rect1.color = "black";
-  rect1.alpha = 0.8;
+  rect1.alpha = 0.7;
   rect1.thickness = 0.02*outerRadius;
   rect1.topInPixels = -clip2.topInPixels;
   clip2.addControl(rect1);
@@ -109,7 +109,7 @@ const buildAngleGauge = (infobox: LegInfobox) => {
   rect2.rotation = Math.PI/4;
   rect2.background = "black";
   rect2.color = "black";
-  rect2.alpha = 0.8;
+  rect2.alpha = 0.7;
   rect2.thickness = 0.02*outerRadius;
   rect2.topInPixels = -0.52*gauge.widthInPixels;
   clip3.addControl(rect2);
@@ -129,7 +129,7 @@ const buildAngleGauge = (infobox: LegInfobox) => {
   rect3.rotation = Math.PI/4;
   rect3.background = "black";
   rect3.color = "black";
-  rect3.alpha = 0.8;
+  rect3.alpha = 0.7;
   rect3.thickness = 0.02*outerRadius;
   rect3.topInPixels = -clip4.topInPixels;
   clip4.addControl(rect3);

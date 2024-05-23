@@ -1,5 +1,4 @@
 import { Rectangle, Ellipse, Control, TextBlock, Button, StackPanel, Container, Image } from "babylonjs-gui";
-import { Vector3 } from '../tools';
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from './guitexture';
 
@@ -49,7 +48,7 @@ const buildHeading = (infobox: Infobox) => {
   const block = new TextBlock("headingText");
   block.text = infobox.name;
   block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-  block.fontSize = 20;
+  block.fontSize = "20px";
   block.fontFamily = "monospace";
   block.paddingLeft = "5px";
   block.color = "black";
@@ -113,6 +112,8 @@ export const buildText = (content: string) => {
   return block;
 }
 
+export const base = [[Math.sin(Math.PI/3), 0.5], [0, -1], [-Math.sin(Math.PI/3), 0.5]];
+
 export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
   const gauge = new Container();
   const scaling = 0.8*infobox.widthInPixels;
@@ -123,14 +124,8 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
   gauge.addControl(scale);
 
   const setKnob = (knob: Container, angles: number[]) => {
-    let top = 0;
-    let left = 0;
-    for(let i = 0; i < 3; i++) {
-      top += angles[i]*Math.sin((1+2*i)*Math.PI/3)*0.25*scaling;
-      left += angles[i]*Math.cos((1+2*i)*Math.PI/3)*0.25*scaling;
-    }
-    knob.topInPixels = top;
-    knob.leftInPixels = left;
+    knob.topInPixels = (angles[0]*base[0][0] + angles[1]*base[1][0] + angles[2]*base[2][0])*0.25*scaling;
+    knob.leftInPixels = (angles[0]*base[0][1] + angles[1]*base[1][1] + angles[2]*base[2][1])*0.25*scaling;
     knob.color = "black";
   }
   const buildKnob = (angles: number[]) => {
@@ -163,14 +158,11 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
     const xval = 4*(vec.x - mouseOverlay.centerX)/(scaling*infobox.guiTexture.getScale());
     const yval = 4*(vec.y - mouseOverlay.centerY)/(scaling*infobox.guiTexture.getScale());
 
-    const base = [];
-    for(let i = 0; i < 3; i++) {
-      base[i] = [Math.sin((1+2*i)*Math.PI/3), Math.cos((1+2*i)*Math.PI/3)];
-    }
     const s = [[],[],[]];
     for(let i = 0; i < 3; i++) {
       for(let j = 0; j < 3; j++) {
-        s[i][j] = (xval/base[i][1] - yval/base[i][0])/(base[j][0]/base[i][0] - base[j][1]/base[i][1]);
+        if(i === j) continue;
+        s[i][j] = (xval*base[i][0] - yval*base[i][1])/(base[j][0]*base[i][1] - base[j][1]*base[i][0]);
 	if(Math.abs(s[i][j] - 1) < 0.1) s[i][j] = 1; //snap to neutral
 	if(s[i][j] > 2) s[i][j] = 2; //snap to border
       }

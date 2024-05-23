@@ -2,10 +2,10 @@ import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from "./guitexture";
-import { legNames, jointNames, Vector3 } from "../tools";
+import { legNames, jointNames, Vector3, Quaternion } from "../tools";
 import * as Param from '../param';
 
-export default class Renderer {
+export class Renderer {
   canvas: HTMLCanvasElement;
   engine: BABYLON.Engine;
   scene: BABYLON.Scene;
@@ -19,7 +19,7 @@ export default class Renderer {
   displacementLines: BABYLON.LinesMesh;
   selectedItem: string;
   selectedItemIsPreview: boolean;
-  useRotation = true;
+  useTilt = false;
   guiTexture: GuiTexture;
 
   async createScene(canvas: HTMLCanvasElement, engine: BABYLON.Engine) {
@@ -35,12 +35,11 @@ export default class Renderer {
     buildBackground(scene, engine);
     buildGround(scene, engine);
     this.actionManager = new BABYLON.ActionManager(scene);
-    this.guiTexture = new GuiTexture(scene);
+    this.guiTexture = new GuiTexture(this);
 
     const cameraCenter = new Vector3(0, Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM, 0).scale(0.5);
     this.camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/3, Math.PI/3, 3*Param.LEG_SEPARATION_LENGTH, cameraCenter, scene);
     this.camera.attachControl(canvas, true);
-    this.camera.useAutoRotationBehavior = true;
     this.camera.lowerRadiusLimit = 0.5*Param.LEG_SEPARATION_LENGTH;
     this.camera.minZ = 0.1*this.camera.lowerRadiusLimit;
     this.camera.upperRadiusLimit = 5.0*Param.LEG_SEPARATION_LENGTH;
@@ -112,10 +111,10 @@ export default class Renderer {
     });
   }
 
-  setDogRotation(tilt: Vector3) {
+  setDogRotation(rotation: Vector3) {
     const dog = this.scene.getMeshByName("dogRoot");
     for(const i of ['x', 'y', 'z']) {
-      if(!(tilt[i] === null)) dog.rotation[i] = tilt[i];
+      if(!(rotation[i] === null)) dog.rotation[i] = rotation[i];
     }
   }
 
@@ -133,10 +132,9 @@ export default class Renderer {
   }
 
   setAcceleration(meshName: string, vec: Vector3) {
-    const up = vec.normalize(); // ey
-    const forward = up.cross(new Vector3(0, 0, 1)); // ex = ey x ez
-    const side = up.cross(new Vector3(-1, 0, 0)); // ez = -ey x ex
-    this.scene.getMeshByName(meshName + "Acceleration").rotation = Vector3.RotationFromAxis(forward, up, side);
+    const xangle = Math.atan2(vec.z, vec.y);
+    const zangle = -Math.atan2(vec.x, vec.y*Math.cos(xangle) + vec.z*Math.sin(xangle));
+    this.scene.getMeshByName(meshName + "Acceleration").rotation = new Vector3(xangle, 0, zangle);
   }
 
   setState(meshName: string, state: string) {
@@ -150,7 +148,7 @@ export default class Renderer {
         renderer.selectedItem = meshName;
         renderer.selectedItemIsPreview = false;
         mesh.material = this.redMaterial;
-        mesh.showBoundingBox = this.gravityLines.isVisible;
+        mesh.showBoundingBox = this.redMaterial.wireframe;
         mesh.isPickable = true;
         break;
       case "offline":
@@ -165,7 +163,7 @@ export default class Renderer {
         renderer.selectedItem = meshName;
         renderer.selectedItemIsPreview = true;
         mesh.material = this.pickMaterial;
-        mesh.showBoundingBox = this.gravityLines.isVisible;
+        mesh.showBoundingBox = this.pickMaterial.wireframe;
         mesh.isPickable = true;
         break;
       case "online":
@@ -409,11 +407,11 @@ ipcRenderer.on('notifyStatus', (event, arg1, arg2) => {
   renderer.setState(arg1, arg2 ? 'online' : 'offline');
 });
 ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
-  if(!renderer.useRotation) return;
+  if(renderer.useTilt) return;
   renderer.setLegRotation(arg1, Vector3.FromArray(arg2));
 });
 ipcRenderer.on('notifyTilt', (event, arg1, arg2) => {
-  if(renderer.useRotation) return;
+  if(!renderer.useTilt) return;
   if(arg1 === "dog") {
     renderer.setDogRotation(new Vector3(arg2[0], null, arg2[2]));
   }
@@ -425,7 +423,7 @@ ipcRenderer.on('notifyAcceleration', (event, arg1, arg2) => {
   renderer.setAcceleration(arg1, Vector3.FromArray(arg2));
 });
 ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
-  if(renderer.useRotation) {
+  if(!renderer.useTilt) {
     renderer.setDogRotation(Vector3.FromArray(arg2));
   }
   else renderer.setDogRotation(new Vector3(null, arg2[1], null));
@@ -435,34 +433,5 @@ ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
 });
 ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
   document.getElementById('title').innerHTML = "lego walker: " + modeName;
-});
-ipcRenderer.on('toggleGridLinesVisibility', () => {
-  if(!renderer.displacementLines.isVisible) {
-    renderer.displacementLines.isVisible = true;
-    renderer.guiTexture.setTopMenuButton(0, "green");
-  }
-  else if(!renderer.gravityLines.isVisible) {
-    renderer.gravityLines.isVisible = true;
-    renderer.guiTexture.setTopMenuButton(0, "red");
-  }
-  else {
-    renderer.displacementLines.isVisible = false;
-    renderer.gravityLines.isVisible = false;
-    renderer.guiTexture.setTopMenuButton(0, "white");
-  }
-  renderer.camera.useAutoRotationBehavior = !renderer.gravityLines.isVisible;
-  renderer.greyMaterial.wireframe = renderer.gravityLines.isVisible;
-  renderer.greenMaterial.wireframe = renderer.gravityLines.isVisible;
-  renderer.pickMaterial.wireframe = renderer.gravityLines.isVisible;
-  renderer.redMaterial.wireframe = renderer.gravityLines.isVisible;
-  jointNames.map(e => renderer.scene.getMeshByName(e).isVisible = renderer.displacementLines.isVisible);
-  legNames.map(e => renderer.scene.getMeshByName(e + "TopAcceleration").setEnabled(renderer.displacementLines.isVisible));
-  legNames.map(e => renderer.scene.getMeshByName(e + "BottomAcceleration").setEnabled(renderer.displacementLines.isVisible));
-  renderer.scene.getMeshByName("dogAcceleration").setEnabled(renderer.displacementLines.isVisible);
-});
-ipcRenderer.on('toggleUseRotation', () => {
-  renderer.useRotation = !renderer.useRotation;
-  renderer.guiTexture.setTopMenuButton(1, renderer.useRotation ? "white" : "green");
-  ["dog"].concat(legNames).map(e => ipcRenderer.send(e, "getProperties"));
 });
 

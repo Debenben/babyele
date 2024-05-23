@@ -1,11 +1,13 @@
 import * as BABYLON from 'babylonjs';
 import { AdvancedDynamicTexture, Control, Button, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
+import { Renderer } from './renderer';
 import { Infobox } from './infobox';
 import { LegInfobox } from './leginfobox';
 import { HubInfobox } from './hubinfobox';
 import { DogInfobox } from './doginfobox';
 import { ModeSelection } from './modeselection';
+import { Settings } from './settings';
 import { reservedNames } from '../tools';
 
 export class GuiTexture {
@@ -13,23 +15,21 @@ export class GuiTexture {
   texture: AdvancedDynamicTexture;
   infobox: Infobox;
   modeSelection: ModeSelection;
+  settings: Settings;
   topMenu: Grid;
-  modeMenu: Grid;
   dragHelper: DragHelper;
-  constructor(scene: BABYLON.Scene) {
-    this.scene = scene;
+  constructor(renderer: Renderer) {
+    this.scene = renderer.scene;
     this.scene.onKeyboardObservable.add(onKeyPress);
-    this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
+    this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
     this.texture.idealHeight = 600;
-    this.topMenu = buildTopMenu();
+    this.topMenu = buildTopMenu(this);
     this.texture.addControl(this.topMenu);
-    this.modeMenu = buildModeMenu();
-    this.texture.addControl(this.modeMenu);
     this.modeSelection = new ModeSelection();
+    this.texture.addControl(this.modeSelection);
+    this.settings = new Settings(renderer);
+    this.texture.addControl(this.settings);
     this.dragHelper = new DragHelper(this);
-    ipcRenderer.on("toggleModeSelectionVisibility", () => {
-      this.toggleModeSelectionVisibility();
-    });
   }
   getScale() {
     return this.texture.getSize().height/this.texture.idealHeight;
@@ -66,20 +66,6 @@ export class GuiTexture {
       this.infobox = new Infobox(meshName, preview, this);
     }
     this.texture.addControl(this.infobox);
-  }
-  toggleModeSelectionVisibility() {
-    this.modeSelection.isVisible = !this.modeSelection.isVisible;
-    if(this.modeSelection.isVisible) {
-      this.texture.addControl(this.modeSelection);
-      this.texture.removeControl(this.topMenu);
-    }
-    else {
-      this.texture.removeControl(this.modeSelection);
-      this.texture.addControl(this.topMenu);
-    }
-  }
-  setTopMenuButton(column: number, color: string) {
-    this.topMenu.getChildrenAt(0, column)[0].color = color;
   }
 }
 
@@ -140,47 +126,25 @@ class DragHelper extends Container {
   }
 }
 
-const buildTopMenu = () => {
+const buildTopMenu = (guiTexture : GuiTexture) => {
   const grid = new Grid("topMenu");
   grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
   grid.heightInPixels = 35;
   grid.paddingTop = "5px";
+  grid.paddingRight = "5px";
   grid.paddingLeft = "5px";
   grid.color = "white";
-  grid.addColumnDefinition(35, true);
-  grid.addColumnDefinition(35, true);
-  const gridLinesButton = buildTopMenuButton("⯐");
-  gridLinesButton.onPointerClickObservable.add(() => {
-    ipcRenderer.emit("toggleGridLinesVisibility");
-  });
-  const useRotationButton = buildTopMenuButton("📐");
-  useRotationButton.onPointerClickObservable.add(() => {
-    ipcRenderer.emit("toggleUseRotation");
-  });
-  grid.addControl(gridLinesButton, 0, 0);
-  grid.addControl(useRotationButton, 0, 1);
-  return grid;
-}
-
-const buildModeMenu = () => {
-  const grid = new Grid("modeMenu");
-  grid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-  grid.heightInPixels = 35;
-  grid.paddingTop = "5px";
-  grid.paddingRight = "5px";
-  grid.paddingLeft = "75px";
-  grid.color = "white";
   grid.zIndex = 20;
-  grid.isPointerBlocker = true;
-  grid.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 500);
-  window.addEventListener('resize', () => {
-    grid.widthInPixels = Math.min(Math.max(0.4*window.innerWidth, 300), 500);
-  });
-  grid.addColumnDefinition(1.0);
+  grid.addColumnDefinition(70, true);
+  grid.addColumnDefinition(0.5);
+  grid.addColumnDefinition(180, true);
+  grid.addColumnDefinition(35, true);
+  grid.addColumnDefinition(0.5);
   grid.addColumnDefinition(35, true);
   const modeDisplayButton = buildTopMenuButton(currentMode);
   modeDisplayButton.onPointerClickObservable.add(() => {
-    ipcRenderer.emit("toggleModeSelectionVisibility");
+    guiTexture.modeSelection.isVisible = !guiTexture.modeSelection.isVisible;
+    grid.isPointerBlocker = guiTexture.modeSelection.isVisible || guiTexture.settings.isVisible;
   });
   const storePoseButton = buildTopMenuButton("🖫");
   const deletePoseButton = buildTopMenuButton("🗑");
@@ -202,15 +166,22 @@ const buildModeMenu = () => {
   deletePoseButton.onPointerOutObservable.add(() => grid.color = "white");
   storePoseButton.isVisible = false;
   deletePoseButton.isVisible = false;
-  grid.addControl(modeDisplayButton, 0, 0);
-  grid.addControl(storePoseButton, 0, 1);
-  grid.addControl(deletePoseButton, 0, 1);
+  const settingsButton = buildTopMenuButton("⚙");
+  settingsButton.onPointerClickObservable.add(() => {
+    guiTexture.settings.isVisible = !guiTexture.settings.isVisible;
+    grid.isPointerBlocker = guiTexture.modeSelection.isVisible || guiTexture.settings.isVisible;
+  });
+  grid.addControl(modeDisplayButton, 0, 2);
+  grid.addControl(storePoseButton, 0, 3);
+  grid.addControl(deletePoseButton, 0, 3);
+  grid.addControl(settingsButton, 0, 5);
   return grid;
 }
 
 const buildTopMenuButton = (displayText: string) => {
   const button = Button.CreateSimpleButton("topMenuButton", displayText);
   button.fontSize = "80%";
+  button.color = "white";
   button.thickness = 0;
   button.onPointerEnterObservable.add(() => button.thickness = 1);
   button.onPointerOutObservable.add(() => button.thickness = 0);
@@ -229,10 +200,6 @@ const onKeyPress = (kbInfo: BABYLON.KeyboardInfo) => {
           break;
         case "Delete":
           ipcRenderer.send('deleteMode', currentMode);
-          break;
-        case "m":
-        case "M":
-          ipcRenderer.emit("toggleModeSelectionVisibility");
           break;
         case "a":
         case "A":

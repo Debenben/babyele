@@ -33,9 +33,9 @@ commandTimestamp = StopWatch()
 motor = 0
 tiltSensor = 0
 distanceSensor = 0
-imuA = [0, 0, 0]
+imuA = [[0.0, 0.0, 0.0]]*10
 angle = 0
-tiltA = [0, 0, 0]
+tiltA = [[0, 0, 0]]*10
 distance = 0
 
 
@@ -135,14 +135,16 @@ def executeCommand(data):
 
 def getSensorValues():
     global motor, tiltSensor, distanceSensor, imuA, angle, tiltA, distance
-    imuA = hub.imu.acceleration()
+    imuA.append(hub.imu.acceleration())
+    imuA.pop(0)
     try:
         angle = motor.angle()
         #print("angle is", angle)
     except:
         getMotor(_MOTORPORT)
     try:
-        tiltA = tiltSensor.read(3)
+        tiltA.append(tiltSensor.read(3))
+        tiltA.pop(0)
         #print("tilt is", tiltA)
     except:
         getTiltSensor(_TILTPORT)
@@ -214,7 +216,13 @@ def setLedColor():
 
 
 def transmitSensorValues():
-    data = pack('<Bhhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), floor(angle/10), tiltA[0], tiltA[1], tiltA[2], distance)
+    imuAX = floor(sum(imuA[i][0] for i in range(10))/10)
+    imuAY = floor(sum(imuA[i][1] for i in range(10))/10)
+    imuAZ = floor(sum(imuA[i][2] for i in range(10))/10)
+    tiltAX = floor(sum(tiltA[i][0] for i in range(10))/10)
+    tiltAY = floor(sum(tiltA[i][1] for i in range(10))/10)
+    tiltAZ = floor(sum(tiltA[i][2] for i in range(10))/10)
+    data = pack('<Bhhhhhhhh', getStatus(), imuAX, imuAY, imuAZ, floor(angle/10), tiltAX, tiltAY, tiltAZ, distance)
     #print("data is", data)
     hub.ble.broadcast([data])
 

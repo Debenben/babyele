@@ -17,9 +17,9 @@
   "dependencies": {
     "@debenben/node-poweredup": "^9.0.3",
     "@abandonware/bluetooth-hci-socket": "^0.5.3-12",
-    "babylonjs": "^7.2.2",
-    "babylonjs-gui": "^7.2.2",
-    "babylonjs-loaders": "^7.2.2"
+    "babylonjs": "^7.7.1",
+    "babylonjs-gui": "^7.7.1",
+    "babylonjs-loaders": "^7.7.1"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.2.0",

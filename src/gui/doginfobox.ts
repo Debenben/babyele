@@ -1,7 +1,6 @@
 import { TextBlock } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Infobox, buildText, buildGauge, printPosition } from './infobox';
-import { Vector3 } from '../tools';
 
 export class DogInfobox extends Infobox {
   tiltText: TextBlock;

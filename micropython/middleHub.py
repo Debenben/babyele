@@ -28,9 +28,8 @@ loopCounter = 0
 buttonMode = _BUTTON_IDLE
 commandTimestamp = StopWatch()
 motors = [0, 0, 0, 0]
-imuA = [0, 0, 0]
+imuA = [[0.0, 0.0, 0.0]]*10
 angles = [0, 0, 0, 0]
-
 
 hub = TechnicHub(observe_channels=[0], broadcast_channel=_HUBID)
 hub.system.set_stop_button(None)
@@ -110,7 +109,8 @@ def executeCommand(data):
 
 def getSensorValues():
     global motors, imuA, angles
-    imuA = hub.imu.acceleration()
+    imuA.append(hub.imu.acceleration())
+    imuA.pop(0)
     for i in range(0, 4):
         try:
             angles[i] = motors[i].angle()
@@ -197,7 +197,10 @@ def setLedColor():
 
 
 def transmitSensorValues():
-    data = pack('<Bhhhhhhh', getStatus(), floor(imuA[0]), floor(imuA[1]), floor(imuA[2]), floor(angles[0]/10), floor(angles[1]/10), floor(angles[2]/10), floor(angles[3]/10))
+    imuAX = floor(sum(imuA[i][0] for i in range(10))/10)
+    imuAY = floor(sum(imuA[i][1] for i in range(10))/10)
+    imuAZ = floor(sum(imuA[i][2] for i in range(10))/10)
+    data = pack('<Bhhhhhhh', getStatus(), imuAX, imuAY, imuAZ, floor(angles[0]/10), floor(angles[1]/10), floor(angles[2]/10), floor(angles[3]/10))
     #print("data is", data)
     hub.ble.broadcast([data])
 

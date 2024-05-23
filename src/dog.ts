@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { CommanderAbstraction } from "./commanderinterface";
 import { SensorAbstraction } from "./sensorinterface";
-import { legAnglesFromMotorAngles, legPositionsFromMotorAngles, dogRotationFromMotorAngles, dogPositionFromMotorAngles, motorAnglesFromLegPositions, motorAnglesFromLegAngles, durationsFromMotorAngles } from "./conversions";
+import { legAnglesFromMotorAngles, legPositionsFromMotorAngles, dogRotationFromMotorAngles, dogPositionFromMotorAngles, motorAnglesFromLegPositions, motorAnglesFromLegAngles, durationsFromMotorAngles, dogRotationFromAcceleration } from "./conversions";
 import { Vec3, Vec43, Vector3, Quaternion, hubNames, motorNames, legNames } from "./tools";
 
 const MOTOR_UPDATE_INTERVAL = 100; // interval in milliseconds for updating motor commands
@@ -219,6 +219,7 @@ export class Dog implements DogAbstraction {
   async notifyDogAcceleration(acceleration: Vec3) {
     this._dogAcceleration = acceleration;
     this.send('notifyAcceleration', "dog", this.dogAcceleration);
+    this.send('notifyTilt', "dog", dogRotationFromAcceleration(this.dogAcceleration));
   }
 
   requestMoveSpeed() {
