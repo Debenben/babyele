@@ -32,6 +32,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     this.dog = dog;
 
     this.on('data', function(data) {
+      // console.log(data);
       if(data.length < 32) return;
       if(data.readUInt8(15) != 0xff) return; // manufacturer data
       if(data.readUInt16LE(16) != 0x0397) return; // lego
@@ -40,7 +41,6 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
       if(id < 5 && data.readUInt8(19) != 0xd1) return;
       if(id > 4 && data.readUInt8(19) != 0xcf) return;
       //console.log("rssi is", data.readInt8(data.length -1);
-      //console.log(data);
       this.hubTimestamps[id - 1] = Date.now();
       this.updateStatus(id, data.readUInt8(20));
       if(id == 5) this.dog.notifyDogAcceleration([data.readInt16LE(23), data.readInt16LE(25), -data.readInt16LE(21)]); // [y, z, -x]
@@ -89,10 +89,10 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     this.hubTimestampIntervalID = setInterval(() => {
       for(let i = 0; i < 6; i++) {
         const hubStatus = this.dog.hubStatus;
-        hubStatus[i] = (Date.now() - this.hubTimestamps[i] < 100);
+        hubStatus[i] = (Date.now() - this.hubTimestamps[i] < 200);
         this.dog.notifyHubStatus(hubStatus);
         if(!hubStatus[i]) this.updateStatus(i + 1, 0);
-      }}, 50);
+      }}, 100);
   }
 
   updateStatus(id: number, status) {
@@ -140,7 +140,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     cmd.writeUInt8(0x02, 3); // length
 
     cmd.writeUInt8(enabled ? 0x01 : 0x00, 4); // enable: 0 -> disabled, 1 -> enabled
-    cmd.writeUInt8(0x01, 5); // duplicates: 0 -> no duplicates, 1 -> duplicates
+    cmd.writeUInt8(0x00, 5); // filter duplicates: 1 -> filter, 0 -> duplicates
 
     this.write(cmd);
   }

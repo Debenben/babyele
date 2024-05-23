@@ -130,10 +130,9 @@ export const durationsFromMotorAngles = (startMotorAngles: Vec43, endMotorAngles
 }
 
 export const dogRotationFromAcceleration = (acceleration: Vec3) => {
-  const rotation = [0, 0, 0];
-  rotation[0] = -Math.atan2(acceleration[2], acceleration[1]);
-  rotation[2] = Math.atan2(acceleration[0], acceleration[1]*Math.cos(rotation[0]) - acceleration[2]*Math.sin(rotation[0]));
-  return rotation;
+  const xangle = -Math.atan2(acceleration[2], acceleration[1]);
+  const zangle = Math.atan2(acceleration[0], acceleration[1]*Math.cos(xangle) - acceleration[2]*Math.sin(xangle));
+  return [xangle, 0, zangle];
 }
 
 export const legAnglesFromAcceleration = (dogAcceleration: Vec3, topAccelerations: Vec43, bottomAccelerations: Vec43) => {
