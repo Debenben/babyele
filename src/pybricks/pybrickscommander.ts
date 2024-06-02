@@ -43,14 +43,14 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
       //console.log("rssi is", data.readInt8(data.length -1);
       this.hubTimestamps[id - 1] = Date.now();
       this.updateStatus(id, data.readUInt8(20));
-      if(id == 5) this.dog.notifyDogAcceleration([data.readInt16LE(23), data.readInt16LE(25), -data.readInt16LE(21)]); // [y, z, -x]
+      if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(21), data.readInt16LE(25), -data.readInt16LE(23)]); // [-x, z, -y]
       const motorAngles = this.dog.motorAngles;
       if(id < 5) {
         const topAcceleration = this.dog.topAcceleration;
 	const bottomAcceleration = this.dog.bottomAcceleration;
-	topAcceleration[id - 1] = [data.readInt16LE(23), data.readInt16LE(25), -data.readInt16LE(21)];
+	topAcceleration[id - 1] = [-data.readInt16LE(21), data.readInt16LE(25), -data.readInt16LE(23)];
         motorAngles[id - 1][2] = 10*data.readInt16LE(27);
-	bottomAcceleration[id - 1] = [data.readInt16LE(31), data.readInt16LE(33), -data.readInt16LE(29)];
+	bottomAcceleration[id - 1] = [-data.readInt16LE(29), data.readInt16LE(33), -data.readInt16LE(31)];
         this.dog.notifyTopAcceleration(topAcceleration);
         this.dog.notifyBottomAcceleration(bottomAcceleration);
       }

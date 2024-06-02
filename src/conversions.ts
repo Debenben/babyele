@@ -130,22 +130,24 @@ export const durationsFromMotorAngles = (startMotorAngles: Vec43, endMotorAngles
 }
 
 export const dogRotationFromAcceleration = (acceleration: Vec3) => {
-  const xangle = -Math.atan2(acceleration[2], acceleration[1]);
-  const zangle = Math.atan2(acceleration[0], acceleration[1]*Math.cos(xangle) - acceleration[2]*Math.sin(xangle));
+  const zangle = Math.atan2(acceleration[0], acceleration[1]);
+  const xangle = -Math.atan2(acceleration[2], Math.sqrt(acceleration[1]**2 + acceleration[0]**2));
   return [xangle, 0, zangle];
 }
 
-export const legAnglesFromAcceleration = (dogAcceleration: Vec3, topAccelerations: Vec43, bottomAccelerations: Vec43) => {
+export const legAnglesFromAcceleration = (dogAcceleration: Vec3, topAcceleration: Vec43, bottomAcceleration: Vec43) => {
   const legAngles = [];
   const x = dogAcceleration[0];
   const y = dogAcceleration[1];
   const z = dogAcceleration[2];
-  const dogAccelerations = [[z, -x, -y], [-z, x, -y], [z, -x, -y], [-z, x, -y]];
+  const ref = [[-y, z, -x], [-y, -z, x], [-y, z, -x], [-y, -z, x]] as Vec43;
   for(let i = 0; i < 4; i++) {
-    //const dogRotation = dogRotationFromAcceleration(dogAccelerations[i]);
-    const mountAngle = 0;
-    const topAngle = 0;
-    const bottomAngle = 0;
+    const r = ref[i];
+    const t = topAcceleration[i];
+    const b = bottomAcceleration[i];
+    const mountAngle = Math.atan2(t[1], Math.sqrt(t[0]**2 + t[2]**2)) - Math.atan2(r[1], Math.sqrt(r[0]**2 + r[2]**2)); 
+    const topAngle = -Math.atan2(t[2], t[0]) + Math.atan2(r[2], r[0]);
+    const bottomAngle = -Math.atan2(b[2], b[0]) + Math.atan2(t[2], t[0]);
     legAngles.push([mountAngle, topAngle, bottomAngle]);
   }
   return legAngles;

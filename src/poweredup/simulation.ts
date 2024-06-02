@@ -138,7 +138,7 @@ export class SimulationTiltSensor extends EventEmitter implements AccelerometerA
 	this.t += 0.01;
 	this.emit('accel', {x: this.x, y: this.y, z: this.z});
         // console.log("simulation hub " + hubName + " emitting tilt at " + this.t + ": " + this.x + " " + this.y + " " + this.z);
-      }, 100*Math.random()); 
+      }, 50*(1 + Math.random()));
     }
     else {
       this.x = -960;
@@ -148,7 +148,7 @@ export class SimulationTiltSensor extends EventEmitter implements AccelerometerA
         x: this.x + 100*(Math.random() - 0.5),
         y: this.y + 100*(Math.random() - 0.5),
         z: this.z + 100*(Math.random() - 0.5)
-      }), 100*Math.random());
+      }), 1000*(1 + Math.random()));
     }
   }
   destructor() {

@@ -1,6 +1,6 @@
 {
   "name": "babyele",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "program to control lego walker",
   "main": "./app/main.js",
   "scripts": {
@@ -9,14 +9,13 @@
     "start": "tsc && electron-forge start",
     "test": "tsc && electron-forge start -- --simulation --poweredup",
     "package": "electron-forge package",
-    "make": "electron-forge make",
-    "lint": "eslint --ext .ts,.tsx ."
+    "make": "electron-forge make"
   },
   "author": "bene",
   "license": "ISC",
   "dependencies": {
-    "@debenben/node-poweredup": "^9.0.3",
     "@abandonware/bluetooth-hci-socket": "^0.5.3-12",
+    "@debenben/node-poweredup": "^9.0.3",
     "babylonjs": "^7.7.1",
     "babylonjs-gui": "^7.7.1",
     "babylonjs-loaders": "^7.7.1"
@@ -27,13 +26,9 @@
     "@electron-forge/maker-rpm": "^7.2.0",
     "@electron-forge/maker-squirrel": "^7.2.0",
     "@electron-forge/maker-zip": "^7.2.0",
-    "electron": "^29.3.0",
     "@electron/rebuild": "^3.6.0",
-    "typescript": "^5.0.4",
-    "eslint": "^8.0.1",
-    "eslint-plugin-import": "^2.25.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.2",
-    "@typescript-eslint/parser": "^7.0.2"
+    "electron": "^30.0.0",
+    "typescript": "^5.0.4"
   },
   "config": {
     "forge": {

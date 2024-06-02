@@ -62,7 +62,7 @@ export class Renderer {
     this.redMaterial.baseColor = new BABYLON.Color3(0.9,0.3,0.3);
     this.redMaterial.emissiveColor = new BABYLON.Color3(0.1,0.01,0.01);
 
-    const dogScaling = new Vector3(Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH, 4.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_LENGTH - 4.0*Param.LEG_MOUNT_HEIGHT);
+    const dogScaling = new Vector3(Param.LEG_SEPARATION_LENGTH - 4.0*Param.LEG_MOUNT_HEIGHT, 4.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
     const dog = await importMesh(scene, "dog", "middle.glb", dogScaling);
     const dogAcceleration = await buildAcceleration(scene, "dog");
     dogAcceleration.parent = dog;
@@ -71,12 +71,11 @@ export class Renderer {
     const axleScaling = new Vector3(4.0*Param.LEG_MOUNT_HEIGHT, 4.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
     const frontHub = await importMesh(scene, "hubFrontCenter", "axle.glb", axleScaling);
     frontHub.parent = dog;
-    frontHub.position.z = Param.LEG_SEPARATION_LENGTH/2;
-    frontHub.rotation.y = Math.PI/2;
+    frontHub.position.x = Param.LEG_SEPARATION_LENGTH/2;
+    frontHub.rotation.y = Math.PI;
     const backHub = await importMesh(scene, "hubBackCenter", "axle.glb", axleScaling);
     backHub.parent = dog;
-    backHub.position.z = -Param.LEG_SEPARATION_LENGTH/2;
-    backHub.rotation.y = -Math.PI/2;
+    backHub.position.x = -Param.LEG_SEPARATION_LENGTH/2;
 
     const legFrontLeft = await buildLeg(scene, "legFrontLeft");
     legFrontLeft.parent = frontHub;
@@ -132,9 +131,10 @@ export class Renderer {
   }
 
   setAcceleration(meshName: string, vec: Vector3) {
-    const xangle = Math.atan2(vec.z, vec.y);
-    const zangle = -Math.atan2(vec.x, vec.y*Math.cos(xangle) + vec.z*Math.sin(xangle));
-    this.scene.getMeshByName(meshName + "Acceleration").rotation = new Vector3(xangle, 0, zangle);
+    const zangle = Math.atan2(vec.x, vec.y);
+    const xangle = -Math.atan2(vec.z, Math.sqrt(vec.y**2 + vec.x**2));
+    const rotation = Quaternion.FromEulerAngles(xangle, 0, zangle).invert().toEulerAngles();
+    this.scene.getMeshByName(meshName + "Acceleration").rotation = rotation;
   }
 
   setState(meshName: string, state: string) {
@@ -194,6 +194,8 @@ export class Renderer {
   }
 }
 
+export const hubScaling = new Vector3(70, 40, 56).scale(Param.LEG_LENGTH_TOP/160);
+
 const setBodyHeight = (scene: BABYLON.Scene) => {
   const dog = scene.getMeshByName('dogRoot');
   dog.position.y -= Math.min(...jointNames.map(e => getClearance(scene, e)));
@@ -226,10 +228,10 @@ const getGravityLinesPath = (scene: BABYLON.Scene) => {
 
 const getDisplacementLinesPath = () => {
   const system = [];
-  for (let z=-12; z<=12; z++) {
+  for (let z=-10; z<=10; z++) {
     const path = [];
-    path.push(new Vector3(Param.LEG_SEPARATION_WIDTH, 0, z*Param.LEG_SEPARATION_LENGTH/12));
-    path.push(new Vector3(-Param.LEG_SEPARATION_WIDTH, 0, z*Param.LEG_SEPARATION_LENGTH/12));
+    path.push(new Vector3(z*Param.LEG_SEPARATION_LENGTH/10, 0, -Param.LEG_SEPARATION_WIDTH));
+    path.push(new Vector3(z*Param.LEG_SEPARATION_LENGTH/10, 0, Param.LEG_SEPARATION_WIDTH));
     system.push(path);
   }
   return system;
@@ -270,9 +272,18 @@ const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
     engine,
     fragmentShader: `
       varying vec2 vUV;
-      void main(void) {
-        float rnd = abs(fract(sin(vUV.x)*sin(vUV.y)*9999999.9));
-        gl_FragColor = vec4(vec3(0.5*vUV.x, 0.5*vUV.y, 1.0*vUV.y)*(0.2 + 0.02*rnd), 1.0);
+      float noise(vec2 v) {
+        vec2 i = floor(v);
+        vec2 f = smoothstep(vec2(0.0), vec2(1.0), fract(v));
+        float a = dot(i, vec2(1.0, 57.0)) + 1.0;
+        float b = dot(i + vec2(1.0, 0.0), vec2(1.0, 57.0)) + 1.0;
+        float c = dot(i + vec2(0.0, 1.0), vec2(1.0, 57.0)) + 1.0;
+        float d = dot(i + vec2(1.0, 1.0), vec2(1.0, 57.0)) + 1.0;
+        return mix(mix(fract(sin(a)*43217.6543), fract(sin(b)*43217.6543), f.x), mix(fract(sin(c)*43217.6543), fract(sin(d)*43217.6543), f.x), f.y);
+      }
+      void main() {
+        float n = noise(vUV*4.0) + 0.2*noise(vUV*12.0) + 0.04*noise(vUV*333.0);
+        gl_FragColor = vec4(mix(vec3(0.01), vec3(0.2*vUV.x, 0.2*vUV.y, 0.4*vUV.y), n), 1.0);
       }
     `
   });
@@ -283,35 +294,13 @@ const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
   return background;
 }
 
-const buildGround = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
-  const groundTexture = new BABYLON.RenderTargetTexture("groundTexture", 1200, scene)
-  groundTexture.hasAlpha = true;
-  const renderImage = new BABYLON.EffectWrapper({
-    engine,
-    fragmentShader: `
-      varying vec2 vUV;
-      void main(void) {
-        float cx = vUV.x - 0.5;
-        float cy = vUV.y - 0.5;
-        float d = cx*cx + cy*cy;
-        float lf = 20.0;
-        float hf = 100.0;
-        float rnd = abs(fract(sin(vUV.x)*sin(vUV.y)*9999999.9));
-        vec4 lv = pow(cos(lf*cx)*cos(lf*cy), 800.0)*vec4(0.8, 0.8, 1.0, 1.0) * (1.0 - 16.0*d*d);
-        vec4 hv = pow(cos(hf*cx)*cos(hf*cy), 80.0)*vec4(0.5, 0.6, 0.4, 1.0) * (1.0 - 16.0*d*d);
-        vec4 gr = vec4(0.05, 0.1, 0.1, 1.0) * (1.0 - 0.1*rnd - 70.0*d*d);
-        gl_FragColor = max(max(lv, hv), gr);
-      }
-    `
-  });
-  renderImage.effect.executeWhenCompiled(() => {
-    const effectRenderer = new BABYLON.EffectRenderer(engine);
-    effectRenderer.render(renderImage, groundTexture);
-  });
-  const groundMat = new BABYLON.PBRMetallicRoughnessMaterial("groundMat", scene);
-  groundMat.baseTexture = groundTexture;
-  groundMat.alphaCutOff = 0.4;
-  const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:8*Param.LEG_SEPARATION_WIDTH, height:8*Param.LEG_SEPARATION_WIDTH}, scene);
+const buildGround = async (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
+  const radius = 4*Param.LEG_SEPARATION_WIDTH;
+  const groundMat = await BABYLON.NodeMaterial.ParseFromFileAsync("groundMat", "../public/groundShader.json", scene);
+  (groundMat.getBlockByName("BaseRadius") as BABYLON.InputBlock).value = radius;
+  (groundMat.getBlockByName("XTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_WIDTH;
+  (groundMat.getBlockByName("ZTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_LENGTH;
+  const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:2*radius, height:2*radius}, scene);
   ground.material = groundMat;
   ground.receiveShadows = true;
   ground.isPickable = false;
@@ -321,7 +310,6 @@ const buildGround = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
 const buildAcceleration = async (scene: BABYLON.Scene, meshName: string) => {
   const arrow = BABYLON.MeshBuilder.CreateCylinder(meshName + "Acceleration", {height: 3*Param.LEG_LENGTH_TOP, diameterTop: 0.04*Param.LEG_LENGTH_TOP, diameterBottom: 0});
   arrow.isPickable = false;
-  const hubScaling = new Vector3(56, 40, 70).scale(Param.LEG_LENGTH_TOP/160);
   const hub = await importMesh(scene, meshName + "AccelerationHub", "hub.glb", hubScaling);
   hub.parent = arrow;
   hub.isPickable = false;
@@ -376,11 +364,10 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   knee.parent = topLeg;
   knee.isPickable = false;
   knee.isVisible = false;
-  const hubScaling = new Vector3(56, 40, 70).scale(Param.LEG_LENGTH_TOP/160);
   const hub = await importMesh(scene, meshName.replace("leg", "hub"), "hub.glb", hubScaling);
   hub.parent = topLeg;
   hub.position.y = -Param.LEG_LENGTH_TOP/2;
-  hub.rotation = new Vector3(Math.PI/2, Math.PI, 0);
+  hub.rotation = new Vector3(0, Math.PI/2, -Math.PI/2);
   const topAcceleration = await buildAcceleration(scene, meshName + "Top");
   topAcceleration.parent = hub;
   const bottomScaling = new Vector3(Param.LEG_LENGTH_BOTTOM, Param.LEG_LENGTH_BOTTOM, Param.LEG_MOUNT_WIDTH);
@@ -389,7 +376,7 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   const bottomAccelerometer = new BABYLON.TransformNode(meshName + "BottomAccelerometer");
   bottomAccelerometer.parent = bottomLeg;
   bottomAccelerometer.position.y = -Param.LEG_LENGTH_BOTTOM/2;
-  bottomAccelerometer.rotation = new Vector3(Math.PI/2, Math.PI, 0);
+  bottomAccelerometer.rotation = new Vector3(0, Math.PI/2, -Math.PI/2);
   const bottomAcceleration = await buildAcceleration(scene, meshName + "Bottom");
   bottomAcceleration.parent = bottomAccelerometer;
   const foot = BABYLON.MeshBuilder.CreateSphere(meshName + "Foot", {diameter: Param.LEG_FOOT_DIAMETER}, scene);

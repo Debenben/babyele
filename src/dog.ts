@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { CommanderAbstraction } from "./commanderinterface";
 import { SensorAbstraction } from "./sensorinterface";
-import { legAnglesFromMotorAngles, legPositionsFromMotorAngles, dogRotationFromMotorAngles, dogPositionFromMotorAngles, motorAnglesFromLegPositions, motorAnglesFromLegAngles, durationsFromMotorAngles, dogRotationFromAcceleration } from "./conversions";
+import { legAnglesFromMotorAngles, legPositionsFromMotorAngles, dogRotationFromMotorAngles, dogPositionFromMotorAngles, motorAnglesFromLegPositions, motorAnglesFromLegAngles, durationsFromMotorAngles, dogRotationFromAcceleration, legAnglesFromAcceleration } from "./conversions";
 import { Vec3, Vec43, Vector3, Quaternion, hubNames, motorNames, legNames } from "./tools";
 
 const MOTOR_UPDATE_INTERVAL = 100; // interval in milliseconds for updating motor commands
@@ -207,6 +207,9 @@ export class Dog implements DogAbstraction {
     for(let i = 0; i < 4; i++) {
       this.send('notifyAcceleration', legNames[i] + "Top", this.topAcceleration[i]);
     }
+    for(let i = 0; i < 4; i++) {
+      this.send('notifyTilt', legNames[i], legAnglesFromAcceleration(this.dogAcceleration, this.topAcceleration, this.bottomAcceleration)[i]);
+    }
   }
 
   async notifyBottomAcceleration(acceleration: Vec43) {
@@ -214,12 +217,18 @@ export class Dog implements DogAbstraction {
     for(let i = 0; i < 4; i++) {
       this.send('notifyAcceleration', legNames[i] + "Bottom", this.bottomAcceleration[i]);
     }
+    for(let i = 0; i < 4; i++) {
+      this.send('notifyTilt', legNames[i], legAnglesFromAcceleration(this.dogAcceleration, this.topAcceleration, this.bottomAcceleration)[i]);
+    }
   }
 
   async notifyDogAcceleration(acceleration: Vec3) {
     this._dogAcceleration = acceleration;
     this.send('notifyAcceleration', "dog", this.dogAcceleration);
     this.send('notifyTilt', "dog", dogRotationFromAcceleration(this.dogAcceleration));
+    for(let i = 0; i < 4; i++) {
+      this.send('notifyTilt', legNames[i], legAnglesFromAcceleration(this.dogAcceleration, this.topAcceleration, this.bottomAcceleration)[i]);
+    }
   }
 
   requestMoveSpeed() {

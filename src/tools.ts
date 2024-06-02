@@ -1,7 +1,7 @@
 export { Vector3 } from 'babylonjs';
 // x: forward
-// y: height
-// z: sideways
+// y: up
+// z: left
 export { Quaternion } from 'babylonjs';
 
 export const hubNames = ['hubFrontLeft', 'hubFrontRight', 'hubBackLeft', 'hubBackRight', 'hubFrontCenter', 'hubBackCenter'] as const
