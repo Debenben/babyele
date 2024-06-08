@@ -298,8 +298,8 @@ const buildGround = async (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
   const radius = 4*Param.LEG_SEPARATION_WIDTH;
   const groundMat = await BABYLON.NodeMaterial.ParseFromFileAsync("groundMat", "../public/groundShader.json", scene);
   (groundMat.getBlockByName("BaseRadius") as BABYLON.InputBlock).value = radius;
-  (groundMat.getBlockByName("XTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_WIDTH;
-  (groundMat.getBlockByName("ZTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_LENGTH;
+  (groundMat.getBlockByName("XTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_LENGTH;
+  (groundMat.getBlockByName("ZTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_WIDTH;
   const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:2*radius, height:2*radius}, scene);
   ground.material = groundMat;
   ground.receiveShadows = true;

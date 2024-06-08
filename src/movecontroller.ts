@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain } from "electron";
 import * as fs from 'fs';
 import { DogAbstraction } from "./dog"
 import { Vec43, Move, reservedNames } from "./tools";
+import { motorAnglesFromLegAngles, legAnglesFromAcceleration } from "./conversions";
 
 export class MoveController {
   mainWindow: BrowserWindow
@@ -156,8 +157,8 @@ export class MoveController {
       return;
     }
     else if (destMode === "SYNC") {
-      this.dog.requestSync(this.dog.motorAngles);
-      return;
+      const legAngles = legAnglesFromAcceleration(this.dog.dogAcceleration, this.dog.topAcceleration, this.dog.bottomAcceleration);
+      return this.dog.requestSync(motorAnglesFromLegAngles(legAngles));
     }
     else if (destMode === "STOP") {
       this.modeQueue = [];

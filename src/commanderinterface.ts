@@ -1,10 +1,10 @@
 import { Vec43 } from "./tools";
 
 export interface CommanderAbstraction {
-  connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  requestShutdown: () => Promise<void>;
-  requestMotorSpeeds: (motorSpeeds: Vec43) => Promise<void>;
-  requestMotorAngles: (motorAngles: Vec43) => Promise<void>;
-  requestSync: (motorAngles: Vec43) => Promise<void>;
+  connect: () => Promise<any>;
+  disconnect: () => Promise<any>;
+  requestShutdown: () => Promise<any>;
+  requestMotorSpeeds: (motorSpeeds: Vec43) => Promise<any>;
+  requestMotorAngles: (motorAngles: Vec43) => Promise<any>;
+  requestSync: (motorAngles: Vec43) => Promise<any>;
 }

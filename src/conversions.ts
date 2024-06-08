@@ -21,7 +21,7 @@ const motorMaxSpeeds = new Array(4).fill([MOUNT_MOTOR_MAX_SPEED, TOP_MOTOR_MAX_S
 
 const mountAngleOffset = invCosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH);
 
-export const legAnglesFromMotorAngles = (motorAngles: Vec43) => {
+export const legAnglesFromMotorAngles = (motorAngles: Vec43): Vec43 => {
   for(let i = 0; i < 4; i++) {
     const pistonLength = LEG_PISTON_LENGTH + motorAngles[i][0]/MOUNT_MOTOR_RANGE;
     motorAngles[i][0] = invCosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, pistonLength) - mountAngleOffset;
@@ -31,7 +31,7 @@ export const legAnglesFromMotorAngles = (motorAngles: Vec43) => {
   return motorAngles;
 };
 
-export const motorAnglesFromLegAngles = (legAngles: Vec43) => {
+export const motorAnglesFromLegAngles = (legAngles: Vec43): Vec43 => {
   for(let i = 0; i < 4; i++) {
     const pistonLength = cosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, legAngles[i][0] + mountAngleOffset);
     legAngles[i][0] = (pistonLength - LEG_PISTON_LENGTH)*MOUNT_MOTOR_RANGE;
@@ -41,7 +41,7 @@ export const motorAnglesFromLegAngles = (legAngles: Vec43) => {
   return legAngles;
 }
 
-export const legPositionsFromMotorAngles = (motorAngles: Vec43) => {
+export const legPositionsFromMotorAngles = (motorAngles: Vec43): Vec43 => {
   const vec = legAnglesFromMotorAngles(motorAngles);
   for(let i = 0; i < 4; i++) {
     const tAngle = vec[i][1];
@@ -66,7 +66,7 @@ export const legPositionsFromMotorAngles = (motorAngles: Vec43) => {
   return vec
 };
 
-export const motorAnglesFromLegPositions = (positions: Vec43, bendForward: boolean[]) => {
+export const motorAnglesFromLegPositions = (positions: Vec43, bendForward: boolean[]): Vec43 => {
   for(let i = 0; i < 4; i++) {
     for(let j = 0; j < 3; j++) {
       positions[i][j] -= defaultLegPositions[i][j];
@@ -96,16 +96,16 @@ export const motorAnglesFromLegPositions = (positions: Vec43, bendForward: boole
   return motorAnglesFromLegAngles(positions);
 };
 
-export const dogPositionFromMotorAngles = (motorAngles: Vec43) => {
+export const dogPositionFromMotorAngles = (motorAngles: Vec43): Vec3 => {
   const legPositions = legPositionsFromMotorAngles(motorAngles);
   const dogPosition = [0, 0, 0];
   for(let i = 0; i < 4; i++) {
     for(let j = 0; j < 3; j++) dogPosition[j] += 0.25*legPositions[i][j];
   }
-  return dogPosition;
+  return dogPosition as Vec3;
 };
 
-export const dogRotationFromMotorAngles = (motorAngles: Vec43) => {
+export const dogRotationFromMotorAngles = (motorAngles: Vec43): Quaternion => {
   const legPositions = legPositionsFromMotorAngles(JSON.parse(JSON.stringify(motorAngles)));
   const dogPosition = dogPositionFromMotorAngles(motorAngles);
   const averageRotation = Quaternion.Zero();
@@ -118,7 +118,7 @@ export const dogRotationFromMotorAngles = (motorAngles: Vec43) => {
   return averageRotation;
 };
 
-export const durationsFromMotorAngles = (startMotorAngles: Vec43, endMotorAngles: Vec43) => {
+export const durationsFromMotorAngles = (startMotorAngles: Vec43, endMotorAngles: Vec43): Vec43 => {
   const durations = endMotorAngles;
   for(let i = 0; i < 4; i++) {
     for(let j = 0; j < 3; j++) {
@@ -129,13 +129,13 @@ export const durationsFromMotorAngles = (startMotorAngles: Vec43, endMotorAngles
   return durations;
 }
 
-export const dogRotationFromAcceleration = (acceleration: Vec3) => {
+export const dogRotationFromAcceleration = (acceleration: Vec3): Vec3 => {
   const zangle = Math.atan2(acceleration[0], acceleration[1]);
   const xangle = -Math.atan2(acceleration[2], Math.sqrt(acceleration[1]**2 + acceleration[0]**2));
   return [xangle, 0, zangle];
 }
 
-export const legAnglesFromAcceleration = (dogAcceleration: Vec3, topAcceleration: Vec43, bottomAcceleration: Vec43) => {
+export const legAnglesFromAcceleration = (dogAcceleration: Vec3, topAcceleration: Vec43, bottomAcceleration: Vec43): Vec43 => {
   const legAngles = [];
   const x = dogAcceleration[0];
   const y = dogAcceleration[1];
@@ -150,5 +150,5 @@ export const legAnglesFromAcceleration = (dogAcceleration: Vec3, topAcceleration
     const bottomAngle = -Math.atan2(b[2], b[0]) + Math.atan2(t[2], t[0]);
     legAngles.push([mountAngle, topAngle, bottomAngle]);
   }
-  return legAngles;
+  return legAngles as Vec43;
 }

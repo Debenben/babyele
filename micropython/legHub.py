@@ -29,6 +29,8 @@ _BUTTON_INACTIVE = const(3)
 
 loopCounter = 0
 buttonMode = _BUTTON_IDLE
+currentCommand = 0
+currentTarget = 0
 commandTimestamp = StopWatch()
 motor = 0
 tiltSensor = 0
@@ -98,9 +100,9 @@ def getStatus():
 
 
 def executeCommand(data):
-    global motor, commandTimestamp
+    global motor, currentCommand, currentTarget, commandTimestamp
     try:
-        cmd = unpack_from('<B', data[0], 0)[0]
+        currentCommand = unpack_from('<B', data[0], 0)[0]
         mount, top, bottom = unpack_from('<hhh', data[0], 1 + 6*(_HUBID - 1))
     except:
         #print("failed to unpack", data)
@@ -108,29 +110,29 @@ def executeCommand(data):
 
     commandTimestamp.reset()
     #print("command", cmd, bottom)
-    if cmd == _CMD_KEEPALIVE:
+    currentTarget = bottom
+    if currentCommand == _CMD_KEEPALIVE:
         pass
-    elif cmd == _CMD_SPEED:
+    elif currentCommand == _CMD_SPEED:
         try:
-            if bottom == 0:
+            if currentTarget == 0:
                 motor.brake()
             else:
-                motor.run(motor.control.limits()[0]*bottom/1000)
+                motor.run(motor.control.limits()[0]*currentTarget/1000)
         except:
             getMotor(_MOTORPORT)
-    elif cmd == _CMD_ANGLE:
+    elif currentCommand == _CMD_ANGLE:
         try:
-            motor.track_target(bottom*10)
+            motor.track_target(currentTarget*10)
         except:
             getMotor(_MOTORPORT)
-    elif cmd == _CMD_RESET:
+    elif currentCommand == _CMD_RESET:
         try:
-            motor.reset_angle(bottom*10)
+            motor.reset_angle(currentTarget*10)
         except:
             getMotor(_MOTORPORT)
-    elif cmd == _CMD_SHUTDOWN:
+    elif currentCommand == _CMD_SHUTDOWN:
         hub.system.shutdown()
-    
 
 
 def getSensorValues():
@@ -222,7 +224,7 @@ def transmitSensorValues():
     tiltAX = floor(sum(tiltA[i][0] for i in range(10))/10)
     tiltAY = floor(sum(tiltA[i][1] for i in range(10))/10)
     tiltAZ = floor(sum(tiltA[i][2] for i in range(10))/10)
-    data = pack('<Bhhhhhhhh', getStatus(), imuAX, imuAY, imuAZ, floor(angle/10), tiltAX, tiltAY, tiltAZ, distance)
+    data = pack('<BBhhhhhhhh', getStatus(), currentCommand, imuAX, imuAY, imuAZ, floor(angle/10), tiltAX, tiltAY, tiltAZ, distance)
     #print("data is", data)
     hub.ble.broadcast([data])
 

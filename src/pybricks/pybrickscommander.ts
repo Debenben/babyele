@@ -21,9 +21,23 @@ const LE_SET_ADVERTISING_PARAMETERS_CMD = OCF_LE_SET_ADVERTISING_PARAMETERS | OG
 const LE_SET_ADVERTISING_DATA_CMD = OCF_LE_SET_ADVERTISING_DATA | OGF_LE_CTL << 10;
 const LE_SET_ADVERTISE_ENABLE_CMD = OCF_LE_SET_ADVERTISE_ENABLE | OGF_LE_CTL << 10;
 
+class Command {
+  command: number
+  data: Vec43
+  promise: Promise<any>
+  callback: any
+  constructor(command: number, data: Vec43) {
+    this.command = command;
+    this.data = data;
+    this.promise = new Promise<any>((resolve) => {
+      this.callback = (exitStatus) => resolve(exitStatus);
+    });
+  }
+}
 
 export class PybricksCommander extends BluetoothHciSocket implements CommanderAbstraction {
   dog: SensorAbstraction;
+  currentCommand: Command;
   hubTimestamps = new Array(6).fill(0);
   hubTimestampIntervalID: NodeJS.Timeout = null
 
@@ -32,35 +46,41 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     this.dog = dog;
 
     this.on('data', function(data) {
-      // console.log(data);
-      if(data.length < 32) return;
+      //console.log(data);
+      if(data.length < 35) return;
       if(data.readUInt8(15) != 0xff) return; // manufacturer data
       if(data.readUInt16LE(16) != 0x0397) return; // lego
       const id = data.readUInt8(18);
       if(id < 1 || id > 6) return;
-      if(id < 5 && data.readUInt8(19) != 0xd1) return;
-      if(id > 4 && data.readUInt8(19) != 0xcf) return;
+      if(id < 5 && data.readUInt8(19) != 0xd2) return;
+      if(id > 4 && data.readUInt8(19) != 0xd0) return;
       //console.log("rssi is", data.readInt8(data.length -1);
       this.hubTimestamps[id - 1] = Date.now();
       this.updateStatus(id, data.readUInt8(20));
-      if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(21), data.readInt16LE(25), -data.readInt16LE(23)]); // [-x, z, -y]
+      if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)]); // [-x, z, -y]
       const motorAngles = this.dog.motorAngles;
       if(id < 5) {
         const topAcceleration = this.dog.topAcceleration;
 	const bottomAcceleration = this.dog.bottomAcceleration;
-	topAcceleration[id - 1] = [-data.readInt16LE(21), data.readInt16LE(25), -data.readInt16LE(23)];
-        motorAngles[id - 1][2] = 10*data.readInt16LE(27);
-	bottomAcceleration[id - 1] = [-data.readInt16LE(29), data.readInt16LE(33), -data.readInt16LE(31)];
+	topAcceleration[id - 1] = [-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)];
+        motorAngles[id - 1][2] = 10*data.readInt16LE(28);
+	bottomAcceleration[id - 1] = [-data.readInt16LE(30), data.readInt16LE(34), -data.readInt16LE(32)];
         this.dog.notifyTopAcceleration(topAcceleration);
         this.dog.notifyBottomAcceleration(bottomAcceleration);
       }
       else  {
-        motorAngles[2*(id - 5)][0] = 10*data.readInt16LE(27);
-        motorAngles[2*(id - 5)][1] = 10*data.readInt16LE(29);
-        motorAngles[2*(id - 5) + 1][0] = 10*data.readInt16LE(31);
-        motorAngles[2*(id - 5) + 2][1] = 10*data.readInt16LE(33);
+        motorAngles[2*(id - 5)][0] = 10*data.readInt16LE(28);
+        motorAngles[2*(id - 5)][1] = 10*data.readInt16LE(30);
+        motorAngles[2*(id - 5) + 1][0] = 10*data.readInt16LE(32);
+        motorAngles[2*(id - 5) + 2][1] = 10*data.readInt16LE(34);
       }
       this.dog.notifyMotorAngles(motorAngles);
+      if(this.currentCommand) {
+        if(motorAngles.every((e,i) => e.every((f,j) => Math.abs(f - 10*this.currentCommand.data[i][j]) < 20.0))) {
+          this.currentCommand.callback(0x22);
+	  this.currentCommand = null;
+	}
+      }
     });
 
     this.on('error', function(error) {console.error(error);});
@@ -110,6 +130,8 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
   }
 
   async disconnect() {
+    if(this.currentCommand) this.currentCommand.callback(0x24);
+    this.currentCommand = null;
     this.setScanEnable(false);
     this.setAdvertiseEnable(false);
     clearInterval(this.hubTimestampIntervalID);
@@ -130,7 +152,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     cmd.writeUInt8(0x00, 9); // own address type: 0 -> public, 1 -> random
     cmd.writeUInt8(0x00, 10); // filter: 0 -> all event types
 
-    this.write(cmd);
+    return this.write(cmd);
   }
 
   setScanEnable(enabled) {
@@ -142,7 +164,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     cmd.writeUInt8(enabled ? 0x01 : 0x00, 4); // enable: 0 -> disabled, 1 -> enabled
     cmd.writeUInt8(0x00, 5); // filter duplicates: 1 -> filter, 0 -> duplicates
 
-    this.write(cmd);
+    return this.write(cmd);
   }
 
   setAdvertiseParameters() {
@@ -156,7 +178,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     cmd.writeUInt8(0x03, 8); // adv type: 3 -> ADV_NONCONN_IND
     cmd.writeUInt8(0x07, 17);
 
-    this.write(cmd);
+    return this.write(cmd);
   }
 
   setAdvertiseData(data) {
@@ -168,7 +190,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     cmd.writeUInt8(data.length, 4);
     data.copy(cmd, 5);
 
-    this.write(cmd);
+    return this.write(cmd);
   }
 
   setAdvertiseEnable(enabled) {
@@ -193,6 +215,8 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
   }
 
   sendCommand(command: number, data: Vec43) {
+    if(this.currentCommand) this.currentCommand.callback(0x24);
+    this.currentCommand = null;
     const msg = Buffer.alloc(26, 0);
     msg.writeUInt8((6 << 5) | (25 & 0x1F), 0); // type: byte=6, length: 25
     msg.writeUInt8(command, 1);
@@ -202,7 +226,12 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
       }
     }
     // console.log("sending command", msg);
-    return this.setBroadcast(0, msg);
+    if(command == 2) {
+      this.setBroadcast(0, msg);
+      this.currentCommand = new Command(command, data);
+      return this.currentCommand.promise;
+    }
+    else return this.setBroadcast(0, msg);
   }
 
   async requestShutdown() {

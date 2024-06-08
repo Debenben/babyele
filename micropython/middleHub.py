@@ -26,6 +26,8 @@ _BUTTON_INACTIVE = const(3)
 
 loopCounter = 0
 buttonMode = _BUTTON_IDLE
+currentCommand = 0
+currentTarget = [0, 0, 0, 0]
 commandTimestamp = StopWatch()
 motors = [0, 0, 0, 0]
 imuA = [[0.0, 0.0, 0.0]]*10
@@ -68,9 +70,9 @@ def getStatus():
 
 
 def executeCommand(data):
-    global motors, commandTimestamp
+    global motors, currentCommand, currentTarget, commandTimestamp
     try:
-        cmd = unpack_from('<B', data[0], 0)[0]
+        currentCommand = unpack_from('<B', data[0], 0)[0]
         mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', data[0], 1 + 12*(_HUBID - 5))
     except:
         #print("failed to unpack", data)
@@ -78,31 +80,31 @@ def executeCommand(data):
 
     commandTimestamp.reset()
     #print("command", cmd, mount1, top1, mount2, top2)
-    val = [mount1, top1, mount2, top2]
-    if cmd == _CMD_KEEPALIVE:
+    currentTarget = [mount1, top1, mount2, top2]
+    if currentCommand == _CMD_KEEPALIVE:
         pass
-    elif cmd == _CMD_SPEED:
+    elif currentCommand == _CMD_SPEED:
         for i in range(0, 4):
             try:
-                if val[i] == 0:
+                if currentTarget[i] == 0:
                     motors[i].brake()
                 else:
-                    motors[i].run(motors[i].control.limits()[0]*val[i]/1000)
+                    motors[i].run(motors[i].control.limits()[0]*currentTarget[i]/1000)
             except:
                 getMotor(_MOTORPORTS[i])
-    elif cmd == _CMD_ANGLE:
+    elif currentCommand == _CMD_ANGLE:
         for i in range(0, 4):
             try:
-                motors[i].track_target(val[i]*10)
+                motors[i].track_target(currentTarget[i]*10)
             except:
                 getMotor(_MOTORPORTS[i])
-    elif cmd == _CMD_RESET:
+    elif currentCommand == _CMD_RESET:
         for i in range(0, 4):
             try:
-                motors[i].reset_angle(val[i]*10)
+                motors[i].reset_angle(currentTarget[i]*10)
             except:
                 getMotor(_MOTORPORTS[i])
-    elif cmd == _CMD_SHUTDOWN:
+    elif currentCommand == _CMD_SHUTDOWN:
         hub.system.shutdown()
     
 
@@ -200,7 +202,7 @@ def transmitSensorValues():
     imuAX = floor(sum(imuA[i][0] for i in range(10))/10)
     imuAY = floor(sum(imuA[i][1] for i in range(10))/10)
     imuAZ = floor(sum(imuA[i][2] for i in range(10))/10)
-    data = pack('<Bhhhhhhh', getStatus(), imuAX, imuAY, imuAZ, floor(angles[0]/10), floor(angles[1]/10), floor(angles[2]/10), floor(angles[3]/10))
+    data = pack('<BBhhhhhhh', getStatus(), currentCommand, imuAX, imuAY, imuAZ, floor(angles[0]/10), floor(angles[1]/10), floor(angles[2]/10), floor(angles[3]/10))
     #print("data is", data)
     hub.ble.broadcast([data])
 

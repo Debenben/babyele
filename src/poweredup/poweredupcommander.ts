@@ -149,24 +149,24 @@ export class PoweredUpCommander implements CommanderAbstraction {
     else this.accelerometers[id] = null;
   }
 
-  async requestShutdown() {
-    await Promise.all(this.hubs.map(e => {if(e) e.shutdown();}))
+  requestShutdown() {
+    return Promise.all(this.hubs.map(async e => {if(e) await e.shutdown();}))
   }
 
-  async requestMotorSpeeds (motorAngles: Vec43) {
-    await Promise.all(this.motors.map((e, i) => {if(e) e.setSpeed(Math.round(motorAngles[Math.floor(i/3)][i%3]/10), undefined, true);}));
+  requestMotorSpeeds (motorAngles: Vec43) {
+    return Promise.all(this.motors.map(async (e, i) => {if(e) await e.setSpeed(Math.round(motorAngles[Math.floor(i/3)][i%3]/10), undefined, true);}));
   }
 
-  async requestMotorAngles (motorAngles: Vec43) {
-    await Promise.all(this.motors.map((e, i) => {
+  requestMotorAngles (motorAngles: Vec43) {
+    return Promise.all(this.motors.map(async (e, i) => {
       if(e) {
         const diff = motorAngles[Math.floor(i/3)][i%3] - this.dog.motorAngles[Math.floor(i/3)][i%3];
-        if(diff**2 > NO_MOVE_MOTOR_ANGLE**2) e.rotateByDegrees(Math.abs(diff), Math.sign(diff)*100, true);
+        if(diff**2 > NO_MOVE_MOTOR_ANGLE**2) await e.rotateByDegrees(Math.abs(diff), Math.sign(diff)*100, true);
       }
     }));
   }
 
-  async requestSync (motorAngles: Vec43) {
-    await Promise.all(this.motors.map((e, i) => {if(e) setMotorAngle(e, motorAngles[Math.floor(i/3)][i%3])}));
+  requestSync (motorAngles: Vec43) {
+    return Promise.all(this.motors.map(async (e, i) => {if(e) await setMotorAngle(e, motorAngles[Math.floor(i/3)][i%3])}));
   }
 }

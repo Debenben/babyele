@@ -156,6 +156,12 @@ export class Dog implements DogAbstraction {
           angles[Math.floor(i/3)][i%3] = arg2;
           this.requestMotorAngles(motorAnglesFromLegAngles(angles));
         }
+	else if(arg1 === "requestSync") {
+          const syncAngle = motorAnglesFromLegAngles(legAnglesFromAcceleration(this.dogAcceleration, this.topAcceleration, this.bottomAcceleration))[Math.floor(i/3)][i%3];
+	  const angles = this.motorAngles;
+	  angles[Math.floor(i/3)][i%3] = syncAngle;
+	  this.requestSync(angles);
+	}
       });
     }
   }
