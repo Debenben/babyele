@@ -1,6 +1,6 @@
 import { Grid, TextBlock, Button } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Infobox, buildText, buildGauge, printPosition } from './infobox';
+import { Infobox, buildText, buildGauge, printPosition, buildToggleButton } from './infobox';
 
 export class HubInfobox extends Infobox {
   batteryText: TextBlock;
@@ -10,9 +10,11 @@ export class HubInfobox extends Infobox {
   accelerationBottomText: TextBlock;
   positionText: TextBlock;
   bendForward: Button;
+  showAcceleration: boolean;
 
   constructor(name: string, preview: boolean, guiTexture) {
     super(name, preview, guiTexture);
+    this.showAcceleration = guiTexture.scene.getMeshByName("dogAcceleration").isEnabled(false);
     this.addControls();
   }
 
@@ -30,12 +32,15 @@ export class HubInfobox extends Infobox {
     ipcRenderer.on('notifyRssi', this.updateRssi);
     this.panel.addControl(grid);
     this.accelerationDogText = buildText("d.a.: --");
+    this.accelerationDogText.isVisible = this.showAcceleration;
     this.panel.addControl(this.accelerationDogText);
     if(!this.name.endsWith("Center")) {
       this.accelerationTopText = buildText("t.a.: --");
+      this.accelerationTopText.isVisible = this.showAcceleration;
       this.accelerationBottomText = buildText("b.a.: --");
       this.panel.addControl(this.accelerationTopText);
       this.panel.addControl(this.accelerationBottomText);
+      this.accelerationBottomText.isVisible = this.showAcceleration;
       const sliderDest = this.name.replace("hub","leg");
       ipcRenderer.on('notifyBendForward', this.updateBendForward);
       this.positionText = buildText("pos.: --");
@@ -43,7 +48,10 @@ export class HubInfobox extends Infobox {
       this.panel.addControl(this.positionText);
       const gauge = buildGauge(this, false);
       this.panel.addControl(gauge);
-      this.bendForward = buildToggleButton(sliderDest, "setBendForward");
+      this.bendForward = buildToggleButton();
+      this.bendForward.onPointerClickObservable.add(() => {
+        ipcRenderer.send(sliderDest, "setBendForward", this.bendForward.textBlock.text.includes("forward"));
+      });
       this.panel.addControl(this.bendForward);
       ipcRenderer.send(sliderDest, "getProperties");
     }
@@ -88,21 +96,4 @@ export class HubInfobox extends Infobox {
       this.accelerationBottomText.text = "b.a.:" + printPosition(arg2);
     }
   }
-}
-
-const buildToggleButton = (meshName: string, requestName: string) => {
-  const button = Button.CreateSimpleButton("button", "");
-  button.paddingBottom = "5px";
-  button.width = "200px";
-  button.height = "30px";
-  button.background = "black";
-  button.thickness = 0
-  button.alpha = 0.8;
-  button.fontSize = "20px";
-  button.onPointerEnterObservable.add(() => button.thickness = 1);
-  button.onPointerOutObservable.add(() => button.thickness = 0);
-  button.onPointerClickObservable.add(() => {
-    ipcRenderer.send(meshName, requestName, button.textBlock.text.includes("forward"));
-  });
-  return button;
 }

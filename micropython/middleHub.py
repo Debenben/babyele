@@ -8,7 +8,7 @@ from umath import floor, cos, pi
 
 
 _HUBID = const(5)
-_MOTORPORTS = [Port.A, Port.B, Port.C, Port.D]
+_MOTORPORTS = [Port.B, Port.D, Port.A, Port.C]
 
 _CMD_KEEPALIVE = const(0)
 _CMD_SPEED = const(1)
@@ -16,7 +16,7 @@ _CMD_ANGLE = const(2)
 _CMD_RESET = const(3)
 _CMD_SHUTDOWN = const(4)
 
-_CMD_SHUTDOWN_PACK = [pack('<Bhhhhhhhhhhhh',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
+_CMD_SHUTDOWN_PACK = [pack('<B12h',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
 
 _BUTTON_IDLE = const(0)
 _BUTTON_ACTIVE = const(1)
@@ -38,7 +38,7 @@ hub.system.set_stop_button(None)
 
 
 def getSpeedCmd(speed, counter):
-    buffer = bytearray(pack('<Bhhhhhhhhhhhh',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
+    buffer = bytearray(pack('<B12h',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
     pack_into('<h', buffer, 1 + 12*(_HUBID - 5) + 2*(counter + floor(counter/2)), speed)
     return [buffer]
 
@@ -199,10 +199,8 @@ def setLedColor():
 
 
 def transmitSensorValues():
-    imuAX = floor(sum(imuA[i][0] for i in range(10))/10)
-    imuAY = floor(sum(imuA[i][1] for i in range(10))/10)
-    imuAZ = floor(sum(imuA[i][2] for i in range(10))/10)
-    data = pack('<BBhhhhhhh', getStatus(), currentCommand, imuAX, imuAY, imuAZ, floor(angles[0]/10), floor(angles[1]/10), floor(angles[2]/10), floor(angles[3]/10))
+    imuV = (floor(0.1*sum(imuA[i][j] for i in range(10))) for j in range(3))
+    data = pack('<BB7h', getStatus(), currentCommand, *imuV, floor(angles[0]/10), floor(angles[1]/10), floor(angles[2]/10), floor(angles[3]/10))
     #print("data is", data)
     hub.ble.broadcast([data])
 

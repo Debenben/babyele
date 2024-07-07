@@ -14,8 +14,8 @@ _CMD_ANGLE = const(2)
 _CMD_RESET = const(3)
 _CMD_SHUTDOWN = const(4)
 
-_CMD_KEEPALIVE_PACK = [pack('<Bhhhhhhhhhhhh',_CMD_KEEPALIVE, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
-_CMD_SHUTDOWN_PACK = [pack('<Bhhhhhhhhhhhh',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
+_CMD_KEEPALIVE_PACK = [pack('<B12h',_CMD_KEEPALIVE, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
+_CMD_SHUTDOWN_PACK = [pack('<B12h',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
 
 _BUTTON_IDLE = const(0)
 _BUTTON_ACTIVE = const(1)
@@ -121,7 +121,7 @@ hub.ble.broadcast(_CMD_KEEPALIVE_PACK)
 hub.speaker.volume(10)
 
 def getSpeedCmd(speed, counter):
-    buffer = bytearray(pack('<Bhhhhhhhhhhhh',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
+    buffer = bytearray(pack('<B12h',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
     pack_into('<h', buffer, 1 + 2*counter, speed)
     return [buffer]
 
@@ -258,7 +258,7 @@ def setLedColor():
         h = 160
         matrix += _LEDICONS[0]
         for i in range(1, 7):
-            if(hubTimestamps[i].time() < 100):
+            if(hubTimestamps[i].time() < 200):
                 matrix += _LEDICONS[i]
     elif(status & 0b01000000 == 0b01000000):
         h = 10 + floor(loopCounter/250)*30

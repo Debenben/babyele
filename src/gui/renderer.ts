@@ -228,11 +228,13 @@ const getGravityLinesPath = (scene: BABYLON.Scene) => {
 
 const getDisplacementLinesPath = () => {
   const system = [];
-  for (let z=-10; z<=10; z++) {
-    const path = [];
-    path.push(new Vector3(z*Param.LEG_SEPARATION_LENGTH/10, 0, -Param.LEG_SEPARATION_WIDTH));
-    path.push(new Vector3(z*Param.LEG_SEPARATION_LENGTH/10, 0, Param.LEG_SEPARATION_WIDTH));
-    system.push(path);
+  for (let i=-10; i<=10; i++) {
+    const zPath = [new Vector3(i*Param.LEG_SEPARATION_LENGTH/10, 0, -Param.LEG_SEPARATION_WIDTH)];
+    zPath.push(new Vector3(i*Param.LEG_SEPARATION_LENGTH/10, 0, Param.LEG_SEPARATION_WIDTH));
+    system.push(zPath);
+    const xPath = [new Vector3(-Param.LEG_SEPARATION_LENGTH, 0, i*Param.LEG_SEPARATION_WIDTH/10)];
+    xPath.push(new Vector3(Param.LEG_SEPARATION_LENGTH, 0, i*Param.LEG_SEPARATION_WIDTH/10));
+    system.push(xPath);
   }
   return system;
 }
@@ -326,7 +328,7 @@ const buildGravityLines = async (scene: BABYLON.Scene) => {
 
 const buildDisplacementLines = async (scene: BABYLON.Scene) => {
   const lines = BABYLON.MeshBuilder.CreateLineSystem("displacementLines", {lines: getDisplacementLinesPath(), updatable: false}, scene);
-  lines.color = new BABYLON.Color3(0.6, 0.7, 0.6);
+  lines.color = new BABYLON.Color3(0.3, 0.35, 0.3);
   lines.isVisible = false;
   return lines;
 }

@@ -111,6 +111,19 @@ export const buildText = (content: string) => {
   block.color = "black";
   return block;
 }
+export const buildToggleButton = () => {
+  const button = Button.CreateSimpleButton("button", "");
+  button.setPaddingInPixels(2);
+  button.width = "200px";
+  button.height = "30px";
+  button.background = "black";
+  button.thickness = 0
+  button.alpha = 0.8;
+  button.fontSize = "20px";
+  button.onPointerEnterObservable.add(() => button.thickness = 1);
+  button.onPointerOutObservable.add(() => button.thickness = 0);
+  return button;
+}
 
 export const base = [[Math.sin(Math.PI/3), 0.5], [0, -1], [-Math.sin(Math.PI/3), 0.5]];
 

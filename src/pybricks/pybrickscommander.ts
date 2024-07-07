@@ -57,6 +57,8 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
       //console.log("rssi is", data.readInt8(data.length -1);
       this.hubTimestamps[id - 1] = Date.now();
       this.updateStatus(id, data.readUInt8(20));
+      //const status = data.readUInt8(20);
+      //if((status & 0b00000001) == 0b00000000) console.log("low battery for hub id", id);
       if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)]); // [-x, z, -y]
       const motorAngles = this.dog.motorAngles;
       if(id < 5) {
@@ -72,7 +74,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
         motorAngles[2*(id - 5)][0] = 10*data.readInt16LE(28);
         motorAngles[2*(id - 5)][1] = 10*data.readInt16LE(30);
         motorAngles[2*(id - 5) + 1][0] = 10*data.readInt16LE(32);
-        motorAngles[2*(id - 5) + 2][1] = 10*data.readInt16LE(34);
+        motorAngles[2*(id - 5) + 1][1] = 10*data.readInt16LE(34);
       }
       this.dog.notifyMotorAngles(motorAngles);
       if(this.currentCommand) {
@@ -121,10 +123,10 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
       motorStatus[3*id - 1] = (status & 0b00000010) == 0b00000010;
     }
     else {
-      motorStatus[(id - 4)*6] = (status & 0b00000010) == 0b00000010;
-      motorStatus[(id - 4)*6 + 1] = (status & 0b00000100) == 0b00000100;
-      motorStatus[(id - 4)*6 + 3] = (status & 0b00001000) == 0b00001000;
-      motorStatus[(id - 4)*6 + 4] = (status & 0b00010000) == 0b00010000;
+      motorStatus[(id - 5)*6] = (status & 0b00000010) == 0b00000010;
+      motorStatus[(id - 5)*6 + 1] = (status & 0b00000100) == 0b00000100;
+      motorStatus[(id - 5)*6 + 3] = (status & 0b00001000) == 0b00001000;
+      motorStatus[(id - 5)*6 + 4] = (status & 0b00010000) == 0b00010000;
     }
     this.dog.notifyMotorStatus(motorStatus);
   }

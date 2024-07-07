@@ -19,7 +19,7 @@ _CMD_ANGLE = const(2)
 _CMD_RESET = const(3)
 _CMD_SHUTDOWN = const(4)
 
-_CMD_SHUTDOWN_PACK = [pack('<Bhhhhhhhhhhhh',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
+_CMD_SHUTDOWN_PACK = [pack('<B12h',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
 
 _BUTTON_IDLE = const(0)
 _BUTTON_ACTIVE = const(1)
@@ -46,7 +46,7 @@ hub.system.set_stop_button(None)
 
 
 def getSpeedCmd(speed):
-    buffer = bytearray(pack('<Bhhhhhhhhhhhh',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
+    buffer = bytearray(pack('<B12h',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
     pack_into('<h', buffer, 5 + 6*(_HUBID - 1), speed)
     return [buffer]
 
@@ -218,13 +218,9 @@ def setLedColor():
 
 
 def transmitSensorValues():
-    imuAX = floor(sum(imuA[i][0] for i in range(10))/10)
-    imuAY = floor(sum(imuA[i][1] for i in range(10))/10)
-    imuAZ = floor(sum(imuA[i][2] for i in range(10))/10)
-    tiltAX = floor(sum(tiltA[i][0] for i in range(10))/10)
-    tiltAY = floor(sum(tiltA[i][1] for i in range(10))/10)
-    tiltAZ = floor(sum(tiltA[i][2] for i in range(10))/10)
-    data = pack('<BBhhhhhhhh', getStatus(), currentCommand, imuAX, imuAY, imuAZ, floor(angle/10), tiltAX, tiltAY, tiltAZ, distance)
+    imuV = (floor(0.1*sum(imuA[i][j] for i in range(10))) for j in range(3))
+    tiltV = (floor(0.1*sum(tiltA[i][j] for i in range(10))) for j in range(3))
+    data = pack('<BB8h', getStatus(), currentCommand, *imuV, floor(0.1*angle), *tiltV, distance)
     #print("data is", data)
     hub.ble.broadcast([data])
 

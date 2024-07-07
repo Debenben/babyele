@@ -156,6 +156,16 @@ const buildTopMenu = (guiTexture : GuiTexture) => {
     if(isKnown) grid.color = "white"
     else grid.color = "green";
   });
+  let a = 0;
+  const modeAnimation = () => {
+    a += 0.2;
+    modeDisplayButton.alpha = Math.sin(a)*0.2 + 0.8;
+  };
+  ipcRenderer.on('notifyModeQueue', (event, modeQueue) => {
+    guiTexture.scene.onBeforeRenderObservable.removeCallback(modeAnimation);
+    modeDisplayButton.alpha = 1;
+    if(modeQueue.length) guiTexture.scene.onBeforeRenderObservable.add(modeAnimation);
+  });
   storePoseButton.onPointerClickObservable.add(() => {
     ipcRenderer.send('storePose', currentMode);
   });
@@ -170,6 +180,7 @@ const buildTopMenu = (guiTexture : GuiTexture) => {
   settingsButton.onPointerClickObservable.add(() => {
     guiTexture.settings.isVisible = !guiTexture.settings.isVisible;
     grid.isPointerBlocker = guiTexture.modeSelection.isVisible || guiTexture.settings.isVisible;
+    settingsButton.textBlock.rotation = guiTexture.settings.isVisible ? 0.2 : 0;
   });
   grid.addControl(modeDisplayButton, 0, 2);
   grid.addControl(storePoseButton, 0, 3);

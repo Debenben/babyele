@@ -123,6 +123,12 @@ export class MoveController {
     this.send('notifyMovesAvailable', this.moves, enabled);
   }
 
+  emptyNodeQueue = () => {
+    this.modeQueue = [];
+    this.send('notifyModeQueue', this.modeQueue);
+    this.notifyAvailability();
+  }
+
   getNewPoseName = () => {
     const num = [];
     const prefix = this.mode.split('-')[0]
@@ -142,7 +148,7 @@ export class MoveController {
   requestMode = (destMode: string) => {
     /* special predefined mode requests */
     if(destMode === "OFFLINE") {
-      this.modeQueue = [];
+      this.emptyNodeQueue();
       this.dog.requestShutdown();
       return;
     }
@@ -150,9 +156,8 @@ export class MoveController {
       return;
     }
     else if (destMode === "MANUAL") {
-      this.modeQueue = [];
+      this.emptyNodeQueue();
       // do not stop, manual request might be in progress already
-      this.notifyAvailability();
       this.send('notifyMode', this.getNewPoseName(), false);
       return;
     }
@@ -161,16 +166,14 @@ export class MoveController {
       return this.dog.requestSync(motorAnglesFromLegAngles(legAngles));
     }
     else if (destMode === "STOP") {
-      this.modeQueue = [];
       this.dog.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
-      this.notifyAvailability();
+      this.emptyNodeQueue();
       return;
     }
     else if (destMode === "BUTTON") {
       if(this.modeQueue.length) {
-        this.modeQueue = [];
         this.dog.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
-        this.notifyAvailability();
+        this.emptyNodeQueue();
       }
       else {
         for(const moveName in this.moves) {
@@ -194,7 +197,6 @@ export class MoveController {
     /* allow switching to empty modes */
     else if (this.moves.hasOwnProperty(destMode)) {
       if(this.moves[destMode].length === 0) {
-        this.modeQueue = [];
         this.mode = destMode;
         this.notifyAvailability();
         this.send('notifyMode', this.getNewPoseName(), false);
@@ -218,6 +220,7 @@ export class MoveController {
 
   async modeLoop() {
     while(this.modeQueue.length) {
+      this.send('notifyModeQueue', this.modeQueue);
       const dest = this.modeQueue[0];
       if(this.poses.hasOwnProperty(dest)) {
         await this.dog.requestMotorAngles(this.poses[dest]);
@@ -247,7 +250,7 @@ export class MoveController {
         this.modeQueue.shift();
       }
     }
-    return Promise.resolve();
+    return this.send('notifyModeQueue', []);
   }
 
   allowSwitch = (origin, destination) => {
