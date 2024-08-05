@@ -45,7 +45,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     super();
     this.dog = dog;
 
-    this.on('data', function(data) {
+    this.on('data', async (data) => {
       //console.log(data);
       if(data.length < 35) return;
       if(data.readUInt8(15) != 0xff) return; // manufacturer data
@@ -85,7 +85,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
       }
     });
 
-    this.on('error', function(error) {console.error(error);});
+    this.on('error', (e) => console.error(e));
   }
 
   async connect() {
@@ -108,16 +108,17 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     this.setAdvertiseEnable(true);
 
     this.sendCommand(0, [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
-    this.hubTimestampIntervalID = setInterval(() => {
+    this.hubTimestampIntervalID = setInterval(async () => {
+      const hubStatus = this.dog.hubStatus;
       for(let i = 0; i < 6; i++) {
-        const hubStatus = this.dog.hubStatus;
-        hubStatus[i] = (Date.now() - this.hubTimestamps[i] < 200);
-        this.dog.notifyHubStatus(hubStatus);
+        hubStatus[i] = (Date.now() - this.hubTimestamp[i] < 200);
         if(!hubStatus[i]) this.updateStatus(i + 1, 0);
-      }}, 100);
+      }
+      this.dog.notifyHubStatus(hubStatus);
+      }, 100);
   }
 
-  updateStatus(id: number, status) {
+  async updateStatus(id: number, status) {
     const motorStatus = this.dog.motorStatus;
     if(id < 5) {
       motorStatus[3*id - 1] = (status & 0b00000010) == 0b00000010;
