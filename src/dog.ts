@@ -10,6 +10,7 @@ const compareArrays = (a, b) => a.length === b.length && a.every((element, index
 const vec3IsZero = (vec: Vec3) => compareArrays(vec, [0,0,0]);
 const vec43IsZero = (vec: Vec43) => vec.every(e => vec3IsZero(e));
 const absMax = (vec: Vec43) => Math.max.apply(null, vec.map(e => Math.max.apply(null, e.map(f => Math.abs(f)))));
+const vec43Copy = (vec: Vec43) => [vec[0].slice(0), vec[1].slice(0), vec[2].slice(0), vec[3].slice(0)] as Vec43;
 
 export interface DogAbstraction extends SensorAbstraction, CommanderAbstraction {
   attachCommander: (commander : CommanderAbstraction) => void;
@@ -35,47 +36,47 @@ export class Dog implements DogAbstraction {
   moveSpeedIntervalID: NodeJS.Timeout = null
 
   get hubStatus() {
-    return JSON.parse(JSON.stringify(this._hubStatus));
+    return this._hubStatus.slice(0);
   }
 
   get motorStatus() {
-    return JSON.parse(JSON.stringify(this._motorStatus));
+    return this._motorStatus.slice(0);
   }
 
   get accelerometerStatus() {
-    return JSON.parse(JSON.stringify(this._accelerometerStatus));
+    return this._accelerometerStatus.slice(0);
   }
 
   get motorAngles() {
-    return JSON.parse(JSON.stringify(this._motorAngles));
+    return vec43Copy(this._motorAngles);
   }
 
   get topAcceleration() {
-    return JSON.parse(JSON.stringify(this._topAcceleration));
+    return vec43Copy(this._topAcceleration);
   }
 
   get bottomAcceleration() {
-    return JSON.parse(JSON.stringify(this._bottomAcceleration));
+    return vec43Copy(this._bottomAcceleration);
   }
 
   get dogAcceleration() {
-    return JSON.parse(JSON.stringify(this._dogAcceleration));
+    return this._dogAcceleration.slice(0) as Vec3;
   }
 
   get bendForward() {
-    return JSON.parse(JSON.stringify(this._bendForward));
+    return this._bendForward.slice(0);
   }
 
   get positionSpeed() {
-    return JSON.parse(JSON.stringify(this._positionSpeed));
+    return vec43Copy(this._positionSpeed);
   }
 
   get rotationSpeed() {
-    return JSON.parse(JSON.stringify(this._rotationSpeed));
+    return this._rotationSpeed.slice(0) as Vec3;
   }
 
   get startMoveMotorAngles() {
-    return JSON.parse(JSON.stringify(this._startMoveMotorAngles));
+    return vec43Copy(this._startMoveMotorAngles);
   }
 
   connect() {
