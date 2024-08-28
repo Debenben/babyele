@@ -1,7 +1,7 @@
 import { CommanderAbstraction } from "../commanderinterface"
 import { SensorAbstraction } from "../sensorinterface"
 import { Vec43 } from "../tools"
-const BluetoothHciSocket = require('@abandonware/bluetooth-hci-socket');
+import { SocketAbstraction } from "./socketinterface"
 
 const HCI_COMMAND_PKT = 0x01;
 const HCI_EVENT_PKT = 0x04;
@@ -35,70 +35,71 @@ class Command {
   }
 }
 
-export class PybricksCommander extends BluetoothHciSocket implements CommanderAbstraction {
+export class PybricksCommander implements CommanderAbstraction {
   dog: SensorAbstraction;
+  socket: SocketAbstraction;
   currentCommand: Command;
   hubTimestamps = new Array(6).fill(0);
   hubTimestampIntervalID: NodeJS.Timeout = null
 
-  constructor(dog: SensorAbstraction) {
-    super();
+  constructor(dog: SensorAbstraction, socket: SocketAbstraction) {
     this.dog = dog;
+    this.socket = socket;
+    this.socket.on('data', this.onData.bind(this))
+    this.socket.on('error', (e) => console.error(e));
+  }
 
-    this.on('data', async (data) => {
-      //console.log(data);
-      if(data.length < 35) return;
-      if(data.readUInt8(15) != 0xff) return; // manufacturer data
-      if(data.readUInt16LE(16) != 0x0397) return; // lego
-      const id = data.readUInt8(18);
-      if(id < 1 || id > 6) return;
-      if(id < 5 && data.readUInt8(19) != 0xd2) return;
-      if(id > 4 && data.readUInt8(19) != 0xd0) return;
-      //console.log("rssi is", data.readInt8(data.length -1);
-      this.hubTimestamps[id - 1] = Date.now();
-      this.updateStatus(id, data.readUInt8(20));
-      //const status = data.readUInt8(20);
-      //if((status & 0b00000001) == 0b00000000) console.log("low battery for hub id", id);
-      if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)]); // [-x, z, -y]
-      const motorAngles = this.dog.motorAngles;
-      if(id < 5) {
-        const topAcceleration = this.dog.topAcceleration;
-	const bottomAcceleration = this.dog.bottomAcceleration;
-	topAcceleration[id - 1] = [-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)];
-        motorAngles[id - 1][2] = 10*data.readInt16LE(28);
-	bottomAcceleration[id - 1] = [-data.readInt16LE(30), data.readInt16LE(34), -data.readInt16LE(32)];
-        this.dog.notifyTopAcceleration(topAcceleration);
-        this.dog.notifyBottomAcceleration(bottomAcceleration);
+  async onData(data) {
+    //console.log(data);
+    if(data.length < 35) return;
+    if(data.readUInt8(15) != 0xff) return; // manufacturer data
+    if(data.readUInt16LE(16) != 0x0397) return; // lego
+    const id = data.readUInt8(18);
+    if(id < 1 || id > 6) return;
+    if(id < 5 && data.readUInt8(19) != 0xd2) return;
+    if(id > 4 && data.readUInt8(19) != 0xd0) return;
+    //console.log("rssi is", data.readInt8(data.length -1);
+    this.hubTimestamps[id - 1] = Date.now();
+    this.updateStatus(id, data.readUInt8(20));
+    //const status = data.readUInt8(20);
+    //if((status & 0b00000001) == 0b00000000) console.log("low battery for hub id", id);
+    if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)]); // [-x, z, -y]
+    const motorAngles = this.dog.motorAngles;
+    if(id < 5) {
+      const topAcceleration = this.dog.topAcceleration;
+      const bottomAcceleration = this.dog.bottomAcceleration;
+      topAcceleration[id - 1] = [-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)];
+      motorAngles[id - 1][2] = 10*data.readInt16LE(28);
+      bottomAcceleration[id - 1] = [-data.readInt16LE(30), data.readInt16LE(34), -data.readInt16LE(32)];
+      this.dog.notifyTopAcceleration(topAcceleration);
+      this.dog.notifyBottomAcceleration(bottomAcceleration);
+    }
+    else  {
+      motorAngles[2*(id - 5)][0] = 10*data.readInt16LE(28);
+      motorAngles[2*(id - 5)][1] = 10*data.readInt16LE(30);
+      motorAngles[2*(id - 5) + 1][0] = 10*data.readInt16LE(32);
+      motorAngles[2*(id - 5) + 1][1] = 10*data.readInt16LE(34);
+    }
+    this.dog.notifyMotorAngles(motorAngles);
+    if(this.currentCommand) {
+      if(motorAngles.every((e,i) => e.every((f,j) => Math.abs(f - 10*this.currentCommand.data[i][j]) < 20.0))) {
+        this.currentCommand.callback(0x22);
+        this.currentCommand = null;
       }
-      else  {
-        motorAngles[2*(id - 5)][0] = 10*data.readInt16LE(28);
-        motorAngles[2*(id - 5)][1] = 10*data.readInt16LE(30);
-        motorAngles[2*(id - 5) + 1][0] = 10*data.readInt16LE(32);
-        motorAngles[2*(id - 5) + 1][1] = 10*data.readInt16LE(34);
-      }
-      this.dog.notifyMotorAngles(motorAngles);
-      if(this.currentCommand) {
-        if(motorAngles.every((e,i) => e.every((f,j) => Math.abs(f - 10*this.currentCommand.data[i][j]) < 20.0))) {
-          this.currentCommand.callback(0x22);
-	  this.currentCommand = null;
-	}
-      }
-    });
-
-    this.on('error', (e) => console.error(e));
+    }
   }
 
   async connect() {
-    this.bindRaw();
+    this.socket.bindRaw();
 
     const filter = Buffer.allocUnsafe(14).fill(0);
     const typeMask = (1 << HCI_EVENT_PKT);
     const eventMask2 = (1 << (EVT_LE_META_EVENT - 32));
     filter.writeUInt32LE(typeMask, 0);
     filter.writeUInt32LE(eventMask2, 8);
-    this.setFilter(filter);
+    this.socket.setFilter(filter);
 
-    this.start();
+    this.socket.start();
 
     this.setScanEnable(false);
     this.setAdvertiseEnable(false);
@@ -111,25 +112,33 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     this.hubTimestampIntervalID = setInterval(async () => {
       const hubStatus = this.dog.hubStatus;
       for(let i = 0; i < 6; i++) {
-        hubStatus[i] = (Date.now() - this.hubTimestamp[i] < 200);
-        if(!hubStatus[i]) this.updateStatus(i + 1, 0);
+        hubStatus[i] = (Date.now() - this.hubTimestamps[i] < 200);
+        if(!hubStatus[i]) {
+          this.updateStatus(i + 1, 0);
+	}
       }
       this.dog.notifyHubStatus(hubStatus);
       }, 100);
   }
 
   async updateStatus(id: number, status) {
+    const hubStatus = this.dog.hubStatus;
     const motorStatus = this.dog.motorStatus;
+    const accelerometerStatus = this.dog.accelerometerStatus;
     if(id < 5) {
       motorStatus[3*id - 1] = (status & 0b00000010) == 0b00000010;
+      accelerometerStatus[2*id - 2] = hubStatus[id];
+      accelerometerStatus[2*id - 1] = (status & 0b00000100) == 0b00000100;
     }
     else {
+      accelerometerStatus[id + 3] = hubStatus[id];
       motorStatus[(id - 5)*6] = (status & 0b00000010) == 0b00000010;
       motorStatus[(id - 5)*6 + 1] = (status & 0b00000100) == 0b00000100;
       motorStatus[(id - 5)*6 + 3] = (status & 0b00001000) == 0b00001000;
       motorStatus[(id - 5)*6 + 4] = (status & 0b00010000) == 0b00010000;
     }
     this.dog.notifyMotorStatus(motorStatus);
+    this.dog.notifyAccelerometerStatus(motorStatus);
   }
 
   async disconnect() {
@@ -139,7 +148,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     this.setAdvertiseEnable(false);
     clearInterval(this.hubTimestampIntervalID);
 
-    this.stop();
+    this.socket.stop();
     console.log("disconnecting");
   }
 
@@ -155,7 +164,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     cmd.writeUInt8(0x00, 9); // own address type: 0 -> public, 1 -> random
     cmd.writeUInt8(0x00, 10); // filter: 0 -> all event types
 
-    return this.write(cmd);
+    return this.socket.write(cmd);
   }
 
   setScanEnable(enabled) {
@@ -167,7 +176,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     cmd.writeUInt8(enabled ? 0x01 : 0x00, 4); // enable: 0 -> disabled, 1 -> enabled
     cmd.writeUInt8(0x00, 5); // filter duplicates: 1 -> filter, 0 -> duplicates
 
-    return this.write(cmd);
+    return this.socket.write(cmd);
   }
 
   setAdvertiseParameters() {
@@ -181,7 +190,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     cmd.writeUInt8(0x03, 8); // adv type: 3 -> ADV_NONCONN_IND
     cmd.writeUInt8(0x07, 17);
 
-    return this.write(cmd);
+    return this.socket.write(cmd);
   }
 
   setAdvertiseData(data) {
@@ -193,7 +202,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
     cmd.writeUInt8(data.length, 4);
     data.copy(cmd, 5);
 
-    return this.write(cmd);
+    return this.socket.write(cmd);
   }
 
   setAdvertiseEnable(enabled) {
@@ -204,7 +213,7 @@ export class PybricksCommander extends BluetoothHciSocket implements CommanderAb
 
     cmd.writeUInt8(enabled ? 0x01 : 0x00, 4); // enable: 0 -> disabled, 1 -> enabled
 
-    return this.write(cmd);
+    return this.socket.write(cmd);
   }
 
   setBroadcast(channel, data) {

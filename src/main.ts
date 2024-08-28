@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import * as path from "path";
 import { MoveController } from "./movecontroller"
 import { CommanderAbstraction } from "./commanderinterface"
@@ -18,7 +18,7 @@ async function createWindow() {
   const fileName = process.argv.includes('--txt') ? "../public/txtindex.html" : "../public/guiindex.html";
   mainWindow.loadFile(path.join(__dirname, fileName));
 
-  mainWindow.removeMenu();
+  Menu.setApplicationMenu(null)
   // mainWindow.webContents.openDevTools();
 }
 
@@ -30,6 +30,16 @@ async function createPoweredUP() {
   }
   const library = await import("@debenben/node-poweredup");
   return new library.PoweredUP();
+}
+
+async function createHciSocket() {
+  if(process.argv.includes('--simulation')) {
+    console.log("Starting simulation...");
+    const library = await import("./pybricks/simulationhcisocket");
+    return new library.SimulationHciSocket();
+  }
+  const library = require('@abandonware/bluetooth-hci-socket');
+  return library;
 }
 
 app.on("ready", () => {
@@ -56,7 +66,7 @@ ipcMain.on('rendererInitialized', async () => {
   }
   else {
     const library = await import("./pybricks/pybrickscommander");
-    commander = new library.PybricksCommander(dog);
+    commander = new library.PybricksCommander(dog, await createHciSocket());
   }
   controller = new MoveController(mainWindow, dog);
   dog.attachCommander(commander);
