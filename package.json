@@ -1,6 +1,6 @@
 {
   "name": "babyele",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "program to control lego walker",
   "main": "./app/main.js",
   "scripts": {

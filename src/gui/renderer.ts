@@ -10,10 +10,10 @@ export class Renderer {
   engine: BABYLON.Engine;
   scene: BABYLON.Scene;
   camera: BABYLON.ArcRotateCamera;
-  greyMaterial: BABYLON.PBRMetallicRoughnessMaterial;
-  greenMaterial: BABYLON.PBRMetallicRoughnessMaterial;
-  pickMaterial: BABYLON.PBRMetallicRoughnessMaterial;
-  redMaterial: BABYLON.PBRMetallicRoughnessMaterial;
+  greyMaterial: BABYLON.NodeMaterial;
+  greenMaterial: BABYLON.NodeMaterial;
+  pickMaterial: BABYLON.NodeMaterial;
+  redMaterial: BABYLON.NodeMaterial;
   actionManager: BABYLON.ActionManager;
   gravityLines: BABYLON.LinesMesh;
   displacementLines: BABYLON.LinesMesh;
@@ -52,16 +52,10 @@ export class Renderer {
     const hemLight = new BABYLON.HemisphericLight("hemLight", new Vector3(0, 1, 0), scene);
     hemLight.intensity = 0.4;
 
-    this.greyMaterial = new BABYLON.PBRMetallicRoughnessMaterial("greyMat", scene);
-    this.greyMaterial.baseColor = new BABYLON.Color3(0.5,0.5,0.5);
-    this.greenMaterial = new BABYLON.PBRMetallicRoughnessMaterial("greenMat", scene);
-    this.greenMaterial.baseColor = new BABYLON.Color3(0.1,0.9,0.1);
-    this.pickMaterial = new BABYLON.PBRMetallicRoughnessMaterial("pickMat", scene);
-    this.pickMaterial.baseColor = new BABYLON.Color3(0.1,0.9,0.1);
-    this.pickMaterial.emissiveColor = new BABYLON.Color3(0.01,0.1,0.01);
-    this.redMaterial = new BABYLON.PBRMetallicRoughnessMaterial("redMat", scene);
-    this.redMaterial.baseColor = new BABYLON.Color3(0.9,0.3,0.3);
-    this.redMaterial.emissiveColor = new BABYLON.Color3(0.1,0.01,0.01);
+    this.greyMaterial = await buildMaterial(scene, new BABYLON.Color3(0.1,0.1,0.1), new BABYLON.Color3(0.2,0.2,0.2));
+    this.greenMaterial = await buildMaterial(scene, new BABYLON.Color3(0.05,0.4,0.05), new BABYLON.Color3(0.1,0.95,0.1));
+    this.pickMaterial = await buildMaterial(scene, new BABYLON.Color3(0.1,0.9,0.1), new BABYLON.Color3(0.1,0.95,0.1));
+    this.redMaterial = await buildMaterial(scene, new BABYLON.Color3(0.9,0.1,0.1), new BABYLON.Color3(0.95,0.1,0.1));
 
     const dogScaling = new Vector3(Param.LEG_SEPARATION_LENGTH - 4.0*Param.LEG_MOUNT_HEIGHT, 4.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
     const dog = await importMesh(scene, "dog", "middle.glb", dogScaling);
@@ -306,6 +300,13 @@ const buildGround = async (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
   ground.receiveShadows = true;
   ground.isPickable = false;
   return ground;
+}
+
+const buildMaterial = async (scene: BABYLON.Scene, diffuseColor: BABYLON.Color3, lineColor: BABYLON.Color3) => {
+  const material = await BABYLON.NodeMaterial.ParseFromFileAsync("gridMaterial", "../public/gridMaterial.json", scene);
+  (material.getBlockByName("Line color") as BABYLON.InputBlock).value = lineColor;
+  (material.getBlockByName("Diffuse color") as BABYLON.InputBlock).value = diffuseColor;
+  return material;
 }
 
 const buildAcceleration = async (scene: BABYLON.Scene, meshName: string) => {
