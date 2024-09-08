@@ -174,6 +174,22 @@ class SimulationPybricksHub {
         this.motors[3].setDestRotation(data.readInt16LE(12*this.hubId - 40));
       }
     }
+    else if(this.currentCommand == 3) {
+      if(this.hubId < 5) {
+        this.motors[0].reset(data.readInt16LE(10 + 6*this.hubId));
+      }
+      else {
+        this.motors[0].reset(data.readInt16LE(12*this.hubId - 48));
+        this.motors[1].reset(data.readInt16LE(12*this.hubId - 46));
+        this.motors[2].reset(data.readInt16LE(12*this.hubId - 42));
+        this.motors[3].reset(data.readInt16LE(12*this.hubId - 40));
+      }
+    }
+    else if(this.currentCommand == 4) {
+      console.log("shutting down simulation hub id", this.hubId);
+      clearInterval(this.broadcastIntervalId);
+      this.broadcastIntervalId = null;
+    }
   }
 }
 
