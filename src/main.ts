@@ -25,7 +25,7 @@ async function createWindow() {
 async function createPoweredUP() {
   if(process.argv.includes('--simulation')) {
     console.log("Starting simulation...");
-    const library = await import("./poweredup/simulation");
+    const library = await import("./poweredup/poweredupsimulation");
     return new library.SimulationPowered();
   }
   const library = await import("@debenben/node-poweredup");

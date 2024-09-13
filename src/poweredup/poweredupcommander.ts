@@ -1,6 +1,6 @@
 import { CommanderAbstraction } from "../commanderinterface"
 import { SensorAbstraction } from "../sensorinterface"
-import { PoweredAbstraction, HubAbstraction, MotorAbstraction, AccelerometerAbstraction } from "./interfaces"
+import { PoweredAbstraction, HubAbstraction, MotorAbstraction, AccelerometerAbstraction } from "./poweredupinterfaces"
 import { Vec43 } from "../tools"
 
 

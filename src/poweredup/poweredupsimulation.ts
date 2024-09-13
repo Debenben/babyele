@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { PoweredAbstraction, HubAbstraction, LEDAbstraction, MotorAbstraction, AccelerometerAbstraction } from "./interfaces";
+import { PoweredAbstraction, HubAbstraction, LEDAbstraction, MotorAbstraction, AccelerometerAbstraction } from "./poweredupinterfaces";
 
 export class SimulationPowered extends EventEmitter implements PoweredAbstraction {
   hubList: string[] = ["BeneLego6", "BeneLego1", "BeneLego2", "BeneLego3", "BeneLego4", "BeneLego5", "differentHub"]
