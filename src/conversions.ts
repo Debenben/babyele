@@ -12,6 +12,8 @@ const invCosLaw = (rSide: number, lSide: number, oSide: number) => {
   return Math.acos(cosVal > 1.0 ? 1.0 : (cosVal < -1.0 ? -1.0 : cosVal));
 }
 
+const vec43Copy = (vec: Vec43) => [vec[0].slice(0), vec[1].slice(0), vec[2].slice(0), vec[3].slice(0)] as Vec43;
+
 const defaultLegPositions = [[ LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2],
                              [ LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2],
                              [-LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2],
@@ -106,7 +108,7 @@ export const dogPositionFromMotorAngles = (motorAngles: Vec43): Vec3 => {
 };
 
 export const dogRotationFromMotorAngles = (motorAngles: Vec43): Quaternion => {
-  const legPositions = legPositionsFromMotorAngles(JSON.parse(JSON.stringify(motorAngles)));
+  const legPositions = legPositionsFromMotorAngles(vec43Copy(motorAngles));
   const dogPosition = dogPositionFromMotorAngles(motorAngles);
   const averageRotation = Quaternion.Zero();
   for(let i = 0; i < 4; i++) {

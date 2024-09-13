@@ -46,6 +46,7 @@ class SimulationMotor {
   lastRequestTime: number
 
   constructor(maxSpeed: number) {
+    console.log("simulation motor created with maxSpeed", maxSpeed)
     this.maxSpeed = maxSpeed;
     this.rotation = 0;
     this.speed = 0;
@@ -54,12 +55,15 @@ class SimulationMotor {
   }
 
   setSpeed(speed: number) {
+    this.getRotation()
+    // console.log("simulation motor setting speed to", speed)
     this.speed = speed*this.maxSpeed/1000;
     this.destRotation = null;
     this.lastRequestTime = Date.now()
   }
 
   reset(rotation: number) {
+    console.log("simulation motor resetting rotation to", rotation)
     this.rotation = rotation;
     this.speed = 0;
     this.destRotation = null;
@@ -67,6 +71,8 @@ class SimulationMotor {
   }
 
   setDestRotation(rotation: number) {
+    this.getRotation()
+    console.log("simulation motor setting rotation destination", rotation)
     this.destRotation = rotation;
     this.lastRequestTime = Date.now()
   }
@@ -81,6 +87,7 @@ class SimulationMotor {
     else {
       this.rotation += timeDifference*this.speed;
     }
+    //console.log("simulation motor rotated", timeDifference, "with speed", this.speed)
     return this.rotation;
   }
 }
@@ -109,11 +116,11 @@ class SimulationPybricksHub {
     this.hubId = hubId;
     this.currentCommand = 0;
     if(this.hubId < 5) {
-      this.motors = [new SimulationMotor(0.4)];
+      this.motors = [new SimulationMotor(0.0756)];
       this.tiltSensors = [new SimulationTiltSensor([1000, 0, 0]), new SimulationTiltSensor([1000, 0, 0])];
     }
     else {
-      this.motors = [new SimulationMotor(0.4), new SimulationMotor(0.4), new SimulationMotor(0.4), new SimulationMotor(0.4)];
+      this.motors = [new SimulationMotor(0.0882), new SimulationMotor(0.0882), new SimulationMotor(0.0756), new SimulationMotor(0.0756)];
       this.tiltSensors = [new SimulationTiltSensor([0, 0, 1000])];
     }
     this.broadcastIntervalId = setInterval(() => {

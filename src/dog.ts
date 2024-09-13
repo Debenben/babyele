@@ -241,12 +241,41 @@ export class Dog implements DogAbstraction {
   requestMoveSpeed() {
     ipcMain.emit('requestMode', 'internal', 'MANUAL');
     if(vec43IsZero(this.positionSpeed) && vec3IsZero(this.rotationSpeed)) {
-      this.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
+      // stop
+      return this.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
     }
     else if(this.moveSpeedIntervalID) {
+      // already in progress
       return;
     }
+    else if(vec3IsZero(this.rotationSpeed) && this.positionSpeed.filter(v => !vec3IsZero(v)).length === 1) {
+      // one leg only
+      this._startMoveMotorAngles = this.motorAngles;
+      this.moveSpeedIntervalID = setInterval(() => {
+        const currentPositions = legPositionsFromMotorAngles(this.motorAngles);
+        const startPositions = legPositionsFromMotorAngles(this.startMoveMotorAngles);
+        const destPositions = vec43Copy(startPositions);
+	const speed = 0.01*absMax(vec43Copy(this.positionSpeed));
+	const legId = this.positionSpeed.findIndex(v => !vec3IsZero(v));
+        const moveDirection = Vector3.FromArray(this.positionSpeed[legId]).normalize();
+        const currentPositionLength = Vector3.FromArray(currentPositions[legId]).subtract(Vector3.FromArray(startPositions[legId])).length();
+	let durations = null as Vec43;
+        let maxDuration = 0;
+	let moveLength = 1.0;
+        for(let ni = 0; ni < 10; ni++) {
+          const destPosition = Vector3.FromArray(startPositions[legId]).addInPlace(moveDirection.scale(currentPositionLength + moveLength));
+          destPositions[legId] = [destPosition.x, destPosition.y, destPosition.z];
+          const destMotorAngles = motorAnglesFromLegPositions(vec43Copy(destPositions), this.bendForward);
+          durations = durationsFromMotorAngles(this.motorAngles, destMotorAngles);
+          maxDuration = absMax(vec43Copy(durations));
+          if((1000*maxDuration - MOTOR_UPDATE_INTERVAL*speed)**2 < 100) break;
+	  moveLength *= (MOTOR_UPDATE_INTERVAL*speed/(maxDuration*1000));
+        }
+	return this.commander.requestMotorSpeeds(durations.map(e => e.map(f => 1000*speed*f/maxDuration)) as Vec43);
+      }, MOTOR_UPDATE_INTERVAL);
+    }
     else {
+      // complete dog
       this._startMoveMotorAngles = this.motorAngles;
       this.moveSpeedIntervalID = setInterval(() => {
         const averagePositionDiff = Vector3.FromArray(dogPositionFromMotorAngles(this.motorAngles)).subtract(Vector3.FromArray(dogPositionFromMotorAngles(this.startMoveMotorAngles)));
@@ -260,14 +289,13 @@ export class Dog implements DogAbstraction {
           }
           if(!vec43IsZero(this.positionSpeed)) {
             destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).normalize().scale(averagePositionDiff.length()));
-            destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).scale(0.1));
+            destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).scale(5.0));
           }
 	}
-	const destMotorAngles = motorAnglesFromLegPositions(destPositions.map(e => [e.x, e.y, e.z]) as Vec43, this.bendForward);
+        const destMotorAngles = motorAnglesFromLegPositions(destPositions.map(e => [e.x, e.y, e.z]) as Vec43, this.bendForward);
 	const durations = durationsFromMotorAngles(this.motorAngles, destMotorAngles);
-	const maxDuration = absMax(JSON.parse(JSON.stringify(durations)));
-        const destMotorSpeeds = durations.map(e => e.map(f => 1000*f/maxDuration));
-	return this.commander.requestMotorSpeeds(destMotorSpeeds as Vec43);
+        const maxDuration = absMax(vec43Copy(durations));
+	return this.commander.requestMotorSpeeds(durations.map(e => e.map(f => 1000*f/maxDuration)) as Vec43);
       }, MOTOR_UPDATE_INTERVAL);
     }
   }
