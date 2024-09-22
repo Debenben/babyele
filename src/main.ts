@@ -12,7 +12,7 @@ async function createWindow() {
   mainWindow = new BrowserWindow({
     height: 600,
     width: 800,
-    webPreferences: { nodeIntegration: true, contextIsolation: false, sandbox:false },
+    webPreferences: { nodeIntegration: true, contextIsolation: false, sandbox: false },
   });
 
   const fileName = process.argv.includes('--txt') ? "../public/txtindex.html" : "../public/guiindex.html";
