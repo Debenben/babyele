@@ -9,7 +9,9 @@ const MOTOR_UPDATE_INTERVAL = 100; // interval in milliseconds for updating moto
 const compareArrays = (a, b) => a.length === b.length && a.every((element, index) => element === b[index]);
 const vec3IsZero = (vec: Vec3) => compareArrays(vec, [0,0,0]);
 const vec43IsZero = (vec: Vec43) => vec.every(e => vec3IsZero(e));
-const absMax = (vec: Vec43) => Math.max.apply(null, vec.map(e => Math.max.apply(null, e.map(f => Math.abs(f)))));
+const vec3AbsMax = (vec: Vec3) => Math.max.apply(null, vec.map(e => Math.abs(e)));
+const vec43AbsMax = (vec: Vec43) => Math.max.apply(null, vec.map(e => Math.max.apply(null, e.map(f => Math.abs(f)))));
+const vec3Copy = (vec: Vec3) => vec.slice(0) as Vec3;
 const vec43Copy = (vec: Vec43) => [vec[0].slice(0), vec[1].slice(0), vec[2].slice(0), vec[3].slice(0)] as Vec43;
 
 export interface DogAbstraction extends SensorAbstraction, CommanderAbstraction {
@@ -60,7 +62,7 @@ export class Dog implements DogAbstraction {
   }
 
   get dogAcceleration() {
-    return this._dogAcceleration.slice(0) as Vec3;
+    return vec3Copy(this._dogAcceleration);
   }
 
   get bendForward() {
@@ -72,7 +74,7 @@ export class Dog implements DogAbstraction {
   }
 
   get rotationSpeed() {
-    return this._rotationSpeed.slice(0) as Vec3;
+    return vec3Copy(this._rotationSpeed);
   }
 
   get startMoveMotorAngles() {
@@ -255,7 +257,7 @@ export class Dog implements DogAbstraction {
         const currentPositions = legPositionsFromMotorAngles(this.motorAngles);
         const startPositions = legPositionsFromMotorAngles(this.startMoveMotorAngles);
         const destPositions = vec43Copy(startPositions);
-	const speed = 0.01*absMax(vec43Copy(this.positionSpeed));
+	const speed = 0.01*vec43AbsMax(vec43Copy(this.positionSpeed));
 	const legId = this.positionSpeed.findIndex(v => !vec3IsZero(v));
         const moveDirection = Vector3.FromArray(this.positionSpeed[legId]).normalize();
         const currentPositionLength = Vector3.FromArray(currentPositions[legId]).subtract(Vector3.FromArray(startPositions[legId])).length();
@@ -267,7 +269,7 @@ export class Dog implements DogAbstraction {
           destPositions[legId] = [destPosition.x, destPosition.y, destPosition.z];
           const destMotorAngles = motorAnglesFromLegPositions(vec43Copy(destPositions), this.bendForward);
           durations = durationsFromMotorAngles(this.motorAngles, destMotorAngles);
-          maxDuration = absMax(vec43Copy(durations));
+          maxDuration = vec43AbsMax(vec43Copy(durations));
           if((1000*maxDuration - MOTOR_UPDATE_INTERVAL*speed)**2 < 100) break;
 	  moveLength *= (MOTOR_UPDATE_INTERVAL*speed/(maxDuration*1000));
         }
@@ -278,24 +280,32 @@ export class Dog implements DogAbstraction {
       // complete dog
       this._startMoveMotorAngles = this.motorAngles;
       this.moveSpeedIntervalID = setInterval(() => {
+	const speed = 0.01*Math.max(vec43AbsMax(vec43Copy(this.positionSpeed)), vec3AbsMax(vec3Copy(this.rotationSpeed)));
         const averagePositionDiff = Vector3.FromArray(dogPositionFromMotorAngles(this.motorAngles)).subtract(Vector3.FromArray(dogPositionFromMotorAngles(this.startMoveMotorAngles)));
         const averageRotation = dogRotationFromMotorAngles(this.motorAngles).multiply(dogRotationFromMotorAngles(this.startMoveMotorAngles).invert());
 	const destPositions = [];
-	for(let i = 0; i < 4; i++) {
-          destPositions[i] = Vector3.FromArray(legPositionsFromMotorAngles(this.startMoveMotorAngles)[i]);
-          if(!vec3IsZero(this.rotationSpeed)) {
-            destPositions[i].applyRotationQuaternionInPlace(Quaternion.RotationAxis(Vector3.FromArray(this.rotationSpeed).normalize(), averageRotation.toEulerAngles().length()));
-            destPositions[i].applyRotationQuaternionInPlace(Quaternion.RotationAxis(Vector3.FromArray(this.rotationSpeed).normalize(), Vector3.FromArray(this.rotationSpeed).length()*0.001));
+	let durations = null as Vec43;
+        let maxDuration = 0;
+	let moveLength = 1.0;
+        for(let ni = 0; ni < 10; ni++) {
+          for(let i = 0; i < 4; i++) {
+            destPositions[i] = Vector3.FromArray(legPositionsFromMotorAngles(this.startMoveMotorAngles)[i]);
+            if(!vec3IsZero(this.rotationSpeed)) {
+              destPositions[i].applyRotationQuaternionInPlace(Quaternion.RotationAxis(Vector3.FromArray(this.rotationSpeed).normalize(), averageRotation.toEulerAngles().length()));
+              destPositions[i].applyRotationQuaternionInPlace(Quaternion.RotationAxis(Vector3.FromArray(this.rotationSpeed).normalize(), moveLength));
+            }
+            if(!vec43IsZero(this.positionSpeed)) {
+              destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).normalize().scale(averagePositionDiff.length()));
+              destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).scale(moveLength));
+            }
           }
-          if(!vec43IsZero(this.positionSpeed)) {
-            destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).normalize().scale(averagePositionDiff.length()));
-            destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).scale(5.0));
-          }
-	}
-        const destMotorAngles = motorAnglesFromLegPositions(destPositions.map(e => [e.x, e.y, e.z]) as Vec43, this.bendForward);
-	const durations = durationsFromMotorAngles(this.motorAngles, destMotorAngles);
-        const maxDuration = absMax(vec43Copy(durations));
-	return this.commander.requestMotorSpeeds(durations.map(e => e.map(f => 1000*f/maxDuration)) as Vec43);
+          const destMotorAngles = motorAnglesFromLegPositions(destPositions.map(e => [e.x, e.y, e.z]) as Vec43, this.bendForward);
+          durations = durationsFromMotorAngles(this.motorAngles, destMotorAngles);
+          maxDuration = vec43AbsMax(vec43Copy(durations));
+          if((1000*maxDuration - MOTOR_UPDATE_INTERVAL*speed)**2 < 100) break;
+	  moveLength *= (MOTOR_UPDATE_INTERVAL*speed/(maxDuration*1000));
+        }
+	return this.commander.requestMotorSpeeds(durations.map(e => e.map(f => 1000*speed*f/maxDuration)) as Vec43);
       }, MOTOR_UPDATE_INTERVAL);
     }
   }
