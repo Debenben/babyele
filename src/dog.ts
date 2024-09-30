@@ -13,6 +13,8 @@ const vec3AbsMax = (vec: Vec3) => Math.max.apply(null, vec.map(e => Math.abs(e))
 const vec43AbsMax = (vec: Vec43) => Math.max.apply(null, vec.map(e => Math.max.apply(null, e.map(f => Math.abs(f)))));
 const vec3Copy = (vec: Vec3) => vec.slice(0) as Vec3;
 const vec43Copy = (vec: Vec43) => [vec[0].slice(0), vec[1].slice(0), vec[2].slice(0), vec[3].slice(0)] as Vec43;
+const vec43Sum = (vec: Vec43) => vec.reduce((s, v) => [s[0] + 0.25*v[0], s[1] + 0.25*v[1], + s[2] + 0.25*v[2]], [0, 0, 0]) as Vec3;
+const quatToAngle = (q: Quaternion) => Math.abs(q.w) >= 1 ? 0 : 2.0*Math.acos(q.w);
 
 export interface DogAbstraction extends SensorAbstraction, CommanderAbstraction {
   attachCommander: (commander : CommanderAbstraction) => void;
@@ -281,18 +283,17 @@ export class Dog implements DogAbstraction {
       this._startMoveMotorAngles = this.motorAngles;
       this.moveSpeedIntervalID = setInterval(() => {
 	const speed = 0.01*Math.max(vec43AbsMax(vec43Copy(this.positionSpeed)), vec3AbsMax(vec3Copy(this.rotationSpeed)));
-        const averagePositionDiff = Vector3.FromArray(dogPositionFromMotorAngles(this.motorAngles)).subtract(Vector3.FromArray(dogPositionFromMotorAngles(this.startMoveMotorAngles)));
-        const averageRotation = dogRotationFromMotorAngles(this.motorAngles).multiply(dogRotationFromMotorAngles(this.startMoveMotorAngles).invert());
+        const averagePositionDiff = Vector3.FromArray(vec43Sum(legPositionsFromMotorAngles(this.motorAngles)).map((e,i) => e - vec43Sum(legPositionsFromMotorAngles(this.startMoveMotorAngles))[i]));
+        const averageRotationAngle = quatToAngle(dogRotationFromMotorAngles(this.motorAngles).multiply(dogRotationFromMotorAngles(this.startMoveMotorAngles).invertInPlace()));
 	const destPositions = [];
 	let durations = null as Vec43;
         let maxDuration = 0;
-	let moveLength = 1.0;
+        let moveLength = 0.1;
         for(let ni = 0; ni < 10; ni++) {
           for(let i = 0; i < 4; i++) {
             destPositions[i] = Vector3.FromArray(legPositionsFromMotorAngles(this.startMoveMotorAngles)[i]);
             if(!vec3IsZero(this.rotationSpeed)) {
-              destPositions[i].applyRotationQuaternionInPlace(Quaternion.RotationAxis(Vector3.FromArray(this.rotationSpeed).normalize(), averageRotation.toEulerAngles().length()));
-              destPositions[i].applyRotationQuaternionInPlace(Quaternion.RotationAxis(Vector3.FromArray(this.rotationSpeed).normalize(), moveLength));
+              destPositions[i].applyRotationQuaternionInPlace(Quaternion.RotationAxis(Vector3.FromArray(this.rotationSpeed), averageRotationAngle + moveLength));
             }
             if(!vec43IsZero(this.positionSpeed)) {
               destPositions[i].addInPlace(Vector3.FromArray(this.positionSpeed[i]).normalize().scale(averagePositionDiff.length()));

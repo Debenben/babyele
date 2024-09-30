@@ -13,11 +13,12 @@ const invCosLaw = (rSide: number, lSide: number, oSide: number) => {
 }
 
 const vec43Copy = (vec: Vec43) => [vec[0].slice(0), vec[1].slice(0), vec[2].slice(0), vec[3].slice(0)] as Vec43;
+const vec43Sum = (vec: Vec43) => vec.reduce((s, v) => [s[0] + 0.25*v[0], s[1] + 0.25*v[1], + s[2] + 0.25*v[2]], [0, 0, 0]) as Vec3;
 
 const defaultLegPositions = [[ LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2],
                              [ LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2],
                              [-LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2],
-                             [-LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2]];
+                             [-LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2]] as Vec43;
 
 const motorMaxSpeeds = new Array(4).fill([MOUNT_MOTOR_MAX_SPEED, TOP_MOTOR_MAX_SPEED, BOTTOM_MOTOR_MAX_SPEED]);
 
@@ -31,7 +32,7 @@ export const legAnglesFromMotorAngles = (motorAngles: Vec43): Vec43 => {
     motorAngles[i][2] *= Math.PI/BOTTOM_MOTOR_RANGE;
   }
   return motorAngles;
-};
+}
 
 export const motorAnglesFromLegAngles = (legAngles: Vec43): Vec43 => {
   for(let i = 0; i < 4; i++) {
@@ -66,7 +67,7 @@ export const legPositionsFromMotorAngles = (motorAngles: Vec43): Vec43 => {
     }
   }
   return vec
-};
+}
 
 export const motorAnglesFromLegPositions = (positions: Vec43, bendForward: boolean[]): Vec43 => {
   for(let i = 0; i < 4; i++) {
@@ -96,29 +97,33 @@ export const motorAnglesFromLegPositions = (positions: Vec43, bendForward: boole
     positions[i] = [mountAngle, topAngle, bottomAngle];
   }
   return motorAnglesFromLegAngles(positions);
-};
+}
 
 export const dogPositionFromMotorAngles = (motorAngles: Vec43): Vec3 => {
-  const legPositions = legPositionsFromMotorAngles(motorAngles);
-  const dogPosition = [0, 0, 0];
-  for(let i = 0; i < 4; i++) {
-    for(let j = 0; j < 3; j++) dogPosition[j] += 0.25*legPositions[i][j];
-  }
-  return dogPosition as Vec3;
-};
+  const averagePosition = Vector3.FromArray(vec43Sum(legPositionsFromMotorAngles(vec43Copy(motorAngles))));
+  const position = averagePosition.applyRotationQuaternionInPlace(dogRotationFromMotorAngles(motorAngles));
+  return [position.x, position.y, position.z] as Vec3;
+}
 
 export const dogRotationFromMotorAngles = (motorAngles: Vec43): Quaternion => {
-  const legPositions = legPositionsFromMotorAngles(vec43Copy(motorAngles));
-  const dogPosition = dogPositionFromMotorAngles(motorAngles);
-  const averageRotation = Quaternion.Zero();
+  const dogPosition = vec43Sum(legPositionsFromMotorAngles(vec43Copy(motorAngles)));
+  const relativePos = legPositionsFromMotorAngles(motorAngles).map(v => Vector3.FromArray(v.map((e, j) => e - dogPosition[j])));
+  const defaultPos = defaultLegPositions.map(v => Vector3.FromArray(v));
+  const rotationAxis = Vector3.Zero();
   for(let i = 0; i < 4; i++) {
-    const relativePosition = Vector3.FromArray(legPositions[i].map((e, j) => e  - dogPosition[j])).normalize();
-    const legRotation = Quaternion.Identity();
-    Quaternion.FromUnitVectorsToRef(relativePosition, Vector3.FromArray(defaultLegPositions[i]).normalize(), legRotation);
-    legRotation.scaleAndAddToRef(0.25, averageRotation);
+    rotationAxis.addInPlace(relativePos[i].cross(defaultPos[i]));
   }
-  return averageRotation;
-};
+  rotationAxis.normalize();
+  let rotationAngle = 0;
+  for(let i = 0; i < 4; i++) {
+    const relativeProj = relativePos[i].subtract(rotationAxis.scale(relativePos[i].dot(rotationAxis)));
+    const defaultProj = defaultPos[i].subtract(rotationAxis.scale(defaultPos[i].dot(rotationAxis)));
+    const angle = Math.acos(relativeProj.dot(defaultProj) / (relativeProj.length() * defaultProj.length()));
+    if(!isNaN(angle)) rotationAngle += 0.25*angle;
+  }
+  if(rotationAxis.length() > 0) return Quaternion.RotationAxis(rotationAxis, rotationAngle);
+  else return Quaternion.Identity();
+}
 
 export const durationsFromMotorAngles = (startMotorAngles: Vec43, endMotorAngles: Vec43): Vec43 => {
   const durations = endMotorAngles;

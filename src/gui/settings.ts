@@ -32,6 +32,9 @@ const buildSelectionPanel = (renderer : Renderer) => {
     renderer.useTilt = checked;
     ["dog"].concat(legNames).map(e => ipcRenderer.send(e, "getProperties"));
   });
+  checkboxGroup.addCheckbox("adjust height", (checked) => {
+    renderer.adjustHeight = checked;
+  });
   checkboxGroup.addCheckbox("wireframe", (checked) => {
     renderer.greyMaterial.wireframe = checked;
     renderer.greenMaterial.wireframe = checked;

@@ -20,6 +20,7 @@ export class Renderer {
   selectedItem: string;
   selectedItemIsPreview: boolean;
   useTilt = false;
+  adjustHeight = false;
   guiTexture: GuiTexture;
 
   async createScene(canvas: HTMLCanvasElement, engine: BABYLON.Engine) {
@@ -103,10 +104,8 @@ export class Renderer {
     this.gravityLines = await buildGravityLines(scene);
     this.displacementLines = await buildDisplacementLines(scene);
     scene.registerBeforeRender(() => {
-      setBodyHeight(scene);
-      if(this.gravityLines.isVisible) {
-        BABYLON.MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), instance: this.gravityLines}, scene);
-      }
+      if(this.adjustHeight) setBodyHeight(scene);
+      if(this.gravityLines.isVisible) BABYLON.MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), instance: this.gravityLines}, scene);
     });
   }
 
@@ -418,7 +417,8 @@ ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
   else renderer.setDogRotation(new Vector3(null, arg2[1], null));
 });
 ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
-  renderer.setDogPosition(new Vector3(-arg2[0], null, -arg2[2]));
+  if(renderer.adjustHeight) renderer.setDogPosition(new Vector3(-arg2[0], null, -arg2[2]));
+  else renderer.setDogPosition(new Vector3(-arg2[0], Param.LEG_FOOT_DIAMETER - arg2[1], -arg2[2]));
 });
 ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
   document.getElementById('title').innerHTML = "lego walker: " + modeName;
