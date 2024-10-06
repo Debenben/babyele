@@ -1,13 +1,13 @@
-import { TextBlock, Container, Button } from "babylonjs-gui";
+import { TextBlock, Button } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Infobox, buildText, buildGauge, printPosition, buildToggleButton } from './infobox';
+import { Infobox, Gauge, buildText, buildGauge, printPosition, buildToggleButton } from './infobox';
 
 export class DogInfobox extends Infobox {
   tiltText: TextBlock;
   rotationText: TextBlock;
   positionText: TextBlock;
-  rotationGauge: Container;
-  positionGauge: Container;
+  rotationGauge: Gauge;
+  positionGauge: Gauge;
   toggle: Button;
 
   constructor(name: string, preview: boolean, guiTexture) {
@@ -56,11 +56,13 @@ export class DogInfobox extends Infobox {
   updateRotation = (event, arg1, arg2) => {
     if(arg1 === this.name) {
       this.rotationText.text = "rot.:" + printPosition(arg2.map(e => e*180/Math.PI));
+      this.rotationGauge.setIndicatorPosition(arg2);
     }
   }
   updatePosition = (event, arg1, arg2) => {
     if(arg1 === this.name) {
       this.positionText.text = "pos.:" + printPosition(arg2);
+      this.positionGauge.setIndicatorPosition(arg2.map(e => 0.002*e));
     }
   }
 }

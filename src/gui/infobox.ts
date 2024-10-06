@@ -127,8 +127,15 @@ export const buildToggleButton = () => {
 
 export const base = [[Math.sin(Math.PI/3), 0.5], [0, -1], [-Math.sin(Math.PI/3), 0.5]];
 
+export class Gauge extends Container {
+  ind1: Container;
+  ind2: Container;
+  ind3: Container;
+  setIndicatorPosition: (position: number[]) => void;
+}
+
 export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
-  const gauge = new Container();
+  const gauge = new Gauge();
   const scaling = 0.8*infobox.widthInPixels;
   gauge.widthInPixels = infobox.widthInPixels;
   gauge.heightInPixels = scaling;
@@ -150,6 +157,46 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
     gauge.addControl(knob);
     return knob;
   }
+  const buildIndicator = (angles: number[]) => {
+    const arrow = new Container();
+    arrow.widthInPixels = 0.1*scaling;
+    arrow.heightInPixels = 0.1*scaling;
+    const clip2 = new Container();
+    clip2.widthInPixels = 0.1*scaling;
+    clip2.heightInPixels = 0.1*scaling;
+    const rect1 = new Rectangle();
+    rect1.widthInPixels = 0.1*scaling;
+    rect1.heightInPixels = 0.1*scaling;
+    rect1.rotation = Math.PI/4;
+    rect1.background = "black";
+    rect1.color = "black";
+    rect1.alpha = 0.7;
+    rect1.thickness = 0.01*scaling;
+    rect1.topInPixels = 0.08*scaling;
+    clip2.addControl(rect1);
+    arrow.addControl(clip2);
+    setKnob(arrow, angles);
+    gauge.addControl(arrow);
+    return arrow;
+  }
+
+  gauge.ind1 = buildIndicator([2, 1, 0]);
+  gauge.ind2 = buildIndicator([0, 2, 1]);
+  gauge.ind2.rotation = 2*Math.PI/3;
+  gauge.ind3 = buildIndicator([1, 0, 2]);
+  gauge.ind3.rotation = -2*Math.PI/3;
+  gauge.setIndicatorPosition = (position: number[]) => {
+    if(isRotationGauge) {
+      setKnob(gauge.ind1, [2, 1 + position[2], 0]);
+      setKnob(gauge.ind2, [0, 2, 1 + position[0]]);
+      setKnob(gauge.ind3, [1 + position[1], 0, 2]);
+    }
+    else {
+      setKnob(gauge.ind1, [2, 1 + position[0], 0]);
+      setKnob(gauge.ind2, [0, 2, 1 - position[1]]);
+      setKnob(gauge.ind3, [1 + position[2], 0, 2]);
+    }
+  };
 
   const knob1 = buildKnob([0, -1, -1]);
   const knob2 = buildKnob([-1, 0, -1]);
@@ -159,7 +206,7 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
     if(pointerDown) {
       const destName = infobox.name.replace("hub", "leg");
       if(isRotationGauge) ipcRenderer.send(destName, "requestRotationSpeed", vec.map(x => 100*x));
-      else ipcRenderer.send(destName, "requestPositionSpeed", vec.map(x => 100*x));
+      else ipcRenderer.send(destName, "requestPositionSpeed", [100*vec[0], -100*vec[1], 100*vec[2]]);
     }
   }
 

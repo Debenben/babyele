@@ -56,7 +56,7 @@ def getMotor(port):
     if motor:
         motor.close()
     try:
-        motor = Motor(port)
+        motor = Motor(port, reset_angle=False)
         #print("motor found")
     except:
         motor = 0

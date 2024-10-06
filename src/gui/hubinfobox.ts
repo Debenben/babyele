@@ -1,6 +1,6 @@
 import { Grid, TextBlock, Button } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Infobox, buildText, buildGauge, printPosition, buildToggleButton } from './infobox';
+import { Infobox, Gauge, buildText, buildGauge, printPosition, buildToggleButton } from './infobox';
 
 export class HubInfobox extends Infobox {
   batteryText: TextBlock;
@@ -11,6 +11,7 @@ export class HubInfobox extends Infobox {
   positionText: TextBlock;
   bendForward: Button;
   showAcceleration: boolean;
+  gauge: Gauge;
 
   constructor(name: string, preview: boolean, guiTexture) {
     super(name, preview, guiTexture);
@@ -46,8 +47,8 @@ export class HubInfobox extends Infobox {
       this.positionText = buildText("pos.: --");
       ipcRenderer.on('notifyLegPosition', this.updatePosition);
       this.panel.addControl(this.positionText);
-      const gauge = buildGauge(this, false);
-      this.panel.addControl(gauge);
+      this.gauge = buildGauge(this, false);
+      this.panel.addControl(this.gauge);
       this.bendForward = buildToggleButton();
       this.bendForward.onPointerClickObservable.add(() => {
         ipcRenderer.send(sliderDest, "setBendForward", this.bendForward.textBlock.text.includes("forward"));
@@ -83,6 +84,7 @@ export class HubInfobox extends Infobox {
   updatePosition = (event, arg1, arg2) => {
     if(arg1 === this.name.replace("hub", "leg")) {
       this.positionText.text = "pos.:" + printPosition(arg2);
+      this.gauge.setIndicatorPosition(arg2.map(e => 0.002*e));
     }
   }
   updateAcceleration = (event, arg1, arg2) => {

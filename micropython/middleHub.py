@@ -49,7 +49,7 @@ def getMotor(port):
     if motors[i]:
         motors[i].close()
     try:
-        motors[i] = Motor(port)
+        motors[i] = Motor(port, reset_angle=False)
         #print("motor found", port)
     except:
         motors[i] = 0
