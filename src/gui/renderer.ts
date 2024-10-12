@@ -28,13 +28,9 @@ export class Renderer {
     this.engine = engine;
     const scene = new BABYLON.Scene(engine);
     // scene.debugLayer.show();
-    scene.imageProcessingConfiguration.toneMappingEnabled = true;
     this.scene = scene;
 
-    const glow = new BABYLON.GlowLayer("glow", scene);
-    glow.intensity = 0.5;
     buildBackground(scene, engine);
-    buildGround(scene, engine);
     this.actionManager = new BABYLON.ActionManager(scene);
     this.guiTexture = new GuiTexture(this);
 
@@ -90,6 +86,7 @@ export class Renderer {
     const shadowCaster = new BABYLON.ShadowGenerator(1024, dirLight);
     shadowCaster.addShadowCaster(dog);
     shadowCaster.useCloseExponentialShadowMap = true;
+    buildGround(scene, engine);
 
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, selectItem));
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, previewItem));
@@ -222,11 +219,11 @@ const getGravityLinesPath = (scene: BABYLON.Scene) => {
 const getDisplacementLinesPath = () => {
   const system = [];
   for (let i=-10; i<=10; i++) {
-    const zPath = [new Vector3(i*Param.LEG_SEPARATION_LENGTH/10, 0, -Param.LEG_SEPARATION_WIDTH)];
-    zPath.push(new Vector3(i*Param.LEG_SEPARATION_LENGTH/10, 0, Param.LEG_SEPARATION_WIDTH));
+    const zPath = [new Vector3(i*Param.LEG_SEPARATION_LENGTH/10, 0.001, -Param.LEG_SEPARATION_WIDTH)];
+    zPath.push(new Vector3(i*Param.LEG_SEPARATION_LENGTH/10, 0.001, Param.LEG_SEPARATION_WIDTH));
     system.push(zPath);
-    const xPath = [new Vector3(-Param.LEG_SEPARATION_LENGTH, 0, i*Param.LEG_SEPARATION_WIDTH/10)];
-    xPath.push(new Vector3(Param.LEG_SEPARATION_LENGTH, 0, i*Param.LEG_SEPARATION_WIDTH/10));
+    const xPath = [new Vector3(-Param.LEG_SEPARATION_LENGTH, 0.001, i*Param.LEG_SEPARATION_WIDTH/10)];
+    xPath.push(new Vector3(Param.LEG_SEPARATION_LENGTH, 0.001, i*Param.LEG_SEPARATION_WIDTH/10));
     system.push(xPath);
   }
   return system;
@@ -291,14 +288,18 @@ const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
 
 const buildGround = async (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
   const radius = 4*Param.LEG_SEPARATION_WIDTH;
-  const groundMat = await BABYLON.NodeMaterial.ParseFromFileAsync("groundMat", "../public/groundShader.json", scene);
+  const groundMat = await BABYLON.NodeMaterial.ParseFromFileAsync("groundMat", "../public/groundMaterial.json", scene);
   (groundMat.getBlockByName("BaseRadius") as BABYLON.InputBlock).value = radius;
   (groundMat.getBlockByName("XTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_LENGTH;
   (groundMat.getBlockByName("ZTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_WIDTH;
   const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:2*radius, height:2*radius}, scene);
   ground.material = groundMat;
   ground.receiveShadows = true;
-  ground.isPickable = false;
+  const reflectionTexture = new BABYLON.MirrorTexture("mirrorTexture", 1024, scene, true);
+  reflectionTexture.mirrorPlane = BABYLON.Plane.FromPositionAndNormal(ground.position, ground.getFacetNormal(0).scale(-1));
+  reflectionTexture.renderList = scene.getMeshByName("dogRoot").getChildMeshes();
+  (groundMat.getBlockByName("Reflection") as BABYLON.ReflectionBlock).texture = reflectionTexture;
+  scene.customRenderTargets.push(reflectionTexture);
   return ground;
 }
 
@@ -315,6 +316,7 @@ const buildAcceleration = async (scene: BABYLON.Scene, meshName: string) => {
   const hub = await importMesh(scene, meshName + "AccelerationHub", "hub.glb", hubScaling);
   hub.parent = arrow;
   hub.isPickable = false;
+  hub.getChildMeshes()[0].material = arrow.material;
   arrow.setEnabled(false);
   return arrow;
 }
