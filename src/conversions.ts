@@ -15,10 +15,15 @@ const invCosLaw = (rSide: number, lSide: number, oSide: number) => {
 const vec43Copy = (vec: Vec43) => [vec[0].slice(0), vec[1].slice(0), vec[2].slice(0), vec[3].slice(0)] as Vec43;
 const vec43Sum = (vec: Vec43) => vec.reduce((s, v) => [s[0] + 0.25*v[0], s[1] + 0.25*v[1], + s[2] + 0.25*v[2]], [0, 0, 0]) as Vec3;
 
-const defaultLegPositions = [[ LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2],
-                             [ LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2],
-                             [-LEG_SEPARATION_LENGTH/2, 0,  LEG_SEPARATION_WIDTH/2],
-                             [-LEG_SEPARATION_LENGTH/2, 0, -LEG_SEPARATION_WIDTH/2]] as Vec43;
+const defaultLegPositions = [[ 0.5*LEG_SEPARATION_LENGTH, -LEG_MOUNT_HEIGHT,  (0.5*LEG_SEPARATION_WIDTH - LEG_MOUNT_WIDTH)],
+                             [ 0.5*LEG_SEPARATION_LENGTH, -LEG_MOUNT_HEIGHT, -(0.5*LEG_SEPARATION_WIDTH - LEG_MOUNT_WIDTH)],
+                             [-0.5*LEG_SEPARATION_LENGTH, -LEG_MOUNT_HEIGHT,  (0.5*LEG_SEPARATION_WIDTH - LEG_MOUNT_WIDTH)],
+                             [-0.5*LEG_SEPARATION_LENGTH, -LEG_MOUNT_HEIGHT, -(0.5*LEG_SEPARATION_WIDTH - LEG_MOUNT_WIDTH)]] as Vec43;
+
+const defaultRelativeLegPositions = [[ 0.5*LEG_SEPARATION_LENGTH, 0,  0.5*LEG_SEPARATION_WIDTH],
+                                     [ 0.5*LEG_SEPARATION_LENGTH, 0, -0.5*LEG_SEPARATION_WIDTH],
+                                     [-0.5*LEG_SEPARATION_LENGTH, 0,  0.5*LEG_SEPARATION_WIDTH],
+                                     [-0.5*LEG_SEPARATION_LENGTH, 0, -0.5*LEG_SEPARATION_WIDTH]] as Vec43;
 
 const motorMaxSpeeds = new Array(4).fill([MOUNT_MOTOR_MAX_SPEED, TOP_MOTOR_MAX_SPEED, BOTTOM_MOTOR_MAX_SPEED]);
 
@@ -54,7 +59,7 @@ export const legPositionsFromMotorAngles = (motorAngles: Vec43): Vec43 => {
     const mAngle = vec[i][0] + Math.atan2(LEG_MOUNT_WIDTH, mHeight);
     const mLength = Math.sqrt(Math.abs(mHeight**2 + LEG_MOUNT_WIDTH**2));
     const height = -mLength*Math.cos(mAngle);
-    const sideways = mLength*Math.sin(mAngle) - LEG_MOUNT_WIDTH;
+    const sideways = mLength*Math.sin(mAngle);
     vec[i] = [forward, height, sideways];
   }
   vec[0][0] *= -1;
@@ -80,7 +85,7 @@ export const motorAnglesFromLegPositions = (positions: Vec43, bendForward: boole
   positions[2][0] *= -1;
   positions[3][2] *= -1;
   for(let i = 0; i < 4; i++) {
-    const mAngle = Math.atan2(positions[i][2] + LEG_MOUNT_WIDTH, -positions[i][1]);
+    const mAngle = Math.atan2(positions[i][2], -positions[i][1]);
     const mLength = -positions[i][1]/Math.cos(mAngle);
     const mHeight = Math.sqrt(Math.abs(mLength**2 - LEG_MOUNT_WIDTH**2));
     const mountAngle = mAngle - Math.atan2(LEG_MOUNT_WIDTH, mHeight);
@@ -108,7 +113,7 @@ export const dogPositionFromMotorAngles = (motorAngles: Vec43): Vec3 => {
 export const dogRotationFromMotorAngles = (motorAngles: Vec43): Quaternion => {
   const dogPosition = vec43Sum(legPositionsFromMotorAngles(vec43Copy(motorAngles)));
   const relativePos = legPositionsFromMotorAngles(motorAngles).map(v => Vector3.FromArray(v.map((e, j) => e - dogPosition[j])));
-  const defaultPos = defaultLegPositions.map(v => Vector3.FromArray(v));
+  const defaultPos = defaultRelativeLegPositions.map(v => Vector3.FromArray(v));
   const rotationAxis = Vector3.Zero();
   for(let i = 0; i < 4; i++) {
     rotationAxis.addInPlace(relativePos[i].cross(defaultPos[i]));

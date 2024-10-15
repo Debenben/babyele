@@ -47,6 +47,10 @@ const buildSelectionPanel = (renderer : Renderer) => {
   checkboxGroup.addCheckbox("gravity lines", (checked) => {
     renderer.gravityLines.isVisible = checked;
   });
+  checkboxGroup.addCheckbox("position lines", (checked) => {
+    renderer.positionLines.isVisible = checked;
+    renderer.defaultPositionLines.isVisible = checked;
+  });
   checkboxGroup.addCheckbox("joint markers", (checked) => {
     jointNames.map(e => renderer.scene.getMeshByName(e).isVisible = checked);
   });

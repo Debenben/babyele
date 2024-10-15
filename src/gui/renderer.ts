@@ -17,6 +17,8 @@ export class Renderer {
   actionManager: BABYLON.ActionManager;
   gravityLines: BABYLON.LinesMesh;
   displacementLines: BABYLON.LinesMesh;
+  positionLines: BABYLON.LinesMesh;
+  defaultPositionLines: BABYLON.LinesMesh;
   selectedItem: string;
   selectedItemIsPreview: boolean;
   useTilt = false;
@@ -94,9 +96,15 @@ export class Renderer {
 
     this.gravityLines = await buildGravityLines(scene);
     this.displacementLines = await buildDisplacementLines(scene);
+    this.positionLines = await buildPositionLines(scene);
+    this.positionLines.parent = dog;
+    this.defaultPositionLines = await buildDefaultPositionLines(scene);
+    this.defaultPositionLines.parent = dog;
     scene.registerBeforeRender(() => {
       if(this.adjustHeight) setBodyHeight(scene);
       if(this.gravityLines.isVisible) BABYLON.MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), instance: this.gravityLines}, scene);
+      if(this.positionLines.isVisible) BABYLON.MeshBuilder.CreateLineSystem("positionLines", {lines: getPositionLinesPath(scene), instance: this.positionLines}, scene);
+      if(this.defaultPositionLines.isVisible) BABYLON.MeshBuilder.CreateLineSystem("defaultPositionLines", {lines: getDefaultPositionLinesPath(scene), instance: this.defaultPositionLines}, scene);
     });
   }
 
@@ -125,6 +133,10 @@ export class Renderer {
     const xangle = -Math.atan2(vec.z, Math.sqrt(vec.y**2 + vec.x**2));
     const rotation = Quaternion.FromEulerAngles(xangle, 0, zangle).invert().toEulerAngles();
     this.scene.getMeshByName(meshName + "Acceleration").rotation = rotation;
+  }
+
+  setFootPosition(meshName: string, vec: Vector3) {
+    this.scene.getMeshByName(meshName + "Foot").position = vec;
   }
 
   setState(meshName: string, state: string) {
@@ -184,7 +196,12 @@ export class Renderer {
   }
 }
 
-export const hubScaling = new Vector3(70, 40, 56).scale(Param.LEG_LENGTH_TOP/160);
+const hubScaling = new Vector3(70, 40, 56).scale(Param.LEG_LENGTH_TOP/160);
+
+const defaultRelativeLegPositions = [new Vector3( 0.5*Param.LEG_SEPARATION_LENGTH, 0.001,  0.5*Param.LEG_SEPARATION_WIDTH),
+                                     new Vector3( 0.5*Param.LEG_SEPARATION_LENGTH, 0.001, -0.5*Param.LEG_SEPARATION_WIDTH),
+                                     new Vector3(-0.5*Param.LEG_SEPARATION_LENGTH, 0.001,  0.5*Param.LEG_SEPARATION_WIDTH),
+                                     new Vector3(-0.5*Param.LEG_SEPARATION_LENGTH, 0.001, -0.5*Param.LEG_SEPARATION_WIDTH)];
 
 const setBodyHeight = (scene: BABYLON.Scene) => {
   const dog = scene.getMeshByName('dogRoot');
@@ -212,7 +229,7 @@ const getGravityLinesPath = (scene: BABYLON.Scene) => {
     }
   }
   const dogProjection = getProjection(scene, 'dogRoot');
-  system.push([dogProjection, dogProjection.add(new Vector3(0, Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM, 0))]);
+  system.push([dogProjection, dogProjection.add(new Vector3(0, Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM + 0.5*Param.LEG_FOOT_DIAMETER, 0))]);
   return system;
 }
 
@@ -225,6 +242,35 @@ const getDisplacementLinesPath = () => {
     const xPath = [new Vector3(-Param.LEG_SEPARATION_LENGTH, 0.001, i*Param.LEG_SEPARATION_WIDTH/10)];
     xPath.push(new Vector3(Param.LEG_SEPARATION_LENGTH, 0.001, i*Param.LEG_SEPARATION_WIDTH/10));
     system.push(xPath);
+  }
+  return system;
+}
+
+const getPositionLinesPath = (scene: BABYLON.Scene) => {
+  const system = [];
+  const average = new Vector3(0, 0, 0);
+  for (const i in legNames) {
+    const mesh = scene.getMeshByName(legNames[i].concat('Foot'));
+    average.addInPlace(mesh.position.scale(0.25));
+  }
+  for (const i in legNames) {
+    const mesh = scene.getMeshByName(legNames[i].concat('Foot'));
+    system.push([average, mesh.position]);
+    system.push([new Vector3(0, 0, 0), mesh.position.subtract(average)]);
+  }
+  return system;
+}
+
+const getDefaultPositionLinesPath = (scene: BABYLON.Scene) => {
+  const system = [];
+  const average = new Vector3(0, 0, 0);
+  for (const i in legNames) {
+    const mesh = scene.getMeshByName(legNames[i].concat('Foot'));
+    average.addInPlace(mesh.position.scale(0.25));
+  }
+  for (const i in legNames) {
+    system.push([average, defaultRelativeLegPositions[i].add(average)]);
+    system.push([new Vector3(0, 0, 0), defaultRelativeLegPositions[i]]);
   }
   return system;
 }
@@ -297,7 +343,7 @@ const buildGround = async (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
   ground.receiveShadows = true;
   const reflectionTexture = new BABYLON.MirrorTexture("mirrorTexture", 1024, scene, true);
   reflectionTexture.mirrorPlane = BABYLON.Plane.FromPositionAndNormal(ground.position, ground.getFacetNormal(0).scale(-1));
-  reflectionTexture.renderList = scene.getMeshByName("dogRoot").getChildMeshes();
+  reflectionTexture.renderList = scene.getMeshByName("dogRoot").getChildMeshes().filter(m => !m.name.endsWith("Lines"));
   (groundMat.getBlockByName("Reflection") as BABYLON.ReflectionBlock).texture = reflectionTexture;
   scene.customRenderTargets.push(reflectionTexture);
   return ground;
@@ -325,6 +371,7 @@ const buildGravityLines = async (scene: BABYLON.Scene) => {
   const lines = BABYLON.MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), updatable: true}, scene);
   lines.color = new BABYLON.Color3(0.7, 0.6, 0.6);
   lines.isVisible = false;
+  lines.material.depthFunction = BABYLON.Constants.ALWAYS;
   return lines;
 }
 
@@ -332,6 +379,23 @@ const buildDisplacementLines = async (scene: BABYLON.Scene) => {
   const lines = BABYLON.MeshBuilder.CreateLineSystem("displacementLines", {lines: getDisplacementLinesPath(), updatable: false}, scene);
   lines.color = new BABYLON.Color3(0.3, 0.35, 0.3);
   lines.isVisible = false;
+  lines.material.depthFunction = BABYLON.Constants.ALWAYS;
+  return lines;
+}
+
+const buildPositionLines = async (scene: BABYLON.Scene) => {
+  const lines = BABYLON.MeshBuilder.CreateLineSystem("positionLines", {lines: getPositionLinesPath(scene), updatable: true}, scene);
+  lines.color = new BABYLON.Color3(0.3, 0.5, 0.8);
+  lines.isVisible = false;
+  lines.material.depthFunction = BABYLON.Constants.ALWAYS;
+  return lines;
+}
+
+const buildDefaultPositionLines = async (scene: BABYLON.Scene) => {
+  const lines = BABYLON.MeshBuilder.CreateLineSystem("defaultPositionLines", {lines: getDefaultPositionLinesPath(scene), updatable: true}, scene);
+  lines.color = new BABYLON.Color3(0.8, 0.8, 0.2);
+  lines.isVisible = false;
+  lines.material.depthFunction = BABYLON.Constants.ALWAYS;
   return lines;
 }
 
@@ -384,8 +448,9 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   const bottomAcceleration = await buildAcceleration(scene, meshName + "Bottom");
   bottomAcceleration.parent = bottomAccelerometer;
   const foot = BABYLON.MeshBuilder.CreateSphere(meshName + "Foot", {diameter: Param.LEG_FOOT_DIAMETER}, scene);
-  foot.position.y = -Param.LEG_LENGTH_BOTTOM;
-  foot.parent = bottomLeg;
+  foot.parent = scene.getMeshByName("dogRoot");
+  //foot.parent = bottomLeg;
+  //foot.position.y = -Param.LEG_LENGTH_BOTTOM;
   foot.isPickable = false;
   foot.isVisible = false;
   return leg;
@@ -421,9 +486,11 @@ ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
 });
 ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
   if(renderer.adjustHeight) renderer.setDogPosition(new Vector3(-arg2[0], null, -arg2[2]));
-  else renderer.setDogPosition(new Vector3(-arg2[0], Param.LEG_FOOT_DIAMETER - arg2[1], -arg2[2]));
+  else renderer.setDogPosition(new Vector3(-arg2[0], 0.5*Param.LEG_FOOT_DIAMETER - arg2[1], -arg2[2]));
 });
 ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
   document.getElementById('title').innerHTML = "lego walker: " + modeName;
 });
-
+ipcRenderer.on('notifyLegPosition', (event, arg1, arg2) => {
+  renderer.setFootPosition(arg1, Vector3.FromArray(arg2));
+});
