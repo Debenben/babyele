@@ -3,9 +3,8 @@ from pybricks.pupdevices import Motor, ColorDistanceSensor
 from pybricks.parameters import Color, Port, Button
 from pybricks.tools import StopWatch
 from pybricks.iodevices import PUPDevice
-
 from ustruct import unpack_from, pack, pack_into
-from umath import floor, cos, pi
+from umath import floor, sqrt
 
 
 _HUBID = const(1)
@@ -39,6 +38,7 @@ imuA = [[0.0, 0.0, 0.0]]*10
 angle = 0
 tiltA = [[0, 0, 0]]*10
 distance = 0
+status = 0
 
 
 hub = TechnicHub(observe_channels=[0], broadcast_channel=_HUBID)
@@ -83,6 +83,7 @@ def getDistanceSensor(port):
         distanceSensor = 0
 
 def getStatus():
+    global status
     status = 0
     if(hub.battery.voltage() > 7000):
         status += 1
@@ -96,7 +97,6 @@ def getStatus():
         status += 32
     if(buttonMode):
         status += 64
-    return status
 
 
 def executeCommand(data):
@@ -137,17 +137,28 @@ def executeCommand(data):
 
 def getSensorValues():
     global motor, tiltSensor, distanceSensor, imuA, angle, tiltA, distance
-    imuA.append(hub.imu.acceleration())
-    imuA.pop(0)
+    imuA[loopCounter % 10] = list(hub.imu.acceleration())
     try:
         angle = motor.angle()
         #print("angle is", angle)
     except:
         getMotor(_MOTORPORT)
     try:
-        tiltA.append(tiltSensor.read(3))
-        tiltA.pop(0)
-        #print("tilt is", tiltA)
+        [x,y,z] = tiltSensor.read(3)
+        if(x == 45):
+            x = sqrt(2*45**2 - y**2 - z**2)
+        elif(x == -45):
+            x = -sqrt(2*45**2 - y**2 - z**2)
+        elif(y == 45):
+            y = sqrt(2*45**2 - x**2 - z**2)
+        elif(y == -45):
+            y = -sqrt(2*45**2 - x**2 - z**2)
+        elif(z == 45):
+            z = sqrt(2*45**2 - x**2 - y**2)
+        elif(z == -45):
+            z = -sqrt(2*45**2 - x**2 - y**2)
+        tiltA[loopCounter % 10] = [x, y, z]
+        #print("tilt is", [x, y, z])
     except:
         getTiltSensor(_TILTPORT)
     try:
@@ -191,7 +202,6 @@ def getCommand():
 
 def setLedColor():
     global loopCounter
-    status = getStatus()
     h = 0
     s = 100
     v = 0
@@ -212,15 +222,21 @@ def setLedColor():
         s = 0
         v = 0
     elif(status & 0b01000000 == 0b00000000): # not selected
-        v = 20 * cos(loopCounter / 500 * pi) + 50
+        v = 20 + 2e-4*(500 - loopCounter)**2
     hub.light.on(Color(h, s, v))
     loopCounter = (loopCounter + 1) % 1000
 
 
 def transmitSensorValues():
-    imuV = (floor(0.1*sum(imuA[i][j] for i in range(10))) for j in range(3))
-    tiltV = (floor(0.1*sum(tiltA[i][j] for i in range(10))) for j in range(3))
-    data = pack('<BB8h', getStatus(), currentCommand, *imuV, floor(0.1*angle), *tiltV, distance)
+    imuV = [0, 0, 0]
+    tiltV = [0, 0, 0]
+    for j in range(3):
+        for i in range(10):
+            imuV[j] += imuA[i][j]
+            tiltV[j] += tiltA[i][j]
+        imuV[j] = floor(0.1*imuV[j])
+        tiltV[j] = floor(15.4*tiltV[j])
+    data = pack('<BB8h', status, currentCommand, *imuV, floor(0.1*angle), *tiltV, distance)
     #print("data is", data)
     hub.ble.broadcast([data])
 
@@ -228,6 +244,7 @@ def transmitSensorValues():
 while(True):
     getCommand()
     getSensorValues()
+    getStatus()
     setLedColor()
     transmitSensorValues()
 

@@ -2,7 +2,7 @@ from pybricks.hubs import InventorHub
 from pybricks.parameters import Color, Button
 from pybricks.tools import wait, StopWatch, Matrix
 
-from umath import floor, cos, pi
+from umath import floor
 from ustruct import unpack_from, pack, pack_into
 from urandom import randint
 
@@ -275,7 +275,7 @@ def setLedColor():
         s = 0
         v = 0
     elif(status & 0b01000000 == 0b00000000):
-        v = 20 * cos(loopCounter / 500 * pi) + 50
+        v = 20 + 2e-4*(500 - loopCounter)**2
     hub.light.on(Color(h, s, v))
     hub.display.icon(matrix)
     loopCounter = (loopCounter + 1) % 1000
@@ -286,6 +286,3 @@ while(True):
     getCommand()
     getSensorData()
     setLedColor()
-
-    
-

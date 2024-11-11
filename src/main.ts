@@ -39,7 +39,7 @@ async function createHciSocket() {
     return new library.SimulationHciSocket();
   }
   const library = require('@abandonware/bluetooth-hci-socket');
-  return library;
+  return new library();
 }
 
 app.on("ready", () => {

@@ -4,7 +4,7 @@ from pybricks.parameters import Color, Port, Button
 from pybricks.tools import StopWatch
 
 from ustruct import unpack_from, pack, pack_into
-from umath import floor, cos, pi
+from umath import floor
 
 
 _HUBID = const(5)
@@ -32,6 +32,7 @@ commandTimestamp = StopWatch()
 motors = [0, 0, 0, 0]
 imuA = [[0.0, 0.0, 0.0]]*10
 angles = [0, 0, 0, 0]
+status = 0
 
 hub = TechnicHub(observe_channels=[0], broadcast_channel=_HUBID)
 hub.system.set_stop_button(None)
@@ -56,6 +57,7 @@ def getMotor(port):
 
 
 def getStatus():
+    global status
     status = 0
     if(hub.battery.voltage() > 7000):
         status += 1
@@ -66,7 +68,6 @@ def getStatus():
         status += 32
     if(buttonMode):
         status += 64
-    return status
 
 
 def executeCommand(data):
@@ -111,8 +112,7 @@ def executeCommand(data):
 
 def getSensorValues():
     global motors, imuA, angles
-    imuA.append(hub.imu.acceleration())
-    imuA.pop(0)
+    imuA[loopCounter % 10] = list(hub.imu.acceleration())
     for i in range(0, 4):
         try:
             angles[i] = motors[i].angle()
@@ -172,7 +172,6 @@ def getCommand():
 
 def setLedColor():
     global loopCounter
-    status = getStatus()
     h = 0
     s = 100
     v = 0
@@ -193,14 +192,18 @@ def setLedColor():
         s = 0
         v = 0
     elif(status & 0b01000000 == 0b00000000): # not selected
-        v = 20 * cos(loopCounter / 500 * pi) + 50
+        v = 20 + 2e-4*(500 - loopCounter)**2
     hub.light.on(Color(h, s, v))
     loopCounter = (loopCounter + 1) % 1000
 
 
 def transmitSensorValues():
-    imuV = (floor(0.1*sum(imuA[i][j] for i in range(10))) for j in range(3))
-    data = pack('<BB7h', getStatus(), currentCommand, *imuV, floor(angles[0]/10), floor(angles[1]/10), floor(angles[2]/10), floor(angles[3]/10))
+    imuV = [0, 0, 0]
+    for j in range(3):
+        for i in range(10):
+            imuV[j] += imuA[i][j]
+        imuV[j] = floor(0.1*imuV[j])
+    data = pack('<BB7h', status, currentCommand, *imuV, floor(0.1*angles[0]), floor(0.1*angles[1]), floor(0.1*angles[2]), floor(0.1*angles[3]))
     #print("data is", data)
     hub.ble.broadcast([data])
 
@@ -208,6 +211,7 @@ def transmitSensorValues():
 while(True):
     getCommand()
     getSensorValues()
+    getStatus()
     setLedColor()
     transmitSensorValues()
 

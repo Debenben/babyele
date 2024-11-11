@@ -11,7 +11,7 @@ export const LEG_FOOT_DIAMETER = 56.0; // diameter of turntable at foot
 
 export const MOUNT_MOTOR_RANGE = 400; // motor rotation in degree needed for one millimeter piston extension
 export const MOUNT_MOTOR_MAX_SPEED = 882; // degree per second at 7.5V
-export const TOP_MOTOR_RANGE = 20833; // motor rotation in degree needed for rotation of top leg segment by pi
+export const TOP_MOTOR_RANGE = 35000; // motor rotation in degree needed for rotation of top leg segment by pi
 export const TOP_MOTOR_MAX_SPEED = 756; // degree per second at 7.5V
 export const BOTTOM_MOTOR_RANGE = 85050; // motor rotation in degree needed for rotation of bottom leg segment by pi
 export const BOTTOM_MOTOR_MAX_SPEED = 756; // degree per second at 7.5V

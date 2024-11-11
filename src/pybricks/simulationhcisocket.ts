@@ -117,11 +117,11 @@ class SimulationPybricksHub {
     this.currentCommand = 0;
     if(this.hubId < 5) {
       this.motors = [new SimulationMotor(0.0756)];
-      this.tiltSensors = [new SimulationTiltSensor([1000, 0, 0]), new SimulationTiltSensor([1000, 0, 0])];
+      this.tiltSensors = [new SimulationTiltSensor([9800, 0, 0]), new SimulationTiltSensor([0, -10000, 0])];
     }
     else {
       this.motors = [new SimulationMotor(0.0882), new SimulationMotor(0.0882), new SimulationMotor(0.0756), new SimulationMotor(0.0756)];
-      this.tiltSensors = [new SimulationTiltSensor([0, 0, 1000])];
+      this.tiltSensors = [new SimulationTiltSensor([0, 0, 9800])];
     }
     this.broadcastIntervalId = setInterval(() => {
       const data = Buffer.allocUnsafe(36);

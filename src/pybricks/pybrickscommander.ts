@@ -70,7 +70,7 @@ export class PybricksCommander implements CommanderAbstraction {
       const bottomAcceleration = this.dog.bottomAcceleration;
       topAcceleration[id - 1] = [-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)];
       motorAngles[id - 1][2] = 10*data.readInt16LE(28);
-      bottomAcceleration[id - 1] = [-data.readInt16LE(30), data.readInt16LE(34), -data.readInt16LE(32)];
+      bottomAcceleration[id - 1] = [data.readInt16LE(32), data.readInt16LE(30), data.readInt16LE(34)];
       this.dog.notifyTopAcceleration(topAcceleration);
       this.dog.notifyBottomAcceleration(bottomAcceleration);
     }
@@ -92,7 +92,7 @@ export class PybricksCommander implements CommanderAbstraction {
   async connect() {
     this.socket.bindRaw();
 
-    const filter = Buffer.allocUnsafe(14).fill(0);
+    const filter = Buffer.allocUnsafe(16).fill(0);
     const typeMask = (1 << HCI_EVENT_PKT);
     const eventMask2 = (1 << (EVT_LE_META_EVENT - 32));
     filter.writeUInt32LE(typeMask, 0);
