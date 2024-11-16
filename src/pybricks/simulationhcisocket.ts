@@ -38,6 +38,22 @@ export class SimulationHciSocket extends EventEmitter implements SocketAbstracti
   }
 }
 
+const setRandomInterval = (intervalFunction, minDelay: number, maxDelay: number) => {
+  let timeout;
+  const runInterval = () => {
+    const timeoutFunction = () => {
+      intervalFunction();
+      runInterval();
+    };
+    const delay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+    timeout = setTimeout(timeoutFunction, delay);
+  };
+  runInterval();
+  return {
+    clear() { clearTimeout(timeout) },
+  };
+};
+
 class SimulationMotor {
   rotation: number
   destRotation: number
@@ -105,7 +121,7 @@ class SimulationTiltSensor {
 class SimulationPybricksHub {
   socket: SimulationHciSocket
   hubId: number
-  broadcastIntervalId: NodeJS.Timeout
+  broadcastInterval;
   motors: SimulationMotor[]
   tiltSensors : SimulationTiltSensor[]
   currentCommand : number
@@ -123,8 +139,8 @@ class SimulationPybricksHub {
       this.motors = [new SimulationMotor(0.0882), new SimulationMotor(0.0882), new SimulationMotor(0.0756), new SimulationMotor(0.0756)];
       this.tiltSensors = [new SimulationTiltSensor([0, 0, 9800])];
     }
-    this.broadcastIntervalId = setInterval(() => {
-      const data = Buffer.allocUnsafe(36);
+    this.broadcastInterval = setRandomInterval(() => {
+      const data = Buffer.allocUnsafe(37);
       data.writeUInt8(0xff, 15); // manufacturer data
       data.writeUInt16LE(0x0397, 16) // lego
       data.writeUInt8(this.hubId, 18);
@@ -153,8 +169,9 @@ class SimulationPybricksHub {
         data.writeInt16LE(this.motors[2].getRotation(), 32);
         data.writeInt16LE(this.motors[3].getRotation(), 34);
       }
+      data.writeInt8(-Math.round(80*Math.random()), 36);
       this.socket.emit('data', data);
-    }, 100 + Math.random());
+    }, 30 + 30*Math.random(), 200 + 200*Math.random());
   }
 
   processBroadcast(data: Buffer) {
@@ -194,22 +211,21 @@ class SimulationPybricksHub {
     }
     else if(this.currentCommand == 4) {
       console.log("shutting down simulation hub id", this.hubId);
-      clearInterval(this.broadcastIntervalId);
-      this.broadcastIntervalId = null;
+      this.broadcastInterval.clear();
     }
   }
 }
 
 class RandomBleDevice {
   socket: SimulationHciSocket
-  broadcastIntervalId: NodeJS.Timeout
+  broadcastInterval;
 
   constructor(socket: SimulationHciSocket) {
     console.log("construction random ble device");
     this.socket = socket;
-    this.broadcastIntervalId = setInterval(() => {
+    this.broadcastInterval = setRandomInterval(() => {
       const data = randomBytes(Math.floor(Math.random()*256))
       this.socket.emit('data', data);
-    }, 100 + Math.random());
+    }, 30 + 30*Math.random(), 200 + 200*Math.random());
   }
 }

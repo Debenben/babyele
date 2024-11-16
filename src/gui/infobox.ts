@@ -1,4 +1,4 @@
-import { Rectangle, Ellipse, Control, TextBlock, Button, StackPanel, Container, Image } from "babylonjs-gui";
+import { Rectangle, Ellipse, Control, TextBlock, Button, StackPanel, Container, Image, Grid } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from './guitexture';
 
@@ -18,7 +18,6 @@ export class Infobox extends Container {
     this.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.zIndex = 20;
     this.fillRectangle = new Rectangle("background");
-    this.fillRectangle.alpha = 0.6;
     this.fillRectangle.thickness = 0;
     this.fillRectangle.cornerRadius = 5;
     this.isPointerBlocker = true;
@@ -30,8 +29,8 @@ export class Infobox extends Container {
     this.setPreview(preview);
   }
   setPreview(preview: boolean) {
-    if(preview) this.color = "rgb(60,215,60)"
-    else this.color = "rgb(255,110,90)"
+    if(preview) this.color = "#3cd73c80";
+    else this.color = "#ff6e5a80";
     this.fillRectangle.background = this.color;
     this.heading.background = this.color;
   }
@@ -49,7 +48,6 @@ const buildHeading = (infobox: Infobox) => {
   block.text = infobox.name;
   block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   block.fontSize = "20px";
-  block.fontFamily = "monospace";
   block.paddingLeft = "5px";
   block.color = "black";
   block.onPointerDownObservable.add((vec) => {
@@ -82,47 +80,96 @@ const buildHeading = (infobox: Infobox) => {
   button.onPointerEnterObservable.add(() => button.thickness = 1);
   button.onPointerOutObservable.add(() => button.thickness = 0);
   button.onPointerClickObservable.add(() => {
-    ipcRenderer.emit("notifyStatus", "closeEvent", infobox.name, true);
+    infobox.guiTexture.renderer.setState(infobox.name, "online");
   });
   heading.addControl(button);
   return heading;
-}
-
-export const pad = (str: string, size: number) => {
-  const s = "          " + str;
-  return s.substr(s.length - size);
-}
-
-export const printPosition = (pos: number[]) => {
-  return pos.map(e => pad(e.toFixed(0), 5)).join();
-}
-
-export const printDegree = (rad: number) => {
-  return pad((180*rad/Math.PI).toFixed(2), 8) + "°";
 }
 
 export const buildText = (content: string) => {
   const block = new TextBlock("infoText");
   block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
   block.text = content;
-  block.fontFamily = "monospace";
   block.height = "25px";
-  block.paddingLeft = "5px";
+  block.fontSize = "20px";
+  block.setPaddingInPixels(0, 2, 0, 2);
   block.color = "black";
   return block;
 }
-export const buildToggleButton = () => {
-  const button = Button.CreateSimpleButton("button", "");
-  button.setPaddingInPixels(2);
-  button.width = "200px";
-  button.height = "30px";
-  button.background = "black";
-  button.thickness = 0
-  button.alpha = 0.8;
-  button.fontSize = "20px";
-  button.onPointerEnterObservable.add(() => button.thickness = 1);
-  button.onPointerOutObservable.add(() => button.thickness = 0);
-  return button;
+
+export class ThreePrint extends Grid {
+  coordText = [null, null, null]
+
+  constructor(labelText: string) {
+    super(labelText);
+    this.heightInPixels = 22;
+    this.setPaddingInPixels(0, 2, 2, 2);
+    this.addColumnDefinition(0.2);
+    const filler = new Rectangle("filler");
+    filler.background = "#000000c0";
+    filler.thickness = 0;
+    this.addControl(filler, 0, 0);
+    const label = buildText(labelText);
+    label.color = undefined;
+    this.addControl(label, 0, 0);
+    for(let i=0; i<3; i++) {
+      this.addColumnDefinition(2, true);
+      this.addColumnDefinition(0.3);
+      const filler = new Rectangle("filler");
+      filler.background = "#00000030";
+      filler.thickness = 0;
+      this.addControl(filler, 0, 2*(i + 1));
+      this.coordText[i] = buildText("---");
+      this.coordText[i].textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+      this.addControl(this.coordText[i], 0, 2*(i + 1));
+    }
+  }
+  setThreeText(vec3) {
+    for(let i=0; i<3; i++) {
+      this.coordText[i].text = vec3[i];
+    }
+  }
+}
+
+export class ToggleButton extends Container {
+  enabled: boolean;
+  button1: Button;
+  button2: Button;
+  callback: (enabled: boolean) => any;
+  constructor(enabledText: string, disabledText: string, callback: (enabled: boolean) => any) {
+    super()
+    this.callback = callback;
+    this.setPaddingInPixels(0, 2, 2, 2);
+    this.height = "26px";
+    this.button1 = this.buildButton(enabledText);
+    this.button2 = this.buildButton(disabledText);
+    const grid = new Grid("toggleGrid");
+    grid.addColumnDefinition(1);
+    grid.addColumnDefinition(1);
+    grid.addControl(this.button1, 0, 0);
+    grid.addControl(this.button2, 0, 1);
+    this.addControl(grid);
+    this.setEnabled(false);
+  }
+  buildButton(text: string) {
+    const button = Button.CreateSimpleButton("button", text);
+    button.thickness = 0;
+    button.fontSize = "80%";
+    button.onPointerEnterObservable.add(() => button.thickness = 1);
+    button.onPointerOutObservable.add(() => button.thickness = 0);
+    button.onPointerClickObservable.add(() => {
+      this.setEnabled(!this.enabled);
+      this.callback(this.enabled);
+    });
+    return button;
+  }
+  setEnabled(enabled: boolean) {
+    this.enabled = enabled;
+    this.button1.background = enabled ? "#000000c0" : "#00000040";
+    this.button2.background = enabled ? "#00000040" : "#000000c0";
+    this.button1.color = enabled ? undefined : "black";
+    this.button2.color = enabled ? "black" : undefined;
+  }
 }
 
 export const base = [[Math.sin(Math.PI/3), 0.5], [0, -1], [-Math.sin(Math.PI/3), 0.5]];
@@ -132,6 +179,21 @@ export class Gauge extends Container {
   ind2: Container;
   ind3: Container;
   setIndicatorPosition: (position: number[]) => void;
+}
+
+class Knob extends Container {
+  highlight = false;
+  select = false;
+  knobImage = new Image("knob", "../public/crosshair_u.svg");
+  constructor() {
+    super();
+    this.widthInPixels = 30;
+    this.heightInPixels = 30;
+    this.addControl(this.knobImage);
+  }
+  updateImage() {
+    this.knobImage.source = "../public/crosshair_" + (this.select ? "s" : (this.highlight ? "h" : "u")) + ".svg";
+  }
 }
 
 export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
@@ -146,45 +208,30 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
   const setKnob = (knob: Container, angles: number[]) => {
     knob.topInPixels = (angles[0]*base[0][0] + angles[1]*base[1][0] + angles[2]*base[2][0])*0.25*scaling;
     knob.leftInPixels = (angles[0]*base[0][1] + angles[1]*base[1][1] + angles[2]*base[2][1])*0.25*scaling;
-    knob.color = "black";
+    if(knob instanceof Knob) (knob as Knob).updateImage();
   }
-  const buildKnob = (angles: number[]) => {
-    const knob = new Ellipse()
-    knob.widthInPixels = 0.1*scaling;
-    knob.heightInPixels = 0.1*scaling;
-    knob.thickness = 0.015*scaling;
+  const buildKnob = (angles: number[], rotation: number) => {
+    const knob = new Knob()
+    knob.knobImage.rotation = rotation;
     setKnob(knob, angles);
     gauge.addControl(knob);
     return knob;
   }
-  const buildIndicator = (angles: number[]) => {
+  const buildIndicator = (angles: number[], rotation: number) => {
     const arrow = new Container();
-    arrow.widthInPixels = 0.1*scaling;
-    arrow.heightInPixels = 0.1*scaling;
-    const clip2 = new Container();
-    clip2.widthInPixels = 0.1*scaling;
-    clip2.heightInPixels = 0.1*scaling;
-    const rect1 = new Rectangle();
-    rect1.widthInPixels = 0.1*scaling;
-    rect1.heightInPixels = 0.1*scaling;
-    rect1.rotation = Math.PI/4;
-    rect1.background = "black";
-    rect1.color = "black";
-    rect1.alpha = 0.7;
-    rect1.thickness = 0.01*scaling;
-    rect1.topInPixels = 0.08*scaling;
-    clip2.addControl(rect1);
-    arrow.addControl(clip2);
+    arrow.rotation = rotation;
+    arrow.widthInPixels = 30;
+    arrow.heightInPixels = 30;
+    const image = new Image("arrow", "../public/skew_arrow.svg");
+    arrow.addControl(image);
     setKnob(arrow, angles);
     gauge.addControl(arrow);
     return arrow;
   }
 
-  gauge.ind1 = buildIndicator([2, 1, 0]);
-  gauge.ind2 = buildIndicator([0, 2, 1]);
-  gauge.ind2.rotation = 2*Math.PI/3;
-  gauge.ind3 = buildIndicator([1, 0, 2]);
-  gauge.ind3.rotation = -2*Math.PI/3;
+  gauge.ind1 = buildIndicator([2, 1, 0], 0);
+  gauge.ind2 = buildIndicator([0, 2, 1], 2*Math.PI/3);
+  gauge.ind3 = buildIndicator([1, 0, 2], -2*Math.PI/3);
   gauge.setIndicatorPosition = (position: number[]) => {
     if(isRotationGauge) {
       setKnob(gauge.ind1, [2, 1 + position[2], 0]);
@@ -198,9 +245,9 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
     }
   };
 
-  const knob1 = buildKnob([0, -1, -1]);
-  const knob2 = buildKnob([-1, 0, -1]);
-  const knob3 = buildKnob([-1, -1, 0]);
+  const knob1 = buildKnob([0, -1, -1],  0);
+  const knob2 = buildKnob([-1, 0, -1],  2*Math.PI/3);
+  const knob3 = buildKnob([-1, -1, 0], -2*Math.PI/3);
 
   const sendRequest = (vec: number[]) => {
     if(pointerDown) {
@@ -227,11 +274,14 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
 	if(s[i][j] > 2) s[i][j] = 2; //snap to border
       }
     }
-    if(knob3.color == infobox.color || (knob1.color != infobox.color && knob2.color != infobox.color && s[0][1] > 0 && s[1][0] > 0)) {
+    knob1.highlight = true;
+    knob2.highlight = true;
+    knob3.highlight = true;
+    if(knob3.select || (!knob1.select && !knob2.select && s[0][1] > 0 && s[1][0] > 0)) {
+      knob3.select = pointerDown;
       if(s[0][1] < 0) s[0][1] = 0;
       if(s[1][0] < 0) s[1][0] = 0;
       setKnob(knob3, [-s[1][0], -s[0][1], 0]);
-      knob3.color = pointerDown? infobox.color : "lightgrey";
       if(isRotationGauge) {
         sendRequest([1-s[1][0], 0, 1-s[0][1]]);
         setKnob(knob1, [0, -1, -2+s[1][0]]);
@@ -243,11 +293,11 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
         setKnob(knob2, [-s[1][0], 0, -1]);
       }
     }
-    else if(knob1.color == infobox.color || (knob2.color != infobox.color && s[1][2] > 0 && s[2][1] > 0)) {
+    else if(knob1.select || (!knob2.select && s[1][2] > 0 && s[2][1] > 0)) {
+      knob1.select = pointerDown;
       if(s[1][2] < 0) s[1][2] = 0;
       if(s[2][1] < 0) s[2][1] = 0;
       setKnob(knob1, [0, -s[2][1], -s[1][2]]);
-      knob1.color = pointerDown? infobox.color : "lightgrey";
       if(isRotationGauge) {
         sendRequest([1-s[1][2], 1-s[2][1], 0]);
         setKnob(knob2, [-2+s[2][1], 0, -1]);
@@ -259,11 +309,11 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
         setKnob(knob3, [-1, -s[2][1], 0]);
       }
     }
-    else if(knob2.color == infobox.color || (s[0][2] > 0 && s[2][0] > 0)) {
+    else if(knob2.select || (s[0][2] > 0 && s[2][0] > 0)) {
+      knob2.select = pointerDown;
       if(s[0][2] < 0) s[0][2] = 0;
       if(s[2][0] < 0) s[2][0] = 0;
       setKnob(knob2, [-s[2][0], 0, -s[0][2]]);
-      knob2.color = pointerDown? infobox.color : "lightgrey";
       if(isRotationGauge) {
         sendRequest([0, 1-s[2][0], 1-s[0][2]]);
         setKnob(knob1, [0, -2+s[2][0], -1]);
@@ -276,6 +326,9 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
       }
     }
     else {
+      knob1.highlight = false;
+      knob2.highlight = false;
+      knob3.highlight = false;
       sendRequest([0, 0, 0]);
       setKnob(knob1, [0, -1, -1]);
       setKnob(knob2, [-1, 0, -1]);

@@ -39,8 +39,6 @@ export class PybricksCommander implements CommanderAbstraction {
   dog: SensorAbstraction;
   socket: SocketAbstraction;
   currentCommand: Command;
-  hubTimestamps = new Array(6).fill(0);
-  hubTimestampIntervalID: NodeJS.Timeout = null
 
   constructor(dog: SensorAbstraction, socket: SocketAbstraction) {
     this.dog = dog;
@@ -58,11 +56,7 @@ export class PybricksCommander implements CommanderAbstraction {
     if(id < 1 || id > 6) return;
     if(id < 5 && data.readUInt8(19) != 0xd2) return;
     if(id > 4 && data.readUInt8(19) != 0xd0) return;
-    //console.log("rssi is", data.readInt8(data.length -1);
-    this.hubTimestamps[id - 1] = Date.now();
-    this.updateStatus(id, data.readUInt8(20));
-    //const status = data.readUInt8(20);
-    //if((status & 0b00000001) == 0b00000000) console.log("low battery for hub id", id);
+    this.dog.notifyHubStatus(id - 1, data.readUInt8(20), Date.now(), data.readInt8(data.length - 1));
     if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)]); // [-x, z, -y]
     const motorAngles = this.dog.motorAngles;
     if(id < 5) {
@@ -109,36 +103,6 @@ export class PybricksCommander implements CommanderAbstraction {
     this.setAdvertiseEnable(true);
 
     this.sendCommand(0, [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
-    this.hubTimestampIntervalID = setInterval(async () => {
-      const hubStatus = this.dog.hubStatus;
-      for(let i = 0; i < 6; i++) {
-        hubStatus[i] = (Date.now() - this.hubTimestamps[i] < 200);
-        if(!hubStatus[i]) {
-          this.updateStatus(i + 1, 0);
-	}
-      }
-      this.dog.notifyHubStatus(hubStatus);
-      }, 100);
-  }
-
-  async updateStatus(id: number, status) {
-    const hubStatus = this.dog.hubStatus;
-    const motorStatus = this.dog.motorStatus;
-    const accelerometerStatus = this.dog.accelerometerStatus;
-    if(id < 5) {
-      motorStatus[3*id - 1] = (status & 0b00000010) == 0b00000010;
-      accelerometerStatus[2*id - 2] = hubStatus[id];
-      accelerometerStatus[2*id - 1] = (status & 0b00000100) == 0b00000100;
-    }
-    else {
-      accelerometerStatus[id + 3] = hubStatus[id];
-      motorStatus[(id - 5)*6] = (status & 0b00000010) == 0b00000010;
-      motorStatus[(id - 5)*6 + 1] = (status & 0b00000100) == 0b00000100;
-      motorStatus[(id - 5)*6 + 3] = (status & 0b00001000) == 0b00001000;
-      motorStatus[(id - 5)*6 + 4] = (status & 0b00010000) == 0b00010000;
-    }
-    this.dog.notifyMotorStatus(motorStatus);
-    this.dog.notifyAccelerometerStatus(motorStatus);
   }
 
   async disconnect() {
@@ -146,7 +110,6 @@ export class PybricksCommander implements CommanderAbstraction {
     this.currentCommand = null;
     this.setScanEnable(false);
     this.setAdvertiseEnable(false);
-    clearInterval(this.hubTimestampIntervalID);
 
     this.socket.stop();
     console.log("disconnecting");

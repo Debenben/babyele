@@ -460,6 +460,7 @@ const renderer = new Renderer();
 renderer.initialize(document.getElementById('canvas') as HTMLCanvasElement);
 
 ipcRenderer.on('notifyStatus', (event, arg1, arg2) => {
+  if(arg2 && renderer.selectedItem == arg1) return;
   renderer.setState(arg1, arg2 ? 'online' : 'offline');
 });
 ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {

@@ -24,9 +24,10 @@ export class Dog implements DogAbstraction {
   mainWindow: BrowserWindow
   commander: CommanderAbstraction
 
-  _hubStatus: boolean[] = new Array(6).fill(false)
-  _motorStatus: boolean[] = new Array(12).fill(false)
-  _accelerometerStatus: boolean[] = new Array(10).fill(false)
+  _hubStatus = [0,0,0,0,0,0]
+  _hubTimestamps = [[0],[0],[0],[0],[0],[0]]
+  _hubRssis = [[0],[0],[0],[0],[0],[0]]
+  _hubTimestampsIntervalID: NodeJS.Timeout = null
 
   _motorAngles: Vec43 = [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]
   _topAcceleration: Vec43 = [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]
@@ -37,18 +38,10 @@ export class Dog implements DogAbstraction {
   _positionSpeed: Vec43 = [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]
   _rotationSpeed: Vec3 = [0,0,0]
   _startMoveMotorAngles: Vec43 = null
-  moveSpeedIntervalID: NodeJS.Timeout = null
+  _moveSpeedIntervalID: NodeJS.Timeout = null
 
   get hubStatus() {
     return this._hubStatus.slice(0);
-  }
-
-  get motorStatus() {
-    return this._motorStatus.slice(0);
-  }
-
-  get accelerometerStatus() {
-    return this._accelerometerStatus.slice(0);
   }
 
   get motorAngles() {
@@ -96,14 +89,14 @@ export class Dog implements DogAbstraction {
   }
 
   requestMotorSpeeds(motorSpeeds) {
-    clearInterval(this.moveSpeedIntervalID);
-    this.moveSpeedIntervalID = null;
+    clearInterval(this._moveSpeedIntervalID);
+    this._moveSpeedIntervalID = null;
     return this.commander.requestMotorSpeeds(motorSpeeds);
   }
 
   requestMotorAngles(motorAngles) {
-    clearInterval(this.moveSpeedIntervalID);
-    this.moveSpeedIntervalID = null;
+    clearInterval(this._moveSpeedIntervalID);
+    this._moveSpeedIntervalID = null;
     return this.commander.requestMotorAngles(motorAngles);
   }
 
@@ -132,6 +125,15 @@ export class Dog implements DogAbstraction {
         this.send('notifyDogRotation', "dog", [rotation.x, rotation.y, rotation.z]);
       }
     });
+    for(let i = 0; i < 6; i++) {
+      ipcMain.on(hubNames[i], (event, arg1, arg2) => {
+        if(arg1 === "getProperties") {
+	  this.send('notifyStatus', hubNames[i], this.hubStatus[i]);
+	  this.send('notifyTimestamps', hubNames[i], this._hubTimestamps[i].slice(0));
+	  this.send('notifyRssis', hubNames[i], this._hubRssis[i].slice(0));
+	}
+      });
+    }
     for(let i = 0; i < 4; i++)  {
       ipcMain.on(legNames[i], (event, arg1, arg2) => {
         if(arg1 === "requestPositionSpeed") {
@@ -169,34 +171,36 @@ export class Dog implements DogAbstraction {
 	}
       });
     }
+    this._hubTimestampsIntervalID = setInterval(async () => {
+      for(let id=0; id<6; id++) {
+        const last = this._hubTimestamps[id].slice(-1)[0];
+        if(last > 0 && Date.now() - last > 2000) this.notifyHubStatus(id, 0, 0, 0);
+	if(this._hubTimestamps[id].length > 1200) {
+          this._hubTimestamps[id].splice(0, this._hubTimestamps[id].length - 1000);
+          this._hubRssis[id].splice(0, this._hubRssis[id].length - 1000);
+	}
+      }
+    }, 200);
   }
 
-  async notifyHubStatus(hubStatus: boolean[]) {
-    if(compareArrays(this._hubStatus, hubStatus)) return;
-    this._hubStatus = hubStatus;
-    for(let i = 0; i < 6; i++) {
-      this.send('notifyStatus', hubNames[i], this.hubStatus[i]);
+  async notifyHubStatus(id: number, status: number, timestamp: number, rssi: number) {
+    this._hubTimestamps[id].push(timestamp);
+    this._hubRssis[id].push(rssi);
+    if(this._hubStatus[id] == status) return;
+    this._hubStatus[id] = status;
+    this.send('notifyStatus', hubNames[id], status);
+    if(id < 4) {
+      this.send('notifyStatus', motorNames[3*id + 2], (status & 0b00000010) == 0b00000010);
+    }
+    else {
+      this.send('notifyStatus', motorNames[(id - 4)*6], (status & 0b00000010) == 0b00000010);
+      this.send('notifyStatus', motorNames[(id - 4)*6 + 1], (status & 0b00000100) == 0b00000100);
+      this.send('notifyStatus', motorNames[(id - 4)*6 + 3], (status & 0b00001000) == 0b00001000);
+      this.send('notifyStatus', motorNames[(id - 4)*6 + 4], (status & 0b00010000) == 0b00010000);
     }
     this.send('notifyStatus', 'dog', this.getDogStatus());
     ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
-  }
-
-  async notifyMotorStatus(motorStatus: boolean[]) {
-    if(compareArrays(this._motorStatus, motorStatus)) return;
-    this._motorStatus = motorStatus;
-    for(let i = 0; i < 12; i++) {
-      this.send('notifyStatus', motorNames[i], this.motorStatus[i]);
-    }
-    this.send('notifyStatus', 'dog', this.getDogStatus());
-    ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
-  }
-
-  async notifyAccelerometerStatus(accelerometerStatus: boolean[]) {
-    if(compareArrays(this._accelerometerStatus, accelerometerStatus)) return;
-    this._accelerometerStatus = accelerometerStatus;
-    this.send('notifyStatus', 'dog', this.getDogStatus());
-    ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
-  }
+  };
 
   async notifyMotorAngles(motorAngles: Vec43) {
     this._motorAngles = motorAngles;
@@ -248,14 +252,14 @@ export class Dog implements DogAbstraction {
       // stop
       return this.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
     }
-    else if(this.moveSpeedIntervalID) {
+    else if(this._moveSpeedIntervalID) {
       // already in progress
       return;
     }
     else if(vec3IsZero(this.rotationSpeed) && this.positionSpeed.filter(v => !vec3IsZero(v)).length === 1) {
       // one leg only
       this._startMoveMotorAngles = this.motorAngles;
-      this.moveSpeedIntervalID = setInterval(() => {
+      this._moveSpeedIntervalID = setInterval(() => {
         const currentPositions = legPositionsFromMotorAngles(this.motorAngles);
         const startPositions = legPositionsFromMotorAngles(this.startMoveMotorAngles);
         const destPositions = vec43Copy(startPositions);
@@ -281,7 +285,7 @@ export class Dog implements DogAbstraction {
     else {
       // complete dog
       this._startMoveMotorAngles = this.motorAngles;
-      this.moveSpeedIntervalID = setInterval(() => {
+      this._moveSpeedIntervalID = setInterval(() => {
 	const speed = 0.01*Math.max(vec43AbsMax(vec43Copy(this.positionSpeed)), vec3AbsMax(vec3Copy(this.rotationSpeed)));
         const averagePositionDiff = Vector3.FromArray(vec43Sum(legPositionsFromMotorAngles(this.motorAngles)).map((e,i) => e - vec43Sum(legPositionsFromMotorAngles(this.startMoveMotorAngles))[i]));
         const averageRotationAngle = quatToAngle(dogRotationFromMotorAngles(this.motorAngles).multiply(dogRotationFromMotorAngles(this.startMoveMotorAngles).invertInPlace()));
@@ -312,7 +316,13 @@ export class Dog implements DogAbstraction {
   }
 
   getDogStatus() {
-    return this.hubStatus.concat(this.motorStatus).concat(this.accelerometerStatus).every(e => e);
+    for(let i = 0; i < 4; i++) {
+      if((this.hubStatus[i] & 0b01100111) != 0b00100111) return false;
+    }
+    for(let i = 4; i < 6; i++) {
+      if((this.hubStatus[i] & 0b01111111) != 0b00111111) return false;
+    }
+    return true;
   }
 
   send = (arg1, arg2, arg3) => {

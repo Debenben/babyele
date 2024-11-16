@@ -72,8 +72,8 @@ class MoveButton extends Container {
     this.moveButton.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.moveButton.background = "grey";
     this.moveButton.onPointerDownObservable.add((vec) => {
-      ipcRenderer.emit('startGuiDrag', 'dragEvent', this.moveButton, vec, true);
       this.moveButton.color = "red";
+      ipcRenderer.emit('startGuiDrag', 'dragEvent', this.moveButton, vec, true);
     });
     this.moveButton.onPointerUpObservable.add(() => {
       ipcRenderer.emit('stopGuiDrag', 'dragEvent', this.moveButton);

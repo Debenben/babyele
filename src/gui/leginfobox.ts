@@ -1,12 +1,12 @@
 import { Rectangle, TextBlock, Container, Control, Image } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Infobox, buildText, printDegree } from './infobox';
+import { Infobox, buildText } from './infobox';
 
 export class LegInfobox extends Infobox {
   gauge: Container;
-  speedArrow: Container;
-  angleArrow: Container;
-  tiltArrow: Container;
+  speedArrow: Indicator;
+  angleArrow: Indicator;
+  tiltArrow: Indicator;
   rotationValue: number = 0;
   tiltValue: number = 0;
   infoText: TextBlock;
@@ -30,7 +30,7 @@ export class LegInfobox extends Infobox {
     if(this.name.startsWith(arg1)) {
       this.tiltValue = extractCoordinate(arg2, this.name);
       this.tiltArrow.rotation = rotationToGauge(this.tiltValue);
-      if(this.tiltArrow.getDescendants()[0].getDescendants()[0].color == "lightgrey") {
+      if(this.tiltArrow.highlight) {
 	this.infoText.text = printDegree(this.tiltValue);
       }
     }
@@ -38,11 +38,29 @@ export class LegInfobox extends Infobox {
   updateAngle = (event, arg1, arg2) => {
     if(this.name.startsWith(arg1)) {
       this.rotationValue = extractCoordinate(arg2, this.name);
-      if(this.angleArrow.getDescendants()[0].getDescendants()[0].color == "black") {
+      if(!this.angleArrow.highlight) {
         this.angleArrow.rotation = rotationToGauge(this.rotationValue);
         if(this.infoText.color == "black") this.infoText.text = printDegree(this.rotationValue);
       }
     }
+  }
+}
+
+const printDegree = (rad: number) => (180*rad/Math.PI).toFixed(2) + "°";
+
+class Indicator extends Container {
+  highlight = false;
+  select = false;
+  arrowImage = new Image("arrow", "../public/arrow_u.svg");
+  constructor() {
+    super();
+    this.arrowImage.widthInPixels = 30;
+    this.arrowImage.heightInPixels = 30;
+    this.arrowImage.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.addControl(this.arrowImage);
+  }
+  updateImage() {
+    this.arrowImage.source = "../public/arrow_" + (this.select ? "s" : (this.highlight ? "h" : "u")) + ".svg";
   }
 }
 
@@ -56,18 +74,21 @@ const gaugeToRotation = (angle: number) => {
 }
 const rotationToGauge = gaugeToRotation;
 const gaugeToSpeed = (angle: number) => {
-  return Math.round(2000*angle/Math.PI);
+  let speed = Math.round(4000*angle/Math.PI);
+  if(speed > 1000) speed = 1000;
+  else if (speed < -1000) speed = -1000;
+  return speed;
 }
 
 const buildAngleGauge = (infobox: LegInfobox) => {
   const gauge = new Container();
-  gauge.widthInPixels = 0.8*infobox.widthInPixels;
-  gauge.heightInPixels = 0.8*infobox.widthInPixels;
+  gauge.widthInPixels = 240;
+  gauge.heightInPixels = 280;
   gauge.paddingBottomInPixels = -0.05*infobox.widthInPixels;
   gauge.paddingTopInPixels = 0.05*infobox.widthInPixels;
-  const innerRadius = 0.25*gauge.widthInPixels;
-  const middleRadius = 0.375*gauge.widthInPixels;
-  const outerRadius = 0.5*gauge.widthInPixels;
+  const innerRadius = 80;
+  const middleRadius = 110;
+  const outerRadius = 140;
 
   const scale = new Image("scale", "../public/dial.svg");
   gauge.addControl(scale);
@@ -76,64 +97,20 @@ const buildAngleGauge = (infobox: LegInfobox) => {
   infobox.infoText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
   gauge.addControl(infobox.infoText);
 
-  infobox.speedArrow = new Container();
+  infobox.speedArrow = new Indicator();
   infobox.speedArrow.widthInPixels = 2*outerRadius;
   infobox.speedArrow.heightInPixels = 2*outerRadius;
-  const clip2 = new Container();
-  clip2.widthInPixels = 0.1*gauge.widthInPixels;
-  clip2.heightInPixels = 0.5*gauge.widthInPixels;
-  clip2.topInPixels = -0.65*gauge.widthInPixels;
-  const rect1 = new Rectangle();
-  rect1.widthInPixels = gauge.widthInPixels*0.68;
-  rect1.heightInPixels = gauge.widthInPixels*0.68;
-  rect1.rotation = Math.PI/4;
-  rect1.background = "black";
-  rect1.color = "black";
-  rect1.alpha = 0.7;
-  rect1.thickness = 0.02*outerRadius;
-  rect1.topInPixels = -clip2.topInPixels;
-  clip2.addControl(rect1);
-  infobox.speedArrow.addControl(clip2);
   gauge.addControl(infobox.speedArrow);
 
-  infobox.angleArrow = new Container();
+  infobox.angleArrow = new Indicator();
+  infobox.angleArrow.arrowImage.rotation = Math.PI;
   infobox.angleArrow.widthInPixels = 2*middleRadius;
   infobox.angleArrow.heightInPixels = 2*middleRadius;
-  const clip3 = new Container();
-  clip3.widthInPixels = 0.1*gauge.widthInPixels;
-  clip3.heightInPixels = 0.5*gauge.widthInPixels;
-  clip3.topInPixels = -0.1*gauge.widthInPixels;
-  const rect2 = new Rectangle();
-  rect2.widthInPixels = gauge.widthInPixels*0.5;
-  rect2.heightInPixels = gauge.widthInPixels*0.5;
-  rect2.rotation = Math.PI/4;
-  rect2.background = "black";
-  rect2.color = "black";
-  rect2.alpha = 0.7;
-  rect2.thickness = 0.02*outerRadius;
-  rect2.topInPixels = -0.52*gauge.widthInPixels;
-  clip3.addControl(rect2);
-  infobox.angleArrow.addControl(clip3);
   gauge.addControl(infobox.angleArrow);
 
-  infobox.tiltArrow = new Container();
+  infobox.tiltArrow = new Indicator();
   infobox.tiltArrow.widthInPixels = 2*innerRadius;
   infobox.tiltArrow.heightInPixels = 2*innerRadius;
-  const clip4 = new Container();
-  clip4.widthInPixels = 0.1*gauge.widthInPixels;
-  clip4.heightInPixels = 0.5*gauge.widthInPixels;
-  clip4.topInPixels = -0.4*gauge.widthInPixels;
-  const rect3 = new Rectangle();
-  rect3.widthInPixels = gauge.widthInPixels*0.33;
-  rect3.heightInPixels = gauge.widthInPixels*0.33;
-  rect3.rotation = Math.PI/4;
-  rect3.background = "black";
-  rect3.color = "black";
-  rect3.alpha = 0.7;
-  rect3.thickness = 0.02*outerRadius;
-  rect3.topInPixels = -clip4.topInPixels;
-  clip4.addControl(rect3);
-  infobox.tiltArrow.addControl(clip4);
   gauge.addControl(infobox.tiltArrow);
 
   const mouseOverlay = new Container();
@@ -144,51 +121,54 @@ const buildAngleGauge = (infobox: LegInfobox) => {
     const yval = -vec.y + mouseOverlay.centerY;
     const radius = Math.sqrt(xval**2 + yval**2)/infobox.guiTexture.getScale();
     const angle = Math.atan2(xval, yval);
-    if(radius < outerRadius && radius > middleRadius && yval > 0 && rect2.background == "black" && rect3.background == "black") {
-      rect1.color = "lightgrey";
-      rect2.color = "black";
-      rect3.color = "black";
-      infobox.speedArrow.rotation = angle;
+    if(radius < outerRadius && radius > middleRadius && Math.abs(angle) < 0.9 && !infobox.angleArrow.select && !infobox.tiltArrow.select) {
+      infobox.speedArrow.highlight = true;
+      infobox.angleArrow.highlight = false;
+      infobox.tiltArrow.highlight  = false;
+      infobox.speedArrow.rotation = (angle > Math.PI/4 ? Math.PI/4 : (angle < -Math.PI/4 ? -Math.PI/4 : angle));
       infobox.angleArrow.rotation = rotationToGauge(infobox.rotationValue);
       infobox.infoText.color = "lightgrey";
       infobox.infoText.text = gaugeToSpeed(angle).toString();
-      if(rect1.background != "black") {
+      if(infobox.speedArrow.select) {
         ipcRenderer.send(infobox.name, "requestRotationSpeed", gaugeToSpeed(angle));
       }
     }
-    else if (radius < middleRadius && radius > innerRadius && rect1.background == "black" && rect3.background == "black") {
-      rect1.color = "black";
-      rect2.color = "lightgrey";
-      rect3.color = "black"
+    else if (radius < middleRadius && radius > innerRadius && !infobox.speedArrow.select && !infobox.tiltArrow.select) {
+      infobox.speedArrow.highlight = false;
+      infobox.angleArrow.highlight = true;
+      infobox.tiltArrow.highlight  = false;
       infobox.speedArrow.rotation = 0;
       infobox.angleArrow.rotation = angle;
       infobox.infoText.color = "lightgrey";
       infobox.infoText.text = printDegree(gaugeToRotation(angle));
-      if(rect2.background != "black"){
+      if(infobox.angleArrow.select){
         ipcRenderer.send(infobox.name, "requestRotationAngle", gaugeToRotation(angle));
       }
     }
-    else if (radius < innerRadius && rect1.background == "black" && rect2.background == "black") {
-      rect1.color = "black";
-      rect2.color = "black";
-      rect3.color = "lightgrey";
+    else if (radius < innerRadius && !infobox.speedArrow.select && !infobox.angleArrow.select) {
+      infobox.speedArrow.highlight = false;
+      infobox.angleArrow.highlight = false;
+      infobox.tiltArrow.highlight  = true;
       infobox.speedArrow.rotation = 0;
       infobox.angleArrow.rotation = rotationToGauge(infobox.rotationValue);
       infobox.infoText.color = "lightgrey";
       infobox.infoText.text = printDegree(infobox.tiltValue);
-      if(rect3.background != "black") {
+      if(infobox.tiltArrow.select) {
         ipcRenderer.send(infobox.name, "requestSync");
       }
     }
-    else if (rect1.background == "black" && rect2.background == "black" && rect3.background == "black") {
-      rect1.color = "black";
-      rect2.color = "black";
-      rect3.color = "black";
+    else if (!infobox.speedArrow.select && !infobox.angleArrow.select && !infobox.tiltArrow.select) {
+      infobox.speedArrow.highlight = false;
+      infobox.angleArrow.highlight = false;
+      infobox.tiltArrow.highlight  = false;
       infobox.speedArrow.rotation = 0;
       infobox.angleArrow.rotation = rotationToGauge(infobox.rotationValue);
       infobox.infoText.color = "black";
       infobox.infoText.text = printDegree(infobox.rotationValue);
     }
+    infobox.speedArrow.updateImage();
+    infobox.angleArrow.updateImage();
+    infobox.tiltArrow.updateImage();
   };
   mouseOverlay.onPointerMoveObservable.add(gaugeOnPointer);
   mouseOverlay.onPointerOutObservable.add(gaugeOnPointer);
@@ -196,24 +176,25 @@ const buildAngleGauge = (infobox: LegInfobox) => {
     const xval = vec.x - mouseOverlay.centerX;
     const yval = -vec.y + mouseOverlay.centerY;
     const radius = Math.sqrt(xval**2 + yval**2)/infobox.guiTexture.getScale();
-    if(radius < outerRadius && radius > middleRadius && yval > 0) {
-      rect1.background = infobox.color;
+    const angle = Math.atan2(xval, yval);
+    if(radius < outerRadius && radius > middleRadius && Math.abs(angle) < 0.9) {
+      infobox.speedArrow.select = true;
     }
     else if (radius < middleRadius && radius > innerRadius) {
-      rect2.background = infobox.color;
+      infobox.angleArrow.select = true;
     }
     else if (radius < innerRadius) {
-      rect3.background = infobox.color;
+      infobox.tiltArrow.select = true;
     }
     gaugeOnPointer(vec);
   });
   mouseOverlay.onPointerUpObservable.add((vec) => {
-    if(rect1.background == infobox.color) {
+    if(infobox.speedArrow.select) {
       ipcRenderer.send(infobox.name, "requestRotationSpeed", 0);
     }
-    rect1.background = "black";
-    rect2.background = "black";
-    rect3.background = "black";
+    infobox.speedArrow.select = false;
+    infobox.angleArrow.select = false;
+    infobox.tiltArrow.select  = false;
     gaugeOnPointer(vec);
   });
   gauge.addControl(mouseOverlay);

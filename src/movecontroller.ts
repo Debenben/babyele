@@ -152,6 +152,11 @@ export class MoveController {
       this.dog.requestShutdown();
       return;
     }
+    else if (destMode === "STOP") {
+      this.dog.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
+      this.emptyNodeQueue();
+      return;
+    }
     else if (this.mode === "OFFLINE") { // prevent predefined mode handling below
       return;
     }
@@ -164,11 +169,6 @@ export class MoveController {
     else if (destMode === "SYNC") {
       const legAngles = legAnglesFromAcceleration(this.dog.dogAcceleration, this.dog.topAcceleration, this.dog.bottomAcceleration);
       return this.dog.requestSync(motorAnglesFromLegAngles(legAngles));
-    }
-    else if (destMode === "STOP") {
-      this.dog.requestMotorSpeeds([[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
-      this.emptyNodeQueue();
-      return;
     }
     else if (destMode === "BUTTON") {
       if(this.modeQueue.length) {

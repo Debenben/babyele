@@ -11,7 +11,7 @@ import { Settings } from './settings';
 import { reservedNames } from '../tools';
 
 export class GuiTexture {
-  scene: BABYLON.Scene;
+  renderer: Renderer;
   texture: AdvancedDynamicTexture;
   infobox: Infobox;
   modeSelection: ModeSelection;
@@ -19,9 +19,9 @@ export class GuiTexture {
   topMenu: Grid;
   dragHelper: DragHelper;
   constructor(renderer: Renderer) {
-    this.scene = renderer.scene;
-    this.scene.onKeyboardObservable.add(onKeyPress);
-    this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
+    this.renderer = renderer;
+    this.renderer.scene.onKeyboardObservable.add(onKeyPress);
+    this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.renderer.scene);
     this.texture.idealHeight = 600;
     this.topMenu = buildTopMenu(this);
     this.texture.addControl(this.topMenu);
@@ -162,9 +162,9 @@ const buildTopMenu = (guiTexture : GuiTexture) => {
     modeDisplayButton.alpha = Math.sin(a)*0.2 + 0.8;
   };
   ipcRenderer.on('notifyModeQueue', (event, modeQueue) => {
-    guiTexture.scene.onBeforeRenderObservable.removeCallback(modeAnimation);
+    guiTexture.renderer.scene.onBeforeRenderObservable.removeCallback(modeAnimation);
     modeDisplayButton.alpha = 1;
-    if(modeQueue.length) guiTexture.scene.onBeforeRenderObservable.add(modeAnimation);
+    if(modeQueue.length) guiTexture.renderer.scene.onBeforeRenderObservable.add(modeAnimation);
   });
   storePoseButton.onPointerClickObservable.add(() => {
     ipcRenderer.send('storePose', currentMode);

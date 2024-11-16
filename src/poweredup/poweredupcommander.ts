@@ -61,11 +61,12 @@ export class PoweredUpCommander implements CommanderAbstraction {
     for(let i = 0; i < 6; i++) {
       if(hub.name == "BeneLego" + (i + 1)) {
         this.hubs[i] = hub;
-	this.dog.notifyHubStatus(this.hubs.map(e => e ? true : false));
+	if(hub) this.dog.notifyHubStatus(i, this.dog.hubStatus[i] | 0b00100001, 0, 0);
+	else this.dog.notifyHubStatus(i, 0, 0, 0);
         hub.removeAllListeners("disconnect");
         hub.on("disconnect", () => {
           this.hubs[i] = null;
-          this.dog.notifyHubStatus(this.hubs.map(e => e ? true : false));
+	  this.dog.notifyHubStatus(i, 0, 0, 0);
           this.initializeDevices(hub);
 	});
         hub.removeAllListeners("attach");
@@ -87,20 +88,20 @@ export class PoweredUpCommander implements CommanderAbstraction {
 
   async initializeDevices(hub: HubAbstraction) {
     const id = parseInt(hub.name.substring(8)) - 1;
+    let status = this.dog.hubStatus[id] & 0b11100001;
     if(id < 4) {
-      this.setupMotor(hub, "A", 3*id + 2);
+      if(this.setupMotor(hub, "A", 3*id + 2)) status |= 0b00000010;
+      if(this.setupAccelerometer(hub, "B", 2*id + 1)) status |= 0b00000100;
       this.setupAccelerometer(hub, "ACCELEROMETER", 2*id);
-      this.setupAccelerometer(hub, "B", 2*id + 1);
     }
     else {
-      this.setupMotor(hub, "A", 6*(id - 4));
-      this.setupMotor(hub, "B", 6*(id - 4) + 1);
-      this.setupMotor(hub, "C", 6*(id - 4) + 3);
-      this.setupMotor(hub, "D", 6*(id - 4) + 4);
+      if(this.setupMotor(hub, "A", 6*(id - 4))) status |= 0b00000010;
+      if(this.setupMotor(hub, "B", 6*(id - 4) + 1)) status |= 0b00000100;
+      if(this.setupMotor(hub, "C", 6*(id - 4) + 3)) status |= 0b00001000;
+      if(this.setupMotor(hub, "D", 6*(id - 4) + 4)) status |= 0b00010000;
       this.setupAccelerometer(hub, "ACCELEROMETER", 4 + id);
     }
-    this.dog.notifyMotorStatus(this.motors.map(e => e ? true : false));
-    this.dog.notifyAccelerometerStatus(this.accelerometers.map(e => e ? true : false));
+    this.dog.notifyHubStatus(id, status, 0, 0);
   }
 
   setupMotor(hub: HubAbstraction, port: string, id: number) {
@@ -120,6 +121,7 @@ export class PoweredUpCommander implements CommanderAbstraction {
       motor.send(Buffer.from([0x41, motor.portId, 0x02, 0x30, 0x00, 0x00, 0x00, 0x01])); // subscribe again with delta interval 48 instead of 1
     }
     else this.motors[id] = null;
+    return motor;
   }
 
   setupAccelerometer(hub: HubAbstraction, port: string, id: number) {
@@ -147,6 +149,7 @@ export class PoweredUpCommander implements CommanderAbstraction {
       }
     }
     else this.accelerometers[id] = null;
+    return accelerometer;
   }
 
   requestShutdown() {
