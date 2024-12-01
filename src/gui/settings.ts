@@ -66,7 +66,7 @@ const buildSelectionPanel = (renderer : Renderer) => {
   panel.paddingTop = "40px";
   panel.adaptHeightToChildren = true;
   panel.verticalAlignment = Container.VERTICAL_ALIGNMENT_TOP;
-  panel.color = "white";
+  panel.color = "lightgrey";
   panel.fontSize = "20px";
   return panel;
 }

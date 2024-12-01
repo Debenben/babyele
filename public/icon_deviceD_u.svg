@@ -26,16 +26,26 @@
      showgrid="false"
      showguides="true"
      inkscape:zoom="12.1156"
-     inkscape:cx="25.009079"
+     inkscape:cx="6.6443263"
      inkscape:cy="30.621678"
      inkscape:window-width="1920"
      inkscape:window-height="1029"
      inkscape:window-x="0"
      inkscape:window-y="27"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g37720" />
+     inkscape:current-layer="svg27135" />
   <defs
      id="defs27132">
+    <inkscape:path-effect
+       effect="powermask"
+       id="path-effect354"
+       is_visible="true"
+       lpeversion="1"
+       uri="#mask-powermask-path-effect354"
+       invert="false"
+       hide_mask="false"
+       background="true"
+       background_color="#ffffffff" />
     <inkscape:path-effect
        effect="powermask"
        id="path-effect37722"
@@ -236,28 +246,71 @@
          values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
          in="fbSourceGraphic" />
     </filter>
+    <filter
+       id="mask-powermask-path-effect337_inverse"
+       inkscape:label="filtermask-powermask-path-effect337"
+       style="color-interpolation-filters:sRGB"
+       height="100"
+       width="100"
+       x="-50"
+       y="-50">
+      <feColorMatrix
+         id="mask-powermask-path-effect337_primitive1"
+         values="1"
+         type="saturate"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         id="mask-powermask-path-effect337_primitive2"
+         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
+         in="fbSourceGraphic" />
+    </filter>
+    <mask
+       maskUnits="userSpaceOnUse"
+       id="mask-powermask-path-effect354">
+      <path
+         id="mask-powermask-path-effect354_box"
+         style="fill:#ffffff;fill-opacity:1"
+         d="M -1,-1 H 8.9375 V 8.9375 H -1 Z" />
+      <g
+         id="g352"
+         style="fill:#ff0000">
+        <path
+           d="m 3.5436375,3.2737029 v 1.5469429 h 0.2343339 q 0.4007448,0 0.6113056,-0.1986743 0.2122589,-0.1986744 0.2122589,-0.5773443 0,-0.3769718 -0.2105608,-0.5739481 Q 4.1804143,3.2737029 3.7779714,3.2737029 Z M 2.8898801,2.7795641 H 3.579297 q 0.5773443,0 0.8592241,0.083206 0.2835779,0.081507 0.4856484,0.2784837 0.1782974,0.1715052 0.2648991,0.3956506 0.086602,0.2241454 0.086602,0.5077233 0,0.2869741 -0.086602,0.5128175 Q 5.1024669,4.7815902 4.9241695,4.9530953 4.7204009,5.1500716 4.4351249,5.2332771 4.149849,5.3147845 3.579297,5.3147845 H 2.8898801 Z"
+           id="path348"
+           style="font-weight:bold;font-size:3.47765px;line-height:1.25;-inkscape-font-specification:'sans-serif Bold';fill:#000000;fill-opacity:0.8;stroke-width:0.217352" />
+        <path
+           id="path350"
+           style="fill:none;stroke:#000000;stroke-width:0.688002;stroke-dashoffset:18.2413;stroke-opacity:0.8"
+           d="M 0.87316763,0.87316763 H 7.0643326 V 7.0643326 H 0.87316763 Z" />
+      </g>
+    </mask>
+    <filter
+       id="mask-powermask-path-effect354_inverse"
+       inkscape:label="filtermask-powermask-path-effect354"
+       style="color-interpolation-filters:sRGB"
+       height="100"
+       width="100"
+       x="-50"
+       y="-50">
+      <feColorMatrix
+         id="mask-powermask-path-effect354_primitive1"
+         values="1"
+         type="saturate"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         id="mask-powermask-path-effect354_primitive2"
+         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
+         in="fbSourceGraphic" />
+    </filter>
   </defs>
-  <g
-     id="g37720"
-     style="fill:#ff0000">
-    <rect
-       style="fill:#000000;fill-opacity:0.3;stroke:none;stroke-width:0.264583"
-       id="rect377"
-       width="7.9375"
-       height="7.9375"
-       x="0"
-       y="2.220446e-16" />
-    <path
-       id="path37716"
-       style="fill:none;stroke:#000000;stroke-width:0.688002;stroke-dashoffset:18.2413;stroke-opacity:0.80000001"
-       d="M 0.87316763,0.87316763 H 7.0643326 V 7.0643326 H 0.87316763 Z" />
-    <path
-       d="m 3.5436375,3.2737029 v 1.5469429 h 0.2343339 q 0.4007448,0 0.6113056,-0.1986743 0.2122589,-0.1986744 0.2122589,-0.5773443 0,-0.3769718 -0.2105608,-0.5739481 Q 4.1804143,3.2737029 3.7779714,3.2737029 Z M 2.8898801,2.7795641 H 3.579297 q 0.5773443,0 0.8592241,0.083206 0.2835779,0.081507 0.4856484,0.2784837 0.1782974,0.1715052 0.2648991,0.3956506 0.086602,0.2241454 0.086602,0.5077233 0,0.2869741 -0.086602,0.5128175 Q 5.1024669,4.7815902 4.9241695,4.9530953 4.7204009,5.1500716 4.4351249,5.2332771 4.149849,5.3147845 3.579297,5.3147845 H 2.8898801 Z"
-       id="path37718"
-       style="font-weight:bold;font-size:3.47765px;line-height:1.25;-inkscape-font-specification:'sans-serif Bold';fill:#000000;stroke-width:0.217352;fill-opacity:0.80000001" />
-  </g>
-  <g
-     inkscape:label="Layer 1"
-     inkscape:groupmode="layer"
-     id="layer1" />
+  <rect
+     style="fill:#000000;fill-opacity:0.3;stroke:none;stroke-width:0.264583"
+     id="rect377"
+     width="7.9375"
+     height="7.9375"
+     x="0"
+     y="2.220446e-16"
+     mask="url(#mask-powermask-path-effect354)"
+     inkscape:path-effect="#path-effect354"
+     d="M 0,0 H 7.9375 V 7.9375 H 0 Z" />
 </svg>

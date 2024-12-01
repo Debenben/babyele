@@ -15,7 +15,7 @@ export class DogInfobox extends Infobox {
     this.addControls();
   }
   addControls() {
-    this.toggle = new ToggleButton("Position", "Rotation", this.toggleGauge);
+    this.toggle = new ToggleButton("position", "rotation", this.toggleGauge);
     this.panel.addControl(this.toggle);
     this.tiltText = new ThreePrint("tilt");
     ipcRenderer.on('notifyTilt', this.updateTilt);

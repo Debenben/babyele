@@ -133,7 +133,7 @@ const buildTopMenu = (guiTexture : GuiTexture) => {
   grid.paddingTop = "5px";
   grid.paddingRight = "5px";
   grid.paddingLeft = "5px";
-  grid.color = "white";
+  grid.color = "lightgrey";
   grid.zIndex = 20;
   grid.addColumnDefinition(70, true);
   grid.addColumnDefinition(0.5);
@@ -153,7 +153,7 @@ const buildTopMenu = (guiTexture : GuiTexture) => {
     modeDisplayButton.textBlock.text = modeName;
     storePoseButton.isVisible = !isKnown;
     deletePoseButton.isVisible = isKnown && !reservedNames.includes(modeName);
-    if(isKnown) grid.color = "white"
+    if(isKnown) grid.color = "lightgrey"
     else grid.color = "green";
   });
   let a = 0;
@@ -173,7 +173,7 @@ const buildTopMenu = (guiTexture : GuiTexture) => {
     ipcRenderer.send('deleteMode', currentMode);
   });
   deletePoseButton.onPointerEnterObservable.add(() => grid.color = "red");
-  deletePoseButton.onPointerOutObservable.add(() => grid.color = "white");
+  deletePoseButton.onPointerOutObservable.add(() => grid.color = "lightgrey");
   storePoseButton.isVisible = false;
   deletePoseButton.isVisible = false;
   const settingsButton = buildTopMenuButton("⚙");
@@ -192,7 +192,7 @@ const buildTopMenu = (guiTexture : GuiTexture) => {
 const buildTopMenuButton = (displayText: string) => {
   const button = Button.CreateSimpleButton("topMenuButton", displayText);
   button.fontSize = "80%";
-  button.color = "white";
+  button.color = "lightgrey";
   button.thickness = 0;
   button.onPointerEnterObservable.add(() => button.thickness = 1);
   button.onPointerOutObservable.add(() => button.thickness = 0);

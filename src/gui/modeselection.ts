@@ -299,7 +299,7 @@ const buildInput = () => {
   input.paddingRight = "5px";
   input.paddingLeft = "5px";
   input.placeholderText = "🞣";
-  input.color = "white";
+  input.color = "lightgrey";
   input.focusedBackground = "green";
   input.onBlurObservable.add(() => {
     if(input.text) {

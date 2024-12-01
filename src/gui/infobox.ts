@@ -18,7 +18,7 @@ export class Infobox extends Container {
     this.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.zIndex = 20;
     this.fillRectangle = new Rectangle("background");
-    this.fillRectangle.thickness = 0;
+    this.fillRectangle.thickness = 1;
     this.fillRectangle.cornerRadius = 5;
     this.isPointerBlocker = true;
     this.addControl(this.fillRectangle);
@@ -29,10 +29,10 @@ export class Infobox extends Container {
     this.setPreview(preview);
   }
   setPreview(preview: boolean) {
-    if(preview) this.color = "#3cd73c80";
-    else this.color = "#ff6e5a80";
+    this.color = preview ? "#3cd73c80" : "#ff6e5a80";
     this.fillRectangle.background = this.color;
-    this.heading.background = this.color;
+    this.fillRectangle.color = preview ? "#3cd73cc0" : "#ff6e5ac0";
+    this.heading.background = this.fillRectangle.color;
   }
   addControls(){return}
   removeControls(){return}
@@ -60,12 +60,12 @@ const buildHeading = (infobox: Infobox) => {
   });
   block.onPointerEnterObservable.add(() => {
     heading.alpha = 0.6;
-    infobox.fillRectangle.thickness = 1;
+    infobox.fillRectangle.color = "lightgrey";
   });
   block.onPointerOutObservable.add(() => {
     if(heading.thickness > 0) return;
     heading.alpha = 0.8;
-    infobox.fillRectangle.thickness = 0;
+    infobox.fillRectangle.color = heading.background;
   });
   heading.addControl(block);
   const button = Button.CreateSimpleButton("closeButton","🗙");
@@ -165,10 +165,8 @@ export class ToggleButton extends Container {
   }
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
-    this.button1.background = enabled ? "#000000c0" : "#00000040";
-    this.button2.background = enabled ? "#00000040" : "#000000c0";
-    this.button1.color = enabled ? undefined : "black";
-    this.button2.color = enabled ? "black" : undefined;
+    this.button1.background = enabled ? "#00000040" : "#000000c0";
+    this.button2.background = enabled ? "#000000c0" : "#00000040";
   }
 }
 
