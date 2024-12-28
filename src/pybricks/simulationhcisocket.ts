@@ -124,13 +124,13 @@ class SimulationPybricksHub {
   broadcastInterval;
   motors: SimulationMotor[]
   tiltSensors : SimulationTiltSensor[]
-  currentCommand : number
+  currentChecksum : number
 
   constructor(socket: SimulationHciSocket, hubId: number) {
     console.log("construction simulation hub with id", hubId);
     this.socket = socket;
     this.hubId = hubId;
-    this.currentCommand = 0;
+    this.currentChecksum = 0;
     if(this.hubId < 5) {
       this.motors = [new SimulationMotor(0.0756)];
       this.tiltSensors = [new SimulationTiltSensor([9800, 0, 0]), new SimulationTiltSensor([0, -10000, 0])];
@@ -152,7 +152,7 @@ class SimulationPybricksHub {
         data.writeUInt8(0xd0, 19);
         data.writeUInt8(0b00111111, 20);
       }
-      data.writeUInt8(this.currentCommand, 21);
+      data.writeUInt8(this.currentChecksum, 21);
       const hubAcceleration = this.tiltSensors[0].getAcceleration();
       data.writeInt16LE(hubAcceleration[0], 22);
       data.writeInt16LE(hubAcceleration[1], 24);
@@ -175,8 +175,11 @@ class SimulationPybricksHub {
   }
 
   processBroadcast(data: Buffer) {
-    this.currentCommand = data.readUInt8(11);
-    if(this.currentCommand == 1) {
+    const command = data.readUInt8(11);
+    let checksum = 0;
+    for(let i=0; i<25; i++) checksum ^= data.readUInt8(11 + i);
+    this.currentChecksum = checksum;
+    if(command == 1) {
       if(this.hubId < 5) {
         this.motors[0].setSpeed(data.readInt16LE(10 + 6*this.hubId));
       }
@@ -187,7 +190,7 @@ class SimulationPybricksHub {
         this.motors[3].setSpeed(data.readInt16LE(12*this.hubId - 40));
       }
     }
-    else if(this.currentCommand == 2) {
+    else if(command == 2) {
       if(this.hubId < 5) {
         this.motors[0].setDestRotation(data.readInt16LE(10 + 6*this.hubId));
       }
@@ -198,7 +201,7 @@ class SimulationPybricksHub {
         this.motors[3].setDestRotation(data.readInt16LE(12*this.hubId - 40));
       }
     }
-    else if(this.currentCommand == 3) {
+    else if(command == 3) {
       if(this.hubId < 5) {
         this.motors[0].reset(data.readInt16LE(10 + 6*this.hubId));
       }
@@ -209,7 +212,7 @@ class SimulationPybricksHub {
         this.motors[3].reset(data.readInt16LE(12*this.hubId - 40));
       }
     }
-    else if(this.currentCommand == 4) {
+    else if(command == 4) {
       console.log("shutting down simulation hub id", this.hubId);
       this.broadcastInterval.clear();
     }

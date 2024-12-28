@@ -22,13 +22,16 @@ const LE_SET_ADVERTISING_DATA_CMD = OCF_LE_SET_ADVERTISING_DATA | OGF_LE_CTL << 
 const LE_SET_ADVERTISE_ENABLE_CMD = OCF_LE_SET_ADVERTISE_ENABLE | OGF_LE_CTL << 10;
 
 class Command {
-  command: number
-  data: Vec43
+  data: Buffer
   promise: Promise<any>
   callback: any
-  constructor(command: number, data: Vec43) {
-    this.command = command;
+  checksum: number
+  constructor(data: Buffer) {
     this.data = data;
+    this.checksum = 0;
+    for(let i=1; i<26; i++) {
+      this.checksum ^= data[i];
+    }
     this.promise = new Promise<any>((resolve) => {
       this.callback = (exitStatus) => resolve(exitStatus);
     });
@@ -39,6 +42,8 @@ export class PybricksCommander implements CommanderAbstraction {
   dog: SensorAbstraction;
   socket: SocketAbstraction;
   currentCommand: Command;
+  currentChecksums = [0,0,0,0,0,0];
+  commandCounter = 0;
 
   constructor(dog: SensorAbstraction, socket: SocketAbstraction) {
     this.dog = dog;
@@ -56,7 +61,16 @@ export class PybricksCommander implements CommanderAbstraction {
     if(id < 1 || id > 6) return;
     if(id < 5 && data.readUInt8(19) != 0xd2) return;
     if(id > 4 && data.readUInt8(19) != 0xd0) return;
-    this.dog.notifyHubStatus(id - 1, data.readUInt8(20), Date.now(), data.readInt8(data.length - 1));
+    this.currentChecksums[id - 1] = data.readUInt8(21);
+    if(this.currentCommand) {
+      if(this.currentChecksums[id -1] == this.currentCommand.checksum) this.dog.notifyHubStatus(id - 1, data.readUInt8(20), Date.now(), data.readInt8(data.length - 1));
+      if(this.currentChecksums.every(e => e == this.currentCommand.checksum)) {
+        this.dog.notifyHubStatus(id - 1, data.readUInt8(20), Date.now(), data.readInt8(data.length - 1));
+        this.currentCommand.callback(0x22);
+	this.currentCommand = null;
+	this.requestKeepalive();
+      }
+    }
     if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)]); // [-x, z, -y]
     const motorAngles = this.dog.motorAngles;
     if(id < 5) {
@@ -68,19 +82,13 @@ export class PybricksCommander implements CommanderAbstraction {
       this.dog.notifyTopAcceleration(topAcceleration);
       this.dog.notifyBottomAcceleration(bottomAcceleration);
     }
-    else  {
+    else {
       motorAngles[2*(id - 5)][0] = 10*data.readInt16LE(28);
       motorAngles[2*(id - 5)][1] = 10*data.readInt16LE(30);
       motorAngles[2*(id - 5) + 1][0] = 10*data.readInt16LE(32);
       motorAngles[2*(id - 5) + 1][1] = 10*data.readInt16LE(34);
     }
     this.dog.notifyMotorAngles(motorAngles);
-    if(this.currentCommand) {
-      if(motorAngles.every((e,i) => e.every((f,j) => Math.abs(f - 10*this.currentCommand.data[i][j]) < 20.0))) {
-        this.currentCommand.callback(0x22);
-        this.currentCommand = null;
-      }
-    }
   }
 
   async connect() {
@@ -102,7 +110,7 @@ export class PybricksCommander implements CommanderAbstraction {
     this.setScanEnable(true);
     this.setAdvertiseEnable(true);
 
-    this.sendCommand(0, [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
+    this.requestKeepalive();
   }
 
   async disconnect() {
@@ -122,8 +130,8 @@ export class PybricksCommander implements CommanderAbstraction {
     cmd.writeUInt8(0x07, 3); // length
 
     cmd.writeUInt8(0x00, 4); // type: 0 -> passive, 1 -> active
-    cmd.writeUInt16LE(0x003e, 5); // internal, ms * 1.6
-    cmd.writeUInt16LE(0x003e, 7); // window, ms * 1.6
+    cmd.writeUInt16LE(0x00a0, 5); // interval, ms * 0.625
+    cmd.writeUInt16LE(0x00a0, 7); // window, ms * 0.625
     cmd.writeUInt8(0x00, 9); // own address type: 0 -> public, 1 -> random
     cmd.writeUInt8(0x00, 10); // filter: 0 -> all event types
 
@@ -151,7 +159,7 @@ export class PybricksCommander implements CommanderAbstraction {
     cmd.writeUInt16LE(0x00a0, 4); // min interval
     cmd.writeUInt16LE(0x00a0, 6); // max interval
     cmd.writeUInt8(0x03, 8); // adv type: 3 -> ADV_NONCONN_IND
-    cmd.writeUInt8(0x07, 17);
+    cmd.writeUInt8(0x07, 17); // all three channels
 
     return this.socket.write(cmd);
   }
@@ -191,7 +199,6 @@ export class PybricksCommander implements CommanderAbstraction {
 
   sendCommand(command: number, data: Vec43) {
     if(this.currentCommand) this.currentCommand.callback(0x24);
-    this.currentCommand = null;
     const msg = Buffer.alloc(26, 0);
     msg.writeUInt8((6 << 5) | (25 & 0x1F), 0); // type: byte=6, length: 25
     msg.writeUInt8(command, 1);
@@ -201,12 +208,15 @@ export class PybricksCommander implements CommanderAbstraction {
       }
     }
     // console.log("sending command", msg);
-    if(command == 2) {
-      this.setBroadcast(0, msg);
-      this.currentCommand = new Command(command, data);
-      return this.currentCommand.promise;
-    }
-    else return this.setBroadcast(0, msg);
+    this.setBroadcast(0, msg);
+    this.currentCommand = new Command(msg);
+    return this.currentCommand.promise;
+  }
+
+  async requestKeepalive() {
+    this.commandCounter += 1;
+    if(this.commandCounter >= 2**16) this.commandCounter = 0;
+    return this.sendCommand(0, [[this.commandCounter,0,0], [0,0,0], [0,0,0], [0,0,0]]);
   }
 
   async requestShutdown() {
@@ -214,14 +224,17 @@ export class PybricksCommander implements CommanderAbstraction {
   }
 
   async requestMotorSpeeds (motorSpeeds: Vec43) {
+    // console.log("requesting speed with", motorSpeeds);
     return this.sendCommand(1, motorSpeeds);
   }
 
   async requestMotorAngles (motorAngles: Vec43) {
+    // console.log("requesting angles with", motorAngles)
     return this.sendCommand(2, motorAngles.map(e => e.map(v => v/10)) as Vec43);
   }
 
   async requestSync (motorAngles: Vec43) {
+    // console.log("requesting sync with", motorAngles);
     return this.sendCommand(3, motorAngles.map(e => e.map(v => v/10)) as Vec43);
   }
 }

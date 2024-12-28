@@ -14,7 +14,6 @@ _CMD_ANGLE = const(2)
 _CMD_RESET = const(3)
 _CMD_SHUTDOWN = const(4)
 
-_CMD_KEEPALIVE_PACK = [pack('<B12h',_CMD_KEEPALIVE, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
 _CMD_SHUTDOWN_PACK = [pack('<B12h',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
 
 _BUTTON_IDLE = const(0)
@@ -109,16 +108,18 @@ Matrix(
 )]
 
 loopCounter = 0
+commandCounter = 0
 buttonMode = _BUTTON_IDLE
 selection = _SELECT_RETURN
 hubSensorData = [0, 0, 0, 0, 0, 0, 0]
 hubTimestamps = [StopWatch(), StopWatch(), StopWatch(), StopWatch(), StopWatch(), StopWatch(), StopWatch()]
+hubChecksums = [0, 0, 0, 0, 0, 0, 0]
 
 
 hub = InventorHub(observe_channels=[0,1,2,3,4,5,6], broadcast_channel=_HUBID)
 hub.system.set_stop_button(None)
-hub.ble.broadcast(_CMD_KEEPALIVE_PACK)
 hub.speaker.volume(10)
+
 
 def getSpeedCmd(speed, counter):
     buffer = bytearray(pack('<B12h',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
@@ -132,7 +133,7 @@ def getStatus():
         status += 1
     status += 32
     for i in range(1, 7):
-        if(hubTimestamps[i].time() > 100):
+        if(hubTimestamps[i].time() > 10000):
             status -= 32
             break
     if(buttonMode):
@@ -140,14 +141,18 @@ def getStatus():
     return status
 
 def executeCommand(data):
-    global hubTimestamps, hubSensorData
+    global hubTimestamps, hubSensorData, hubChecksums
+    checksum = 0
     try:
         cmd = unpack_from('<B', data[0], 0)[0]
+        for i in range(25):
+            checksum ^= unpack_from('<B', data[0], i)[0]
     except:
         #print("failed to unpack", data)
         return
-    hubSensorData[0] = data
     hubTimestamps[0].reset()
+    hubSensorData[0] = data
+    hubChecksums[0] = checksum
     if cmd == _CMD_SHUTDOWN:
         hub.speaker.beep(1000, 20)
         wait(100)
@@ -160,19 +165,27 @@ def executeCommand(data):
         hub.system.shutdown()
 
 def getSensorData():
-    global hubSensorData, hubTimestamps
+    global hubSensorData, hubTimestamps, hubChecksums, commandCounter
     for i in range(1, 7):
         receive = hub.ble.observe(i)
         if receive:
             hubSensorData[i] = receive[0]
             try:
                 status = receive[0][0]
+                hubChecksums[i] = receive[0][1]
             except:
                 #print("failed to unpack", receive)
                 status = 0
             #print("receive", i, hubSensorData[i], status)
-            if (i <= 4 and (status & 0b00110011 == 0b00100011)) or (i > 4 and (status & 0b00111111 == 0b00111111)):
-                hubTimestamps[i].reset()
+            if hubChecksums[i] == hubChecksums[0]:
+                if (i <= 4 and (status & 0b00110011 == 0b00100011)) or (i > 4 and (status & 0b00111111 == 0b00111111)):
+                    hubTimestamps[i].reset()
+                    if all(hubChecksums[i] == hubChecksums[0] for i in range(6)):
+                        commandCounter += 1
+                        command = [pack('<B12h',_CMD_KEEPALIVE, commandCounter,0,0, 0,0,0, 0,0,0, 0,0,0)]
+                        #print("all checksums", hubChecksums[i])
+                        sendCommand(command)
+
 
 
 def getCommand():
@@ -180,12 +193,11 @@ def getCommand():
     #print("button mode is", buttonMode, selection)
     if buttonMode == _BUTTON_IDLE:
         if hub.buttons.pressed() == {Button.CENTER}:
-            hub.ble.broadcast(getSpeedCmd(0, 0))
+            sendCommand(getSpeedCmd(0, 0))
             hub.speaker.beep(1000, 20)
             buttonMode = _BUTTON_ACTIVE
             selection = _SELECT_RETURN
         else:
-            hub.ble.broadcast(_CMD_KEEPALIVE_PACK)
             receive = hub.ble.observe(0)
             if receive:
                 executeCommand(receive)
@@ -202,8 +214,7 @@ def getCommand():
     elif buttonMode == _BUTTON_SELECT:
         if hub.buttons.pressed() == {Button.CENTER}:
             if selection == _SELECT_SHUTDOWN:
-                hub.ble.broadcast(_CMD_SHUTDOWN_PACK)
-                executeCommand(_CMD_SHUTDOWN_PACK)
+                sendCommand(_CMD_SHUTDOWN_PACK)
             buttonMode = _BUTTON_INACTIVE
         elif hub.buttons.pressed() == {Button.LEFT}:
             if(selection > 0):
@@ -226,7 +237,7 @@ def getCommand():
                 elif(roll > 15):
                     motor = 0
                 command = getSpeedCmd(pitch*30, motor + 3*(selection - 1))
-                hub.ble.broadcast(command)
+                sendCommand(command)
             elif(selection > 4 and selection < 7):
                 motor = 0
                 if(roll < -20):
@@ -238,7 +249,7 @@ def getCommand():
                 else:
                     motor = 4
                 command = getSpeedCmd(pitch*30, motor + 6*(selection - 5))
-                hub.ble.broadcast(command)
+                sendCommand(command)
 
 
 
@@ -258,14 +269,26 @@ def setLedColor():
         h = 160
         matrix += _LEDICONS[0]
         for i in range(1, 7):
-            if(hubTimestamps[i].time() < 200):
+            if hubTimestamps[i].time() < 10000:
                 matrix += _LEDICONS[i]
-    elif(status & 0b01000000 == 0b01000000):
-        h = 10 + floor(loopCounter/250)*30
-        s = 90
-        v = 100
+    elif(status & 0b01000000 == 0b01000000): #selected
+        if loopCounter < 250:
+            h = 10
+            s = 90
+            v = 100
+        elif loopCounter < 500:
+            h = 120
+            s = 90
+            v = 100
+        elif loopCounter < 750:
+            h = 250
+            s = 90
+            v = 100
+        else:
+            h = 0
+            s = 0
+            v = 0
         matrix = _LEDICONS[selection]
-
     if(loopCounter < 10 or loopCounter > 990):
         h = 0
         s = 0
@@ -273,7 +296,7 @@ def setLedColor():
     elif(loopCounter < 15 or loopCounter > 985):
         h = 0
         s = 0
-        v = 0
+        v = 20
     elif(status & 0b01000000 == 0b00000000):
         v = 20 + 2e-4*(500 - loopCounter)**2
     hub.light.on(Color(h, s, v))
@@ -282,6 +305,13 @@ def setLedColor():
 
 
 
+def sendCommand(command):
+    hub.ble.broadcast(command)
+    executeCommand(command)
+
+
+command = [pack('<B12h',_CMD_KEEPALIVE, commandCounter,0,0, 0,0,0, 0,0,0, 0,0,0)]
+sendCommand(command)
 while(True):
     getCommand()
     getSensorData()

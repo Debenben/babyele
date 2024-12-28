@@ -27,7 +27,7 @@ _BUTTON_INACTIVE = const(3)
 loopCounter = 0
 buttonMode = _BUTTON_IDLE
 currentCommand = 0
-currentTarget = [0, 0, 0, 0]
+currentChecksum = 0
 commandTimestamp = StopWatch()
 motors = [0, 0, 0, 0]
 imuA = [[0.0, 0.0, 0.0]]*10
@@ -71,43 +71,49 @@ def getStatus():
 
 
 def executeCommand(data):
-    global motors, currentCommand, currentTarget, commandTimestamp
+    global motors, currentCommand, currentChecksum, commandTimestamp
+    checksum = 0
     try:
-        currentCommand = unpack_from('<B', data[0], 0)[0]
+        command = unpack_from('<B', data[0], 0)[0]
         mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', data[0], 1 + 12*(_HUBID - 5))
+        for i in range(25):
+            checksum ^= unpack_from('<B', data[0], i)[0]
     except:
         #print("failed to unpack", data)
         return
-
     commandTimestamp.reset()
+    currentCommand = data
+    currentChecksum = checksum
     #print("command", cmd, mount1, top1, mount2, top2)
-    currentTarget = [mount1, top1, mount2, top2]
-    if currentCommand == _CMD_KEEPALIVE:
+    if command == _CMD_KEEPALIVE:
         pass
-    elif currentCommand == _CMD_SPEED:
+    elif command == _CMD_SPEED:
+        target = [2*mount1, top1, 2*mount2, top2]
         for i in range(0, 4):
             try:
-                if currentTarget[i] == 0:
+                if target[i] == 0:
                     motors[i].brake()
                 else:
-                    motors[i].run(motors[i].control.limits()[0]*currentTarget[i]/1000)
+                    motors[i].run(target[i])
             except:
                 getMotor(_MOTORPORTS[i])
-    elif currentCommand == _CMD_ANGLE:
+    elif command == _CMD_ANGLE:
+        target = [10*mount1, 10*top1, 10*mount2, 10*top2]
         for i in range(0, 4):
             try:
-                motors[i].track_target(currentTarget[i]*10)
+                motors[i].track_target(target[i])
             except:
                 getMotor(_MOTORPORTS[i])
-    elif currentCommand == _CMD_RESET:
+    elif command == _CMD_RESET:
+        target = [10*mount1, 10*top1, 10*mount2, 10*top2]
         for i in range(0, 4):
             try:
-                motors[i].reset_angle(currentTarget[i]*10)
+                motors[i].reset_angle(target[i])
             except:
                 getMotor(_MOTORPORTS[i])
-    elif currentCommand == _CMD_SHUTDOWN:
+    elif command == _CMD_SHUTDOWN:
         hub.system.shutdown()
-    
+
 
 
 def getSensorValues():
@@ -180,9 +186,22 @@ def setLedColor():
     elif(status & 0b01111111 == 0b00011111): # battery, motors
         h = 160
     elif(status & 0b01000000 == 0b01000000): # selected
-        h = 10 + floor(loopCounter/250)*30
-        s = 90
-        v = 100
+        if loopCounter < 250:
+            h = 10
+            s = 90
+            v = 100
+        elif loopCounter < 500:
+            h = 120
+            s = 90
+            v = 100
+        elif loopCounter < 750:
+            h = 250
+            s = 90
+            v = 100
+        else:
+            h = 0
+            s = 0
+            v = 0
     if(loopCounter < 10 or loopCounter > 990):
         h = 0
         s = 0
@@ -190,7 +209,7 @@ def setLedColor():
     elif(loopCounter < 15 or loopCounter > 985):
         h = 0
         s = 0
-        v = 0
+        v = 20
     elif(status & 0b01000000 == 0b00000000): # not selected
         v = 20 + 2e-4*(500 - loopCounter)**2
     hub.light.on(Color(h, s, v))
@@ -203,7 +222,7 @@ def transmitSensorValues():
         for i in range(10):
             imuV[j] += imuA[i][j]
         imuV[j] = floor(0.1*imuV[j])
-    data = pack('<BB7h', status, currentCommand, *imuV, floor(0.1*angles[0]), floor(0.1*angles[1]), floor(0.1*angles[2]), floor(0.1*angles[3]))
+    data = pack('<BB7h', status, currentChecksum, *imuV, floor(0.1*angles[0]), floor(0.1*angles[1]), floor(0.1*angles[2]), floor(0.1*angles[3]))
     #print("data is", data)
     hub.ble.broadcast([data])
 
@@ -214,4 +233,3 @@ while(True):
     getStatus()
     setLedColor()
     transmitSensorValues()
-

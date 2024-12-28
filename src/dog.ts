@@ -174,7 +174,7 @@ export class Dog implements DogAbstraction {
     this._hubTimestampsIntervalID = setInterval(async () => {
       for(let id=0; id<6; id++) {
         const last = this._hubTimestamps[id].slice(-1)[0];
-        if(last > 0 && Date.now() - last > 2000) this.notifyHubStatus(id, 0, 0, 0);
+        if(last > 0 && Date.now() - last > 10000) this.notifyHubStatus(id, 0, 0, 0);
 	if(this._hubTimestamps[id].length > 1200) {
           this._hubTimestamps[id].splice(0, this._hubTimestamps[id].length - 1000);
           this._hubRssis[id].splice(0, this._hubRssis[id].length - 1000);

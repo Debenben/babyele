@@ -29,7 +29,7 @@ _BUTTON_INACTIVE = const(3)
 loopCounter = 0
 buttonMode = _BUTTON_IDLE
 currentCommand = 0
-currentTarget = 0
+currentChecksum = 0
 commandTimestamp = StopWatch()
 motor = 0
 tiltSensor = 0
@@ -100,38 +100,41 @@ def getStatus():
 
 
 def executeCommand(data):
-    global motor, currentCommand, currentTarget, commandTimestamp
+    global motor, currentCommand, currentChecksum, commandTimestamp
+    checksum = 0
     try:
-        currentCommand = unpack_from('<B', data[0], 0)[0]
+        command = unpack_from('<B', data[0], 0)[0]
         mount, top, bottom = unpack_from('<hhh', data[0], 1 + 6*(_HUBID - 1))
+        for i in range(25):
+            checksum ^= unpack_from('<B', data[0], i)[0]
     except:
         #print("failed to unpack", data)
         return
-
     commandTimestamp.reset()
+    currentCommand = data
+    currentChecksum = checksum
     #print("command", cmd, bottom)
-    currentTarget = bottom
-    if currentCommand == _CMD_KEEPALIVE:
+    if command == _CMD_KEEPALIVE:
         pass
-    elif currentCommand == _CMD_SPEED:
+    elif command == _CMD_SPEED:
         try:
-            if currentTarget == 0:
+            if bottom == 0:
                 motor.brake()
             else:
-                motor.run(motor.control.limits()[0]*currentTarget/1000)
+                motor.run(bottom)
         except:
             getMotor(_MOTORPORT)
-    elif currentCommand == _CMD_ANGLE:
+    elif command == _CMD_ANGLE:
         try:
-            motor.track_target(currentTarget*10)
+            motor.track_target(bottom*10)
         except:
             getMotor(_MOTORPORT)
-    elif currentCommand == _CMD_RESET:
+    elif command == _CMD_RESET:
         try:
-            motor.reset_angle(currentTarget*10)
+            motor.reset_angle(bottom*10)
         except:
             getMotor(_MOTORPORT)
-    elif currentCommand == _CMD_SHUTDOWN:
+    elif command == _CMD_SHUTDOWN:
         hub.system.shutdown()
 
 
@@ -162,8 +165,18 @@ def getSensorValues():
     except:
         getTiltSensor(_TILTPORT)
     try:
-        distance = distanceSensor.distance()
-        #print("distance is", distance)
+        if (status & 0b01000000 == 0b01000000): #selected
+            if loopCounter == 0:
+                distanceSensor.light.on(Color.RED)
+            elif loopCounter == 250:
+                distanceSensor.light.on(Color.GREEN)
+            elif loopCounter == 500:
+                distanceSensor.light.on(Color.BLUE)
+            elif loopCounter == 750:
+                distanceSensor.light.off()
+        else:
+            distance = distanceSensor.distance()
+            #print("distance is", distance)
     except:
         getDistanceSensor(_DISTANCEPORT)
 
@@ -210,9 +223,22 @@ def setLedColor():
     elif(status & 0b01110111 == 0b00000111): # battery, motor, accelerometer, ignored, empty port, no bluetooth commander, not selected
         h = 160
     elif(status & 0b01000000 == 0b01000000): # selected
-        h = 10 + floor(loopCounter/250)*30
-        s = 90
-        v = 100
+        if loopCounter < 250:
+            h = 10
+            s = 90
+            v = 100
+        elif loopCounter < 500:
+            h = 120
+            s = 90
+            v = 100
+        elif loopCounter < 750:
+            h = 250
+            s = 90
+            v = 100
+        else:
+            h = 0
+            s = 0
+            v = 0
     if(loopCounter < 10 or loopCounter > 990):
         h = 0
         s = 0
@@ -220,7 +246,7 @@ def setLedColor():
     elif(loopCounter < 15 or loopCounter > 985):
         h = 0
         s = 0
-        v = 0
+        v = 20
     elif(status & 0b01000000 == 0b00000000): # not selected
         v = 20 + 2e-4*(500 - loopCounter)**2
     hub.light.on(Color(h, s, v))
@@ -236,7 +262,7 @@ def transmitSensorValues():
             tiltV[j] += tiltA[i][j]
         imuV[j] = floor(0.1*imuV[j])
         tiltV[j] = floor(15.4*tiltV[j])
-    data = pack('<BB8h', status, currentCommand, *imuV, floor(0.1*angle), *tiltV, distance)
+    data = pack('<BB8h', status, currentChecksum, *imuV, floor(0.1*angle), *tiltV, distance)
     #print("data is", data)
     hub.ble.broadcast([data])
 
@@ -247,4 +273,3 @@ while(True):
     getStatus()
     setLedColor()
     transmitSensorValues()
-
