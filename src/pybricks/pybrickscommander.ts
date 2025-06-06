@@ -13,11 +13,13 @@ const OCF_LE_SET_SCAN_PARAMETERS = 0x000b;
 const OCF_LE_SET_SCAN_ENABLE = 0x000c;
 const OCF_LE_SET_ADVERTISING_PARAMETERS = 0x0006;
 const OCF_LE_SET_ADVERTISING_DATA = 0x0008;
+const OCF_LE_SET_SCAN_RESPONSE_DATA = 0x0009;
 const OCF_LE_SET_ADVERTISE_ENABLE = 0x000a;
 
 const LE_SET_SCAN_PARAMETERS_CMD = OCF_LE_SET_SCAN_PARAMETERS | OGF_LE_CTL << 10;
 const LE_SET_SCAN_ENABLE_CMD = OCF_LE_SET_SCAN_ENABLE | OGF_LE_CTL << 10;
 const LE_SET_ADVERTISING_PARAMETERS_CMD = OCF_LE_SET_ADVERTISING_PARAMETERS | OGF_LE_CTL << 10;
+const LE_SET_SCAN_RESPONSE_DATA_CMD = OCF_LE_SET_SCAN_RESPONSE_DATA | OGF_LE_CTL << 10;
 const LE_SET_ADVERTISING_DATA_CMD = OCF_LE_SET_ADVERTISING_DATA | OGF_LE_CTL << 10;
 const LE_SET_ADVERTISE_ENABLE_CMD = OCF_LE_SET_ADVERTISE_ENABLE | OGF_LE_CTL << 10;
 
@@ -53,7 +55,7 @@ export class PybricksCommander implements CommanderAbstraction {
   }
 
   async onData(data) {
-    //console.log(data);
+    // console.log(data);
     if(data.length < 35) return;
     if(data.readUInt8(15) != 0xff) return; // manufacturer data
     if(data.readUInt16LE(16) != 0x0397) return; // lego
@@ -62,17 +64,11 @@ export class PybricksCommander implements CommanderAbstraction {
     if(id < 5 && data.readUInt8(19) != 0xd2) return;
     if(id > 4 && data.readUInt8(19) != 0xd0) return;
     this.currentChecksums[id - 1] = data.readUInt8(21);
-    if(this.currentCommand) {
-      if(this.currentChecksums[id -1] == this.currentCommand.checksum) this.dog.notifyHubStatus(id - 1, data.readUInt8(20), Date.now(), data.readInt8(data.length - 1));
-      if(this.currentChecksums.every(e => e == this.currentCommand.checksum)) {
-        this.dog.notifyHubStatus(id - 1, data.readUInt8(20), Date.now(), data.readInt8(data.length - 1));
-        this.currentCommand.callback(0x22);
-	this.currentCommand = null;
-	this.requestKeepalive();
-      }
+    if(this.currentCommand && this.currentChecksums[id -1] == this.currentCommand.checksum) {
+      this.dog.notifyHubStatus(id - 1, data.readUInt8(20), Date.now(), data.readInt8(data.length - 1));
     }
     if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)]); // [-x, z, -y]
-    const motorAngles = this.dog.motorAngles;
+    const motorAngles = [[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN]] as Vec43
     if(id < 5) {
       const topAcceleration = this.dog.topAcceleration;
       const bottomAcceleration = this.dog.bottomAcceleration;
@@ -89,6 +85,14 @@ export class PybricksCommander implements CommanderAbstraction {
       motorAngles[2*(id - 5) + 1][1] = 10*data.readInt16LE(34);
     }
     this.dog.notifyMotorAngles(motorAngles);
+    if(this.currentCommand && this.currentChecksums.every(e => e == this.currentCommand.checksum)) {
+      if(this.currentCommand.data[1] != 2 || motorAngles.every((e,i) => e.every((f,j) => Math.abs(f - 10*this.currentCommand.data.readInt16LE(2 + 6*i + 2*j)) < 200.0))) {
+        // not requestMotorAngles command or motorAngles reached destination
+        this.currentCommand.callback(0x22);
+        this.currentCommand = null;
+        this.requestKeepalive();
+      }
+    }
   }
 
   async connect() {
@@ -105,10 +109,11 @@ export class PybricksCommander implements CommanderAbstraction {
 
     this.setScanEnable(false);
     this.setAdvertiseEnable(false);
-    this.setScanParameters();
+    this.setScanResponseData();
     this.setAdvertiseParameters();
-    this.setScanEnable(true);
+    this.setScanParameters();
     this.setAdvertiseEnable(true);
+    this.setScanEnable(true);
 
     this.requestKeepalive();
   }
@@ -158,7 +163,7 @@ export class PybricksCommander implements CommanderAbstraction {
 
     cmd.writeUInt16LE(0x00a0, 4); // min interval
     cmd.writeUInt16LE(0x00a0, 6); // max interval
-    cmd.writeUInt8(0x03, 8); // adv type: 3 -> ADV_NONCONN_IND
+    cmd.writeUInt8(0x02, 8); // adv type: 3 -> ADV_NONCONN_IND, 2 -> ADV_SCAN_IND
     cmd.writeUInt8(0x07, 17); // all three channels
 
     return this.socket.write(cmd);
@@ -170,6 +175,19 @@ export class PybricksCommander implements CommanderAbstraction {
     cmd.writeUInt16LE(LE_SET_ADVERTISING_DATA_CMD, 1); // command
     cmd.writeUInt8(32, 3); // length
 
+    cmd.writeUInt8(data.length, 4);
+    data.copy(cmd, 5);
+
+    return this.socket.write(cmd);
+  }
+
+  setScanResponseData() {
+    const cmd = Buffer.allocUnsafe(36).fill(0);
+    cmd.writeUInt8(HCI_COMMAND_PKT, 0);
+    cmd.writeUInt16LE(LE_SET_SCAN_RESPONSE_DATA_CMD, 1);
+    cmd.writeUInt8(32, 3);
+
+    const data = Buffer.from('080962656E65506330', 'hex'); // length, completeLocalName, benePc0
     cmd.writeUInt8(data.length, 4);
     data.copy(cmd, 5);
 

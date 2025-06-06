@@ -30,9 +30,7 @@ export class SimulationHciSocket extends EventEmitter implements SocketAbstracti
   write(data: Buffer) {
     console.log("simulation socket received", data);
     if(data.length != 36) return;
-    if(data.readUInt8(6) != 0xff) return; // manufacturer data
-    if(data.readUInt16LE(7) != 0x0397) return; // lego
-    if(data.readUInt8(9) != 0x00) return; // channel nr
+    if(data.readUInt32BE(6) != 0xff970300) return; // manufacturer data, lego, lego, channel 0
     if(data.readUInt8(10) != 0xd9) return; // binary array and length
     this.bleHubs.forEach(hub => hub.processBroadcast(data));
   }

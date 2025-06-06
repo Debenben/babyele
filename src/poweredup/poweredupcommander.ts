@@ -114,7 +114,7 @@ export class PoweredUpCommander implements CommanderAbstraction {
       motor.setSpeed(0, undefined, true);
       motor.removeAllListeners('rotate');
       motor.on('rotate', ({degrees}) => {
-        const angles = JSON.parse(JSON.stringify(this.dog.motorAngles));
+        const angles = [[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN]] as Vec43
 	angles[Math.floor(id/3)][id%3] = degrees;
 	this.dog.notifyMotorAngles(angles);
       });

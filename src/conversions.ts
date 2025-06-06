@@ -141,6 +141,16 @@ export const durationsFromMotorAngles = (startMotorAngles: Vec43, endMotorAngles
   return durations;
 }
 
+export const motorAnglesTimeEvolution = (startMotorAngles: Vec43, timestamps: Vec43, speed: Vec43): Vec43 => {
+  for(let i = 0; i < 4; i++) {
+    for(let j = 0; j < 3; j++) {
+      const timediff = Date.now() - timestamps[i][j];
+      if(timediff > 0 && timediff < 2000) startMotorAngles[i][j] += speed[i][j]*timediff/motorMaxSpeeds[i][j];
+    }
+  }
+  return startMotorAngles;
+}
+
 export const dogRotationFromAcceleration = (acceleration: Vec3): Vec3 => {
   const zangle = Math.atan2(acceleration[0], acceleration[1]);
   const xangle = -Math.atan2(acceleration[2], Math.sqrt(acceleration[1]**2 + acceleration[0]**2));
