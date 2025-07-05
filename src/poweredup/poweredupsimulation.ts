@@ -2,7 +2,7 @@ import { EventEmitter } from "events";
 import { PoweredAbstraction, HubAbstraction, LEDAbstraction, MotorAbstraction, AccelerometerAbstraction } from "./poweredupinterfaces";
 
 export class SimulationPowered extends EventEmitter implements PoweredAbstraction {
-  hubList: string[] = ["BeneLego6", "BeneLego1", "BeneLego2", "BeneLego3", "BeneLego4", "BeneLego5", "differentHub"]
+  hubList: string[] = ["bene6", "bene1", "bene2", "bene3", "bene4", "bene5", "differentHub"]
   restart = false
 
   public async scan() {
@@ -37,17 +37,17 @@ export class SimulationHub extends EventEmitter implements HubAbstraction {
     console.log("creating simulation hub " + this.name);
     this.devices["ACCELEROMETER"] = new SimulationTiltSensor("ACCELEROMETER", hubName);
     switch(this.name) {
-      case "BeneLego5":
-      case "BeneLego6":
+      case "bene5":
+      case "bene6":
         this.devices["A"] = new SimulationMotor("A", 882);
         this.devices["B"] = new SimulationMotor("B", 882);
         this.devices["C"] = new SimulationMotor("C", 756);
         this.devices["D"] = new SimulationMotor("D", 756);
 	break;
-      case "BeneLego1":
-      case "BeneLego2":
-      case "BeneLego3":
-      case "BeneLego4":
+      case "bene1":
+      case "bene2":
+      case "bene3":
+      case "bene4":
         this.devices["A"] = new SimulationMotor("A", 756);
         this.devices["B"] = new SimulationTiltSensor("B", hubName);
 	break;
@@ -127,7 +127,7 @@ export class SimulationTiltSensor extends EventEmitter implements AccelerometerA
   constructor(portName: string, hubName: string) {
     super();
     this.portId = toPortId(portName);
-    if(hubName === "BeneLego5" || hubName === "BeneLego6") {
+    if(hubName === "bene5" || hubName === "bene6") {
       this.x = 0;
       this.y = 280;
       this.z = 960;

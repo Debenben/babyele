@@ -172,5 +172,6 @@ export const legAnglesFromAcceleration = (dogAcceleration: Vec3, topAcceleration
     const bottomAngle = -Math.atan2(b[2], b[0]) + Math.atan2(t[2], t[0]);
     legAngles.push([mountAngle, topAngle, bottomAngle]);
   }
-  return legAngles as Vec43;
+  // map angles to range -PI .. +PI
+  return legAngles.map(v => v.map(e => e > Math.PI ? e - 2*Math.PI : e < -Math.PI ? e + 2*Math.PI : e)) as Vec43;
 }

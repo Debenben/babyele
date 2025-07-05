@@ -59,7 +59,7 @@ export class PoweredUpCommander implements CommanderAbstraction {
     await hub.connect();
     console.log("Connected to " + hub.name + " firmware " + hub.firmwareVersion);
     for(let i = 0; i < 6; i++) {
-      if(hub.name == "BeneLego" + (i + 1)) {
+      if(hub.name == "bene" + (i + 1)) {
         this.hubs[i] = hub;
 	if(hub) this.dog.notifyHubStatus(i, this.dog.hubStatus[i] | 0b00100001, 0, 0);
 	else this.dog.notifyHubStatus(i, 0, 0, 0);
@@ -87,7 +87,7 @@ export class PoweredUpCommander implements CommanderAbstraction {
   }
 
   async initializeDevices(hub: HubAbstraction) {
-    const id = parseInt(hub.name.substring(8)) - 1;
+    const id = parseInt(hub.name.substring(4)) - 1;
     let status = this.dog.hubStatus[id] & 0b11100001;
     if(id < 4) {
       if(this.setupMotor(hub, "A", 3*id + 2)) status |= 0b00000010;
