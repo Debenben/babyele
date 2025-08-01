@@ -3,6 +3,8 @@ import * as path from "path";
 import { MoveController } from "./movecontroller"
 import { CommanderAbstraction } from "./commanderinterface"
 import { Dog } from "./dog"
+declare const GUI_WINDOW_WEBPACK_ENTRY: string;
+declare const TXT_WINDOW_WEBPACK_ENTRY: string;
 
 let mainWindow: Electron.BrowserWindow;
 let controller: MoveController;
@@ -15,9 +17,8 @@ async function createWindow() {
     webPreferences: { nodeIntegration: true, contextIsolation: false, sandbox: false },
   });
 
-  const fileName = process.argv.includes('--txt') ? "../public/txtindex.html" : "../public/guiindex.html";
-  mainWindow.loadFile(path.join(__dirname, fileName));
-
+  const windowUrl = process.argv.includes('--txt') ? TXT_WINDOW_WEBPACK_ENTRY : GUI_WINDOW_WEBPACK_ENTRY;
+  mainWindow.loadURL(windowUrl);
   Menu.setApplicationMenu(null)
   // mainWindow.webContents.openDevTools();
 }

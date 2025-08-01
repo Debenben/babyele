@@ -5,7 +5,7 @@ import { GuiTexture } from "./guitexture";
 import { legNames, jointNames, Vector3, Quaternion } from "../tools";
 import * as Param from '../param';
 
-export class Renderer {
+export class GuiRenderer {
   canvas: HTMLCanvasElement;
   engine: BABYLON.Engine;
   scene: BABYLON.Scene;
@@ -456,7 +456,7 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   return leg;
 }
 
-const renderer = new Renderer();
+const renderer = new GuiRenderer();
 renderer.initialize(document.getElementById('canvas') as HTMLCanvasElement);
 
 ipcRenderer.on('notifyStatus', (event, arg1, arg2) => {

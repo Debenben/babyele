@@ -1,7 +1,7 @@
 import * as BABYLON from 'babylonjs';
 import { AdvancedDynamicTexture, Control, Button, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Renderer } from './renderer';
+import { GuiRenderer } from './guirenderer';
 import { Infobox } from './infobox';
 import { LegInfobox } from './leginfobox';
 import { HubInfobox } from './hubinfobox';
@@ -11,14 +11,14 @@ import { Settings } from './settings';
 import { reservedNames } from '../tools';
 
 export class GuiTexture {
-  renderer: Renderer;
+  renderer: GuiRenderer;
   texture: AdvancedDynamicTexture;
   infobox: Infobox;
   modeSelection: ModeSelection;
   settings: Settings;
   topMenu: Grid;
   dragHelper: DragHelper;
-  constructor(renderer: Renderer) {
+  constructor(renderer: GuiRenderer) {
     this.renderer = renderer;
     this.renderer.scene.onKeyboardObservable.add(onKeyPress);
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.renderer.scene);

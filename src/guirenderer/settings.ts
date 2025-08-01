@@ -1,13 +1,13 @@
 import { Container, Rectangle, SelectionPanel, CheckboxGroup } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
-import { Renderer } from './renderer';
+import { GuiRenderer } from './guirenderer';
 import { jointNames, legNames } from '../tools';
 
 export class Settings extends Container {
   modalBlocker : Rectangle
   selectionPanel : SelectionPanel
 
-  constructor(renderer : Renderer) {
+  constructor(renderer : GuiRenderer) {
     super();
     this.name = "settings"
     this.modalBlocker = buildModalBlocker();
@@ -22,7 +22,7 @@ export class Settings extends Container {
   }
 }
 
-const buildSelectionPanel = (renderer : Renderer) => {
+const buildSelectionPanel = (renderer : GuiRenderer) => {
   const checkboxGroup = new CheckboxGroup("Settings");
   checkboxGroup.header = "";
   checkboxGroup.addCheckbox("auto rotation", (checked) => {

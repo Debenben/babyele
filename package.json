@@ -1,15 +1,16 @@
 {
   "name": "babyele",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "program to control lego walker",
-  "main": "./app/main.js",
+  "main": ".webpack/main",
   "scripts": {
-    "build": "tsc && electron-rebuild",
     "configure": "sudo setcap cap_net_raw+eip ./node_modules/electron/dist/electron && sudo bash -c 'chown root:root $(pwd)/node_modules/electron/dist/chrome-sandbox && chmod 4755 $(pwd)/node_modules/electron/dist/chrome-sandbox'",
-    "start": "tsc && electron-forge start",
-    "test": "tsc && electron-forge start -- -- --simulation",
+    "start": "electron-forge start",
+    "test": "electron-forge start -- -- --simulation",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "eslint --ext .ts,.tsx ."
   },
   "author": "bene",
   "license": "ISC",
@@ -18,39 +19,32 @@
     "@debenben/node-poweredup": "^9.0.13",
     "babylonjs": "^8.11.0",
     "babylonjs-gui": "^8.11.0",
-    "babylonjs-loaders": "^8.11.0"
+    "babylonjs-loaders": "^8.11.0",
+    "electron-squirrel-startup": "^1.0.1"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.2.0",
-    "@electron-forge/maker-deb": "^7.2.0",
-    "@electron-forge/maker-rpm": "^7.2.0",
-    "@electron-forge/maker-squirrel": "^7.2.0",
-    "@electron-forge/maker-zip": "^7.2.0",
-    "@electron/rebuild": "^3.6.0",
-    "electron": "^37.0.0",
-    "typescript": "^5.0.4"
-  },
-  "config": {
-    "forge": {
-      "packagerConfig": {},
-      "makers": [
-        {
-          "name": "@electron-forge/maker-squirrel",
-          "config": {
-            "name": "babyele"
-          }
-        },
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
-        },
-        {
-          "name": "@electron-forge/maker-deb",
-          "config": {}
-        }
-      ]
-    }
+    "@electron-forge/cli": "^7.8.1",
+    "@electron-forge/maker-deb": "^7.8.1",
+    "@electron-forge/maker-rpm": "^7.8.1",
+    "@electron-forge/maker-squirrel": "^7.8.1",
+    "@electron-forge/maker-zip": "^7.8.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
+    "@electron-forge/plugin-fuses": "^7.8.1",
+    "@electron-forge/plugin-webpack": "^7.8.1",
+    "@electron/fuses": "^1.8.0",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "@vercel/webpack-asset-relocator-loader": "^1.7.3",
+    "copy-webpack-plugin": "^13.0.0",
+    "css-loader": "^6.11.0",
+    "electron": "37.2.4",
+    "eslint": "^8.57.1",
+    "eslint-plugin-import": "^2.32.0",
+    "fork-ts-checker-webpack-plugin": "^7.3.0",
+    "node-loader": "^2.1.0",
+    "style-loader": "^3.3.4",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "typescript": "~4.5.4"
   }
 }

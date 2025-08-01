@@ -166,10 +166,10 @@ export class HubInfobox extends Infobox {
 
 class StateIcon extends Image {
   constructor(iconName: string) {
-    super(iconName, "../public/icon_" + iconName + "_u.svg");
+    super(iconName, "../../public/icon_" + iconName + "_u.svg");
   }
   setEnabled(enabled: boolean) {
-    this.source = "../public/icon_" + this.name + (enabled ? "_s" : "_u") + ".svg";
+    this.source = "../../public/icon_" + this.name + (enabled ? "_s" : "_u") + ".svg";
   }
 }
 
