@@ -1,17 +1,18 @@
-import { Rectangle, TextBlock, Container, Control, Image } from "babylonjs-gui";
+import { TextBlock, Container, Control, Image } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Infobox, buildText } from './infobox';
+import { GuiTexture } from './guitexture';
 
 export class LegInfobox extends Infobox {
   gauge: Container;
   speedArrow: Indicator;
   angleArrow: Indicator;
   tiltArrow: Indicator;
-  rotationValue: number = 0;
-  tiltValue: number = 0;
+  rotationValue = 0;
+  tiltValue = 0;
   infoText: TextBlock;
 
-  constructor(name: string, preview: boolean, guiTexture) {
+  constructor(name: string, preview: boolean, guiTexture: GuiTexture) {
     super(name, preview, guiTexture);
     this.addControls();
   }

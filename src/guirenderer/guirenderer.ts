@@ -25,20 +25,18 @@ export class GuiRenderer {
   adjustHeight = false;
   guiTexture: GuiTexture;
 
-  async createScene(canvas: HTMLCanvasElement, engine: BABYLON.Engine) {
-    this.canvas = canvas;
-    this.engine = engine;
-    const scene = new BABYLON.Scene(engine);
+  async createScene() {
+    const scene = new BABYLON.Scene(this.engine);
     // scene.debugLayer.show();
     this.scene = scene;
 
-    buildBackground(scene, engine);
+    buildBackground(scene, this.engine);
     this.actionManager = new BABYLON.ActionManager(scene);
     this.guiTexture = new GuiTexture(this);
 
     const cameraCenter = new Vector3(0, Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM, 0).scale(0.5);
     this.camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/3, Math.PI/3, 3*Param.LEG_SEPARATION_LENGTH, cameraCenter, scene);
-    this.camera.attachControl(canvas, true);
+    this.camera.attachControl(this.canvas, true);
     this.camera.lowerRadiusLimit = 0.5*Param.LEG_SEPARATION_LENGTH;
     this.camera.minZ = 0.1*this.camera.lowerRadiusLimit;
     this.camera.upperRadiusLimit = 5.0*Param.LEG_SEPARATION_LENGTH;
@@ -88,7 +86,7 @@ export class GuiRenderer {
     const shadowCaster = new BABYLON.ShadowGenerator(1024, dirLight);
     shadowCaster.addShadowCaster(dog);
     shadowCaster.useCloseExponentialShadowMap = true;
-    buildGround(scene, engine);
+    buildGround(scene);
 
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, selectItem));
     this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, previewItem));
@@ -180,19 +178,20 @@ export class GuiRenderer {
     this.guiTexture.showInfobox(renderer.selectedItem, renderer.selectedItemIsPreview);
   }
 
-  async initialize(canvas: HTMLCanvasElement) {
-    const engine = new BABYLON.Engine(canvas, true);
-    await this.createScene(canvas, engine);
+  async initialize() {
+    this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    this.engine = new BABYLON.Engine(this.canvas, true);
+    await this.createScene();
 
-    engine.runRenderLoop(() => {
+    this.engine.runRenderLoop(() => {
       this.scene.render();
     });
 
     window.addEventListener('resize', () => {
-      engine.resize();
+      this.engine.resize();
     });
     ipcRenderer.send("rendererInitialized");
-    engine.resize();
+    this.engine.resize();
   }
 }
 
@@ -332,7 +331,7 @@ const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
   return background;
 }
 
-const buildGround = async (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
+const buildGround = async (scene: BABYLON.Scene) => {
   const radius = 4*Param.LEG_SEPARATION_WIDTH;
   const groundMat = await BABYLON.NodeMaterial.ParseFromFileAsync("groundMat", "../public/groundMaterial.json", scene);
   (groundMat.getBlockByName("BaseRadius") as BABYLON.InputBlock).value = radius;
@@ -457,7 +456,7 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
 }
 
 const renderer = new GuiRenderer();
-renderer.initialize(document.getElementById('canvas') as HTMLCanvasElement);
+renderer.initialize();
 
 ipcRenderer.on('notifyStatus', (event, arg1, arg2) => {
   if(arg2 && renderer.selectedItem == arg1) return;

@@ -7,7 +7,7 @@ import { Vec3, Vec43, Vector3, Quaternion, hubNames, motorNames, legNames } from
 const MOTOR_UPDATE_INTERVAL = 200; // interval in milliseconds for updating motor commands
 const HUB_TIMEOUT = 10000; // timeout in milliseconds for showing hub as offline
 
-const compareArrays = (a, b) => a.length === b.length && a.every((element, index) => element === b[index]);
+const compareArrays = (a: any[], b: any[]) => a.length === b.length && a.every((element, index) => element === b[index]);
 const vec3IsZero = (vec: Vec3) => compareArrays(vec, [0,0,0]);
 const vec43IsZero = (vec: Vec43) => vec.every(e => vec3IsZero(e));
 const vec3AbsMax = (vec: Vec3) => Math.max.apply(null, vec.map(e => Math.abs(e)));
@@ -91,19 +91,19 @@ export class Dog implements DogAbstraction {
     return this.commander.requestShutdown();
   }
 
-  requestMotorSpeeds(motorSpeeds) {
+  requestMotorSpeeds(motorSpeeds: Vec43) {
     clearInterval(this._moveSpeedIntervalID);
     this._moveSpeedIntervalID = null;
     return this.commander.requestMotorSpeeds(motorSpeeds);
   }
 
-  requestMotorAngles(motorAngles) {
+  requestMotorAngles(motorAngles: Vec43) {
     clearInterval(this._moveSpeedIntervalID);
     this._moveSpeedIntervalID = null;
     return this.commander.requestMotorAngles(motorAngles);
   }
 
-  requestSync(motorAngles) {
+  requestSync(motorAngles: Vec43) {
     return this.commander.requestSync(motorAngles);
   }
 
@@ -131,10 +131,10 @@ export class Dog implements DogAbstraction {
     for(let i = 0; i < 6; i++) {
       ipcMain.on(hubNames[i], (event, arg1, arg2) => {
         if(arg1 === "getProperties") {
-	  this.send('notifyStatus', hubNames[i], this.hubStatus[i]);
-	  this.send('notifyTimestamps', hubNames[i], this._hubTimestamps[i].slice(0));
-	  this.send('notifyRssis', hubNames[i], this._hubRssis[i].slice(0));
-	}
+          this.send('notifyStatus', hubNames[i], this.hubStatus[i]);
+           this.send('notifyTimestamps', hubNames[i], this._hubTimestamps[i].slice(0));
+           this.send('notifyRssis', hubNames[i], this._hubRssis[i].slice(0));
+        }
       });
     }
     for(let i = 0; i < 4; i++)  {
@@ -166,12 +166,12 @@ export class Dog implements DogAbstraction {
           angles[Math.floor(i/3)][i%3] = arg2;
           this.requestMotorAngles(motorAnglesFromLegAngles(angles));
         }
-	else if(arg1 === "requestSync") {
+        else if(arg1 === "requestSync") {
           const syncAngle = motorAnglesFromLegAngles(legAnglesFromAcceleration(this.dogAcceleration, this.topAcceleration, this.bottomAcceleration))[Math.floor(i/3)][i%3];
-	  const angles = this.motorAngles;
-	  angles[Math.floor(i/3)][i%3] = syncAngle;
-	  this.requestSync(angles);
-	}
+          const angles = this.motorAngles;
+          angles[Math.floor(i/3)][i%3] = syncAngle;
+          this.requestSync(angles);
+        }
       });
     }
     this._hubTimestampsIntervalID = setInterval(async () => {
@@ -203,7 +203,7 @@ export class Dog implements DogAbstraction {
     }
     this.send('notifyStatus', 'dog', this.getDogStatus());
     ipcMain.emit('notifyStatus', 'internal', 'dog', this.getDogStatus());
-  };
+  }
 
   async notifyMotorAngles(motorAngles: Vec43) {
     for(let i = 0; i < 4; i++) {
@@ -284,7 +284,7 @@ export class Dog implements DogAbstraction {
           durations = durationsFromMotorAngles(motorAnglesEvolved, destMotorAngles);
           maxDuration = vec43AbsMax(vec43Copy(durations));
           if((1000*maxDuration - MOTOR_UPDATE_INTERVAL*speed)**2 < 100) break;
-	  moveLength *= (MOTOR_UPDATE_INTERVAL*speed/(maxDuration*1000));
+          moveLength *= (MOTOR_UPDATE_INTERVAL*speed/(maxDuration*1000));
         }
 	this._moveSpeed = durations.map(e => e.map(f => 1000*speed*f/maxDuration)) as Vec43;
 	return this.commander.requestMotorSpeeds(this._moveSpeed);
@@ -317,7 +317,7 @@ export class Dog implements DogAbstraction {
           durations = durationsFromMotorAngles(motorAnglesEvolved, destMotorAngles);
           maxDuration = vec43AbsMax(vec43Copy(durations));
           if((1000*maxDuration - MOTOR_UPDATE_INTERVAL*speed)**2 < 100) break;
-	  moveLength *= (MOTOR_UPDATE_INTERVAL*speed/(maxDuration*1000));
+          moveLength *= (MOTOR_UPDATE_INTERVAL*speed/(maxDuration*1000));
         }
 	this._moveSpeed = durations.map(e => e.map(f => 1000*speed*f/maxDuration)) as Vec43;
 	return this.commander.requestMotorSpeeds(this._moveSpeed);

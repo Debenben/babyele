@@ -1,6 +1,7 @@
-import { Grid, TextBlock, Button, Image, Rectangle } from "babylonjs-gui";
+import { Grid, TextBlock, Image, Rectangle } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Infobox, Gauge, buildText, ThreePrint, buildGauge, ToggleButton } from './infobox';
+import { GuiTexture } from './guitexture';
 
 export class HubInfobox extends Infobox {
   preview: boolean;
@@ -19,7 +20,7 @@ export class HubInfobox extends Infobox {
   rssisText: TextBlock;
   timestampsIntervalID: NodeJS.Timeout = null
 
-  constructor(name: string, preview: boolean, guiTexture) {
+  constructor(name: string, preview: boolean, guiTexture: GuiTexture) {
     super(name, preview, guiTexture);
     this.preview = preview;
     this.showAcceleration = guiTexture.renderer.scene.getMeshByName("dogAcceleration").isEnabled(false);

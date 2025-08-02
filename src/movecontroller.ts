@@ -253,7 +253,7 @@ export class MoveController {
     return this.send('notifyModeQueue', []);
   }
 
-  allowSwitch = (origin, destination) => {
+  allowSwitch = (origin: string, destination: string) => {
     if(origin === "OFFLINE") return false;
     if(destination === "OFFLINE") return true;
     if(origin === "MANUAL") return true;

@@ -295,13 +295,13 @@ export class SimulationMotor extends EventEmitter implements MotorAbstraction {
   }
 }
 
-function sleep(ms) {
+function sleep(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
 }
 
-function toPortId(portName) {
+function toPortId(portName: string) {
     switch(portName) {
       case "A":
         return 0;

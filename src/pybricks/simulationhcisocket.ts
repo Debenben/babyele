@@ -36,8 +36,8 @@ export class SimulationHciSocket extends EventEmitter implements SocketAbstracti
   }
 }
 
-const setRandomInterval = (intervalFunction, minDelay: number, maxDelay: number) => {
-  let timeout;
+const setRandomInterval = (intervalFunction: () => void, minDelay: number, maxDelay: number) => {
+  let timeout: ReturnType<typeof setTimeout>;
   const runInterval = () => {
     const timeoutFunction = () => {
       intervalFunction();

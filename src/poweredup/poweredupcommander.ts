@@ -66,7 +66,7 @@ export class PoweredUpCommander implements CommanderAbstraction {
         hub.removeAllListeners("disconnect");
         hub.on("disconnect", () => {
           this.hubs[i] = null;
-	  this.dog.notifyHubStatus(i, 0, 0, 0);
+          this.dog.notifyHubStatus(i, 0, 0, 0);
           this.initializeDevices(hub);
 	});
         hub.removeAllListeners("attach");

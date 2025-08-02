@@ -35,7 +35,7 @@ class Command {
       this.checksum ^= data[i];
     }
     this.promise = new Promise<any>((resolve) => {
-      this.callback = (exitStatus) => resolve(exitStatus);
+      this.callback = (exitStatus: number) => resolve(exitStatus);
     });
   }
 }
@@ -54,7 +54,7 @@ export class PybricksCommander implements CommanderAbstraction {
     this.socket.on('error', (e) => console.error(e));
   }
 
-  async onData(data) {
+  async onData(data: Buffer) {
     // console.log(data);
     if(data.length < 35) return;
     if(data.readUInt8(15) != 0xff) return; // manufacturer data
@@ -143,7 +143,7 @@ export class PybricksCommander implements CommanderAbstraction {
     return this.socket.write(cmd);
   }
 
-  setScanEnable(enabled) {
+  setScanEnable(enabled: boolean) {
     const cmd = Buffer.allocUnsafe(6);
     cmd.writeUInt8(HCI_COMMAND_PKT, 0);
     cmd.writeUInt16LE(LE_SET_SCAN_ENABLE_CMD, 1); // command
@@ -169,7 +169,7 @@ export class PybricksCommander implements CommanderAbstraction {
     return this.socket.write(cmd);
   }
 
-  setAdvertiseData(data) {
+  setAdvertiseData(data: Buffer) {
     const cmd = Buffer.allocUnsafe(36).fill(0);
     cmd.writeUInt8(HCI_COMMAND_PKT, 0);
     cmd.writeUInt16LE(LE_SET_ADVERTISING_DATA_CMD, 1); // command
@@ -194,7 +194,7 @@ export class PybricksCommander implements CommanderAbstraction {
     return this.socket.write(cmd);
   }
 
-  setAdvertiseEnable(enabled) {
+  setAdvertiseEnable(enabled: boolean) {
     const cmd = Buffer.allocUnsafe(5).fill(0);
     cmd.writeUInt8(HCI_COMMAND_PKT, 0);
     cmd.writeUInt16LE(LE_SET_ADVERTISE_ENABLE_CMD, 1); // command
@@ -205,7 +205,7 @@ export class PybricksCommander implements CommanderAbstraction {
     return this.socket.write(cmd);
   }
 
-  setBroadcast(channel, data) {
+  setBroadcast(channel: number, data: Buffer) {
     const header = Buffer.allocUnsafe(5);
     header.writeUInt8(data.length + 4, 0); // length
     header.writeUInt8(0xff, 1); // manufacturer data

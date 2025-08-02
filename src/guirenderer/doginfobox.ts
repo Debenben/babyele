@@ -1,6 +1,6 @@
-import { TextBlock, Button } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Infobox, Gauge, buildGauge, ToggleButton, ThreePrint } from './infobox';
+import { GuiTexture } from './guitexture';
 
 export class DogInfobox extends Infobox {
   tiltText: ThreePrint;
@@ -10,7 +10,7 @@ export class DogInfobox extends Infobox {
   positionGauge: Gauge;
   toggle: ToggleButton;
 
-  constructor(name: string, preview: boolean, guiTexture) {
+  constructor(name: string, preview: boolean, guiTexture: GuiTexture) {
     super(name, preview, guiTexture);
     this.addControls();
   }

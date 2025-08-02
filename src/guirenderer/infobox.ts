@@ -1,4 +1,4 @@
-import { Rectangle, Ellipse, Control, TextBlock, Button, StackPanel, Container, Image, Grid } from "babylonjs-gui";
+import { Rectangle, Control, TextBlock, Button, StackPanel, Container, Image, Grid } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from './guitexture';
 
@@ -98,7 +98,7 @@ export const buildText = (content: string) => {
 }
 
 export class ThreePrint extends Grid {
-  coordText = [null, null, null]
+  coordText: TextBlock[] = [null, null, null]
 
   constructor(labelText: string) {
     super(labelText);
@@ -124,7 +124,7 @@ export class ThreePrint extends Grid {
       this.addControl(this.coordText[i], 0, 2*(i + 1));
     }
   }
-  setThreeText(vec3) {
+  setThreeText(vec3: string[]) {
     for(let i=0; i<3; i++) {
       this.coordText[i].text = vec3[i];
     }
@@ -263,7 +263,7 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
     const xval = 4*(vec.x - mouseOverlay.centerX)/(scaling*infobox.guiTexture.getScale());
     const yval = 4*(vec.y - mouseOverlay.centerY)/(scaling*infobox.guiTexture.getScale());
 
-    const s = [[],[],[]];
+    const s: number[][] = [[],[],[]];
     for(let i = 0; i < 3; i++) {
       for(let j = 0; j < 3; j++) {
         if(i === j) continue;
