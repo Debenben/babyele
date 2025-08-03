@@ -248,7 +248,7 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
   const knob3 = buildKnob([-1, -1, 0], -2*Math.PI/3);
 
   const sendRequest = (vec: number[]) => {
-    if(pointerDown) {
+    if(pointerDown && vec.every((e) => !isNaN(e))) {
       const destName = infobox.name.replace("hub", "leg");
       if(isRotationGauge) ipcRenderer.send(destName, "requestRotationSpeed", vec.map(x => 100*x));
       else ipcRenderer.send(destName, "requestPositionSpeed", [100*vec[0], -100*vec[1], 100*vec[2]]);

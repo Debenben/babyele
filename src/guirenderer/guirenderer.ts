@@ -1,8 +1,9 @@
 import * as BABYLON from 'babylonjs';
+import { Vector3, Quaternion } from 'babylonjs';
 import 'babylonjs-loaders';
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from "./guitexture";
-import { legNames, jointNames, Vector3, Quaternion } from "../tools";
+import { legNames, jointNames } from "../tools";
 import * as Param from '../param';
 
 export class GuiRenderer {

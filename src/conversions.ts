@@ -1,5 +1,5 @@
 import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH, MOUNT_MOTOR_RANGE, TOP_MOTOR_RANGE, BOTTOM_MOTOR_RANGE, MOUNT_MOTOR_MAX_SPEED, TOP_MOTOR_MAX_SPEED, BOTTOM_MOTOR_MAX_SPEED } from "./param";
-import { Vec43, Vec3, Vector3, Quaternion } from "./tools";
+import { Vec43, Vec3, Vec4, vec43Copy, vec43Sum, vec3Len, vec3Normalize, vec3Sub, vec43Sub, vec3Dot, vec3Cross, vec3Proj, vec43Cross, vec3Rotate } from "./tools";
 
 const cosLaw = (rSide: number, lSide: number, angle: number) => {
   // returns the side length opposite of the angle in a triangle with rSide and lSide side lengths adjacent to the angle
@@ -11,9 +11,6 @@ const invCosLaw = (rSide: number, lSide: number, oSide: number) => {
   const cosVal = (rSide**2 + lSide**2 - oSide**2)/(2*rSide*lSide);
   return Math.acos(cosVal > 1.0 ? 1.0 : (cosVal < -1.0 ? -1.0 : cosVal));
 }
-
-const vec43Copy = (vec: Vec43) => [vec[0].slice(0), vec[1].slice(0), vec[2].slice(0), vec[3].slice(0)] as Vec43;
-const vec43Sum = (vec: Vec43) => vec.reduce((s, v) => [s[0] + 0.25*v[0], s[1] + 0.25*v[1], + s[2] + 0.25*v[2]], [0, 0, 0]) as Vec3;
 
 const defaultLegPositions = [[ 0.5*LEG_SEPARATION_LENGTH, -LEG_MOUNT_HEIGHT,  (0.5*LEG_SEPARATION_WIDTH - LEG_MOUNT_WIDTH)],
                              [ 0.5*LEG_SEPARATION_LENGTH, -LEG_MOUNT_HEIGHT, -(0.5*LEG_SEPARATION_WIDTH - LEG_MOUNT_WIDTH)],
@@ -28,6 +25,28 @@ const defaultRelativeLegPositions = [[ 0.5*LEG_SEPARATION_LENGTH, 0,  0.5*LEG_SE
 const motorMaxSpeeds = new Array(4).fill([MOUNT_MOTOR_MAX_SPEED, TOP_MOTOR_MAX_SPEED, BOTTOM_MOTOR_MAX_SPEED]);
 
 const mountAngleOffset = invCosLaw(LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH);
+
+export const quatFromAxisAngle = (axis: Vec3, angle: number): Vec4 => {
+  if(vec3Len(axis) > 0) {
+    const s = Math.sin(0.5*angle) / vec3Len(axis);
+    return [s*axis[0], s*axis[1], s*axis[2], Math.cos(0.5*angle)] as Vec4;
+  }
+  else return [0, 0, 0, 1] as Vec4;
+}
+
+export const eulerFromQuat = (quat: Vec4): Vec3 => {
+  const qx = quat[0];
+  const qy = quat[1];
+  const qz = quat[2];
+  const qw = quat[3];
+  const zAxisY = qy*qz - qx*qw;
+  const limit = 0.4999999;
+  if (zAxisY < -limit) return [0.5*Math.PI, 2*Math.atan2(qy, qw), 0] as Vec3;
+  else if (zAxisY > limit) return [-0.5*Math.PI, 2*Math.atan2(qy, qw), 0] as Vec3;
+  else return [Math.asin(-2*zAxisY),
+               Math.atan2(2*(qz*qx + qy*qw),   qz**2  - qx**2 - qy**2 + qw**2),
+               Math.atan2(2*(qx*qy + qz*qw), -(qz**2) - qx**2 + qy**2 + qw**2)] as Vec3;
+}
 
 export const legAnglesFromMotorAngles = (motorAngles: Vec43): Vec43 => {
   for(let i = 0; i < 4; i++) {
@@ -105,29 +124,22 @@ export const motorAnglesFromLegPositions = (positions: Vec43, bendForward: boole
 }
 
 export const dogPositionFromMotorAngles = (motorAngles: Vec43): Vec3 => {
-  const averagePosition = Vector3.FromArray(vec43Sum(legPositionsFromMotorAngles(vec43Copy(motorAngles))));
-  const position = averagePosition.applyRotationQuaternionInPlace(dogRotationFromMotorAngles(motorAngles));
-  return [position.x, position.y, position.z] as Vec3;
+  const averagePosition = vec43Sum(legPositionsFromMotorAngles(vec43Copy(motorAngles)));
+  return vec3Rotate(averagePosition, dogRotationFromMotorAngles(motorAngles));
 }
 
-export const dogRotationFromMotorAngles = (motorAngles: Vec43): Quaternion => {
-  const dogPosition = vec43Sum(legPositionsFromMotorAngles(vec43Copy(motorAngles)));
-  const relativePos = legPositionsFromMotorAngles(motorAngles).map(v => Vector3.FromArray(v.map((e, j) => e - dogPosition[j])));
-  const defaultPos = defaultRelativeLegPositions.map(v => Vector3.FromArray(v));
-  const rotationAxis = Vector3.Zero();
-  for(let i = 0; i < 4; i++) {
-    rotationAxis.addInPlace(relativePos[i].cross(defaultPos[i]));
-  }
-  rotationAxis.normalize();
+export const dogRotationFromMotorAngles = (motorAngles: Vec43): Vec4 => {
+  const averagePosition = vec43Sum(legPositionsFromMotorAngles(vec43Copy(motorAngles)));
+  const relativePos = vec43Sub(legPositionsFromMotorAngles(motorAngles), averagePosition);
+  const rotationAxis = vec3Normalize(vec43Sum(vec43Cross(relativePos, defaultRelativeLegPositions)));
   let rotationAngle = 0;
   for(let i = 0; i < 4; i++) {
-    const relativeProj = relativePos[i].subtract(rotationAxis.scale(relativePos[i].dot(rotationAxis)));
-    const defaultProj = defaultPos[i].subtract(rotationAxis.scale(defaultPos[i].dot(rotationAxis)));
-    const angle = Math.acos(relativeProj.dot(defaultProj) / (relativeProj.length() * defaultProj.length()));
+    const relativeProj = vec3Proj(relativePos[i], rotationAxis);
+    const defaultProj = vec3Proj(defaultRelativeLegPositions[i], rotationAxis);
+    const angle = Math.acos(vec3Dot(relativeProj, defaultProj) / (vec3Len(relativeProj) * vec3Len(defaultProj)));
     if(!isNaN(angle)) rotationAngle += 0.25*angle;
   }
-  if(rotationAxis.length() > 0) return Quaternion.RotationAxis(rotationAxis, rotationAngle);
-  else return Quaternion.Identity();
+  return quatFromAxisAngle(rotationAxis, rotationAngle);
 }
 
 export const durationsFromMotorAngles = (startMotorAngles: Vec43, endMotorAngles: Vec43): Vec43 => {
