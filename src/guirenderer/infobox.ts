@@ -182,7 +182,7 @@ export class Gauge extends Container {
 class Knob extends Container {
   highlight = false;
   select = false;
-  knobImage = new Image("knob", "../../public/crosshair_u.svg");
+  knobImage = new Image("knob", "../public/crosshair_u.svg");
   constructor() {
     super();
     this.widthInPixels = 30;
@@ -190,7 +190,7 @@ class Knob extends Container {
     this.addControl(this.knobImage);
   }
   updateImage() {
-    this.knobImage.source = "../../public/crosshair_" + (this.select ? "s" : (this.highlight ? "h" : "u")) + ".svg";
+    this.knobImage.source = "../public/crosshair_" + (this.select ? "s" : (this.highlight ? "h" : "u")) + ".svg";
   }
 }
 
@@ -200,7 +200,7 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
   gauge.widthInPixels = infobox.widthInPixels;
   gauge.heightInPixels = scaling;
 
-  const scale = new Image("scale", "../../public/cube.svg");
+  const scale = new Image("scale", "../public/cube.svg");
   gauge.addControl(scale);
 
   const setKnob = (knob: Container, angles: number[]) => {
@@ -220,7 +220,7 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
     arrow.rotation = rotation;
     arrow.widthInPixels = 30;
     arrow.heightInPixels = 30;
-    const image = new Image("arrow", "../../public/skew_arrow.svg");
+    const image = new Image("arrow", "../public/skew_arrow.svg");
     arrow.addControl(image);
     setKnob(arrow, angles);
     gauge.addControl(arrow);

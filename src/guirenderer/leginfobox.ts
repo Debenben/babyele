@@ -52,7 +52,7 @@ const printDegree = (rad: number) => (180*rad/Math.PI).toFixed(2) + "°";
 class Indicator extends Container {
   highlight = false;
   select = false;
-  arrowImage = new Image("arrow", "../../public/arrow_u.svg");
+  arrowImage = new Image("arrow", "../public/arrow_u.svg");
   constructor() {
     super();
     this.arrowImage.widthInPixels = 30;
@@ -61,7 +61,7 @@ class Indicator extends Container {
     this.addControl(this.arrowImage);
   }
   updateImage() {
-    this.arrowImage.source = "../../public/arrow_" + (this.select ? "s" : (this.highlight ? "h" : "u")) + ".svg";
+    this.arrowImage.source = "../public/arrow_" + (this.select ? "s" : (this.highlight ? "h" : "u")) + ".svg";
   }
 }
 
@@ -91,7 +91,7 @@ const buildAngleGauge = (infobox: LegInfobox) => {
   const middleRadius = 110;
   const outerRadius = 140;
 
-  const scale = new Image("scale", "../../public/dial.svg");
+  const scale = new Image("scale", "../public/dial.svg");
   gauge.addControl(scale);
 
   infobox.infoText = buildText("---");
