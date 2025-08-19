@@ -80,7 +80,7 @@ const buildHeading = (infobox: Infobox) => {
   button.onPointerEnterObservable.add(() => button.thickness = 1);
   button.onPointerOutObservable.add(() => button.thickness = 0);
   button.onPointerClickObservable.add(() => {
-    infobox.guiTexture.renderer.setState(infobox.name, "online");
+    infobox.guiTexture.renderer.setState(infobox.name, "default");
   });
   heading.addControl(button);
   return heading;

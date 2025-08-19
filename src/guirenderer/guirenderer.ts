@@ -20,8 +20,8 @@ export class GuiRenderer {
   displacementLines: BABYLON.LinesMesh;
   positionLines: BABYLON.LinesMesh;
   defaultPositionLines: BABYLON.LinesMesh;
-  selectedItem: string;
-  selectedItemIsPreview: boolean;
+  selectedItems: string[] = [];
+  previewItem: string;
   useTilt = false;
   adjustHeight = false;
   guiTexture: GuiTexture;
@@ -89,9 +89,9 @@ export class GuiRenderer {
     shadowCaster.useCloseExponentialShadowMap = true;
     buildGround(scene);
 
-    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, selectItem));
-    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, previewItem));
-    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, unpreviewItem));
+    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, pickItem));
+    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, overItem));
+    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, outItem));
 
     this.gravityLines = await buildGravityLines(scene);
     this.displacementLines = await buildDisplacementLines(scene);
@@ -146,37 +146,36 @@ export class GuiRenderer {
     }
     switch(state) {
       case "select":
-        renderer.selectedItem = meshName;
-        renderer.selectedItemIsPreview = false;
+	renderer.guiTexture.showInfobox(meshName, false);
+        renderer.selectedItems.push(meshName);
         mesh.material = this.redMaterial;
         mesh.showBoundingBox = this.redMaterial.wireframe;
         mesh.isPickable = true;
         break;
       case "offline":
-        if(renderer.selectedItem === meshName) {
-          renderer.selectedItem = null;
-        }
+	renderer.guiTexture.removeInfobox(meshName);
+        renderer.selectedItems = renderer.selectedItems.filter(s => s !== meshName);
         mesh.material = this.greyMaterial;
         mesh.showBoundingBox = false;
         mesh.isPickable = false;
         break;
       case "preview":
-        renderer.selectedItem = meshName;
-        renderer.selectedItemIsPreview = true;
+	renderer.guiTexture.showInfobox(meshName, true);
+        renderer.selectedItems = renderer.selectedItems.filter(s => s !== meshName);
         mesh.material = this.pickMaterial;
         mesh.showBoundingBox = this.pickMaterial.wireframe;
         mesh.isPickable = true;
         break;
       case "online":
+        if(renderer.previewItem === meshName || renderer.selectedItems.filter(s => s === meshName).length) return;
+        // no break
       default:
-        if(renderer.selectedItem === meshName) {
-          renderer.selectedItem = null;
-        }
+	renderer.guiTexture.removeInfobox(meshName);
+        renderer.selectedItems = renderer.selectedItems.filter(s => s !== meshName);
         mesh.material = this.greenMaterial;
         mesh.showBoundingBox = false;
         mesh.isPickable = true;
     }
-    this.guiTexture.showInfobox(renderer.selectedItem, renderer.selectedItemIsPreview);
   }
 
   async initialize() {
@@ -275,30 +274,25 @@ const getDefaultPositionLinesPath = (scene: BABYLON.Scene) => {
   return system;
 }
 
-const selectItem = (event) => {
-  if(renderer.selectedItem) {
-    if(event.meshUnderPointer.name === renderer.selectedItem && !renderer.selectedItemIsPreview) {
-      renderer.setState(renderer.selectedItem, "preview");
-      return;
-    }
-    renderer.setState(renderer.selectedItem, "online");
-  }
-  renderer.setState(event.meshUnderPointer.name, "select");
+const pickItem = (event) => {
+  const isSelected = renderer.selectedItems.filter(s => s === event.meshUnderPointer.name).length;
+  renderer.previewItem = isSelected ? event.meshUnderPointer.name : null;
+  renderer.setState(event.meshUnderPointer.name, isSelected ? "preview" : "select");
 }
 
-const previewItem = (event) => {
-  if(renderer.selectedItem) {
-    if(!renderer.selectedItemIsPreview) return;
-    renderer.setState(renderer.selectedItem, "online");
+const outItem = () => {
+  if(renderer.previewItem) {
+    renderer.setState(renderer.previewItem, "default");
+    renderer.previewItem = null;
   }
+}
+
+const overItem = (event) => {
+  const isSelected = renderer.selectedItems.filter(s => s === event.meshUnderPointer.name).length;
+  if(isSelected || event.meshUnderPointer.name === renderer.previewItem) return;
+  if(renderer.previewItem) renderer.setState(renderer.previewItem, "default");
+  renderer.previewItem = event.meshUnderPointer.name;
   renderer.setState(event.meshUnderPointer.name, "preview");
-}
-
-const unpreviewItem = () => {
-  if(renderer.selectedItem) {
-    if(!renderer.selectedItemIsPreview) return;
-    renderer.setState(renderer.selectedItem, "online");
-  }
 }
 
 const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
@@ -460,7 +454,6 @@ const renderer = new GuiRenderer();
 renderer.initialize();
 
 ipcRenderer.on('notifyStatus', (event, arg1, arg2) => {
-  if(arg2 && renderer.selectedItem == arg1) return;
   renderer.setState(arg1, arg2 ? 'online' : 'offline');
 });
 ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {

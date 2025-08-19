@@ -4,7 +4,6 @@ import { Infobox, Gauge, buildText, ThreePrint, buildGauge, ToggleButton } from 
 import { GuiTexture } from './guitexture';
 
 export class HubInfobox extends Infobox {
-  preview: boolean;
   accelerationDogText: ThreePrint;
   accelerationTopText: ThreePrint;
   accelerationBottomText: ThreePrint;
@@ -22,12 +21,11 @@ export class HubInfobox extends Infobox {
 
   constructor(name: string, preview: boolean, guiTexture: GuiTexture) {
     super(name, preview, guiTexture);
-    this.preview = preview;
     this.showAcceleration = guiTexture.renderer.scene.getMeshByName("dogAcceleration").isEnabled(false);
-    this.addControls();
+    this.addControls(preview);
   }
 
-  addControls() {
+  addControls(preview: boolean) {
     this.stateIcons.push(new StateIcon("battery"));
     this.stateIcons.push(new StateIcon("motorA"));
     this.stateGrid = new Grid("stateGrid");
@@ -45,13 +43,13 @@ export class HubInfobox extends Infobox {
     const filler = new Rectangle("filler");
     filler.background = "#00000030";
     filler.thickness = 0;
-    this.timestampsLine = new DensityLine(this.preview);
+    this.timestampsLine = new DensityLine(preview);
     connectionGrid.addControl(this.timestampsLine, 0, 0);
     connectionGrid.addControl(filler, 0, 1);
     this.timestampsText = buildText("---");
     this.timestampsText.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_RIGHT;
     connectionGrid.addControl(this.timestampsText, 0, 1);
-    this.rssisLine = new DensityLine(this.preview);
+    this.rssisLine = new DensityLine(preview);
     connectionGrid.addControl(filler.clone(), 2, 1);
     this.rssisText = buildText("---");
     this.rssisText.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_RIGHT;
@@ -112,6 +110,11 @@ export class HubInfobox extends Infobox {
     ipcRenderer.removeListener('notifyRssis', this.updateRssis);
     clearInterval(this.timestampsIntervalID);
     this.timestampsIntervalID = null;
+  }
+  setPreview = (preview: boolean) => {
+      super.setPreview(preview);
+      this.timestampsLine.setPreview(preview);
+      this.rssisLine.setPreview(preview);
   }
   updateBendForward = (event, arg1, arg2) => {
     if(arg1 === this.name.replace("hub", "leg")) {
@@ -180,11 +183,13 @@ class DensityLine extends Rectangle {
 
   constructor(preview: boolean) {
     super();
+    this.heightInPixels = 25;
+    this.setPreview(preview);
+  }
+  setPreview(preview: boolean) {
     if(preview) this.getColor = (e) => "rgba(" + Math.sqrt(1000*e) + ", 255, " + Math.sqrt(1000*e) + ", " + 0.2*e + ")";
     else this.getColor = (e) => "rgba(255, " + Math.sqrt(1000*e) + ", " + Math.sqrt(1000*e) + ", " + 0.2*e + ")";
-    this.heightInPixels = 25;
   }
-
   protected _localDraw(ctx: BABYLON.ICanvasRenderingContext) {
     ctx.fillStyle = "#000000c0";
     ctx.fillRect(this._currentMeasure.left, this._currentMeasure.top, this._currentMeasure.width, this._currentMeasure.height);

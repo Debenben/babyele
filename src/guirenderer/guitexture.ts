@@ -13,7 +13,7 @@ import { reservedNames } from '../tools';
 export class GuiTexture {
   renderer: GuiRenderer;
   texture: AdvancedDynamicTexture;
-  infobox: Infobox;
+  infoboxes: Infoboxes[] = [];
   modeSelection: ModeSelection;
   settings: Settings;
   topMenu: Grid;
@@ -34,38 +34,33 @@ export class GuiTexture {
   getScale() {
     return this.texture.getSize().height/this.texture.idealHeight;
   }
-  removeInfobox() {
-    if(this.infobox) {
-      this.texture.removeControl(this.infobox);
-      this.infobox.removeControls();
-      this.infobox = null;
-    }
+  toggleVisibility(container: Container) {
+    const makeVisible = !container.isVisible;
+    this.modeSelection.isVisible = false;
+    this.settings.isVisible = false;
+    this.topMenu.isPointerBlocker = makeVisible;
+    container.isVisible = makeVisible;
+  }
+  removeInfobox(meshName: string) {
+    this.infoboxes.filter(b => b.name === meshName).map(b => {
+      this.texture.removeControl(b);
+      b.removeControls();
+    });
+    this.infoboxes = this.infoboxes.filter(b => b.name !== meshName);
   }
   showInfobox(meshName: string, preview: boolean) {
-    if(!meshName) {
-      this.removeInfobox();
+    const boxes = this.infoboxes.filter(b => b.name === meshName);
+    if(boxes.length) {
+      boxes.map(b => b.setPreview(preview));
       return;
     }
-    if(this.infobox && this.infobox.name === meshName) {
-      this.infobox.setPreview(preview);
-      return;
-    }
-    if (this.infobox) {
-      this.removeInfobox();
-    }
-    if(meshName.startsWith("leg")) {
-      this.infobox = new LegInfobox(meshName, preview, this);
-    }
-    else if(meshName.startsWith("hub")) {
-      this.infobox = new HubInfobox(meshName, preview, this);
-    }
-    else if(meshName === "dog") {
-      this.infobox = new DogInfobox(meshName, preview, this);
-    }
-    else {
-      this.infobox = new Infobox(meshName, preview, this);
-    }
-    this.texture.addControl(this.infobox);
+    let box;
+    if(meshName.startsWith("leg")) box = new LegInfobox(meshName, preview, this);
+    else if(meshName.startsWith("hub")) box = new HubInfobox(meshName, preview, this);
+    else if(meshName === "dog") box = new DogInfobox(meshName, preview, this);
+    else box = new Infobox(meshName, preview, this);
+    this.infoboxes.push(box);
+    this.texture.addControl(box);
   }
 }
 
@@ -142,10 +137,7 @@ const buildTopMenu = (guiTexture : GuiTexture) => {
   grid.addColumnDefinition(0.5);
   grid.addColumnDefinition(35, true);
   const modeDisplayButton = buildTopMenuButton(currentMode);
-  modeDisplayButton.onPointerClickObservable.add(() => {
-    guiTexture.modeSelection.isVisible = !guiTexture.modeSelection.isVisible;
-    grid.isPointerBlocker = guiTexture.modeSelection.isVisible || guiTexture.settings.isVisible;
-  });
+  modeDisplayButton.onPointerClickObservable.add(() => guiTexture.toggleVisibility(guiTexture.modeSelection));
   const storePoseButton = buildTopMenuButton("🖫");
   const deletePoseButton = buildTopMenuButton("🗑");
   ipcRenderer.on('notifyMode', (event, modeName, isKnown) => {
@@ -178,9 +170,8 @@ const buildTopMenu = (guiTexture : GuiTexture) => {
   deletePoseButton.isVisible = false;
   const settingsButton = buildTopMenuButton("⚙");
   settingsButton.onPointerClickObservable.add(() => {
-    guiTexture.settings.isVisible = !guiTexture.settings.isVisible;
-    grid.isPointerBlocker = guiTexture.modeSelection.isVisible || guiTexture.settings.isVisible;
-    settingsButton.textBlock.rotation = guiTexture.settings.isVisible ? 0.2 : 0;
+    settingsButton.textBlock.rotation = guiTexture.settings.isVisible ? 0 : 0.2;
+    guiTexture.toggleVisibility(guiTexture.settings);
   });
   grid.addControl(modeDisplayButton, 0, 2);
   grid.addControl(storePoseButton, 0, 3);
