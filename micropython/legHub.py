@@ -1,6 +1,6 @@
 from pybricks.hubs import TechnicHub
 from pybricks.pupdevices import Motor, ColorDistanceSensor
-from pybricks.parameters import Color, Port, Button
+from pybricks.parameters import Color, Port, Button, Axis
 from pybricks.tools import StopWatch
 from pybricks.iodevices import PUPDevice
 from ustruct import unpack_from, pack, pack_into
@@ -34,15 +34,49 @@ commandTimestamp = StopWatch()
 motor = 0
 tiltSensor = 0
 distanceSensor = 0
-imuA = [[0.0, 0.0, 0.0]]*10
 angle = 0
-tiltA = [[0, 0, 0]]*10
+imuA = [0, 0, 0]
+tiltA = [0, 0, 0]
 distance = 0
 status = 0
 
-
 hub = TechnicHub(observe_channels=[0], broadcast_channel=_HUBID)
 hub.system.set_stop_button(None)
+
+
+class TiltSensor(PUPDevice):
+    def __init__(self, port):
+        self.io = PUPDevice(port)
+    
+    __x_post = [0, 0]
+    __y_post = [0, 0]
+    __z_post = [0, 0]
+
+    def acceleration(self):
+        # prediction:
+        x_pred = [self.__x_post[0] + self.__x_post[1], self.__x_post[1]]
+        y_pred = [self.__y_post[0] + self.__y_post[1], self.__y_post[1]]
+        z_pred = [self.__z_post[0] + self.__z_post[1], self.__z_post[1]]
+        # measurement:
+        [x,y,z] = self.read(3)
+        if(x == 45):
+            x = sqrt(2*45**2 - y**2 - z**2)
+        elif(x == -45):
+            x = -sqrt(2*45**2 - y**2 - z**2)
+        elif(y == 45):
+            y = sqrt(2*45**2 - x**2 - z**2)
+        elif(y == -45):
+            y = -sqrt(2*45**2 - x**2 - z**2)
+        elif(z == 45):
+            z = sqrt(2*45**2 - x**2 - y**2)
+        elif(z == -45):
+            z = -sqrt(2*45**2 - x**2 - y**2)
+        # correction:
+        applyKv = lambda v, y: [v[0] + 0.133*y, v[1] + 0.00931*y]
+        self.__x_post = applyKv(x_pred, x - x_pred[0])
+        self.__y_post = applyKv(y_pred, y - y_pred[0])
+        self.__z_post = applyKv(z_pred, z - z_pred[0])
+        return [self.__x_post[0], self.__y_post[0], self.__z_post[0]]
 
 
 def getSpeedCmd(speed):
@@ -65,7 +99,7 @@ def getMotor(port):
 def getTiltSensor(port):
     global tiltSensor
     try:
-        tiltSensor = PUPDevice(port)
+        tiltSensor = TiltSensor(port)
         if(tiltSensor.info()["id"] != 34):
             tiltSensor = 0
         #else:
@@ -81,6 +115,7 @@ def getDistanceSensor(port):
         #print("distance sensor found")
     except:
         distanceSensor = 0
+
 
 def getStatus():
     global status
@@ -139,29 +174,17 @@ def executeCommand(data):
 
 
 def getSensorValues():
-    global motor, tiltSensor, distanceSensor, imuA, angle, tiltA, distance
-    imuA[loopCounter % 10] = list(hub.imu.acceleration())
+    global motor, tiltSensor, distanceSensor, angle, imuA, tiltA, distance
+    imuA = list(Axis.Z.T*hub.imu.orientation())
+
     try:
         angle = motor.angle()
         #print("angle is", angle)
     except:
         getMotor(_MOTORPORT)
     try:
-        [x,y,z] = tiltSensor.read(3)
-        if(x == 45):
-            x = sqrt(2*45**2 - y**2 - z**2)
-        elif(x == -45):
-            x = -sqrt(2*45**2 - y**2 - z**2)
-        elif(y == 45):
-            y = sqrt(2*45**2 - x**2 - z**2)
-        elif(y == -45):
-            y = -sqrt(2*45**2 - x**2 - z**2)
-        elif(z == 45):
-            z = sqrt(2*45**2 - x**2 - y**2)
-        elif(z == -45):
-            z = -sqrt(2*45**2 - x**2 - y**2)
-        tiltA[loopCounter % 10] = [x, y, z]
-        #print("tilt is", [x, y, z])
+        tiltA = tiltSensor.acceleration()
+        #print("tilt is", tiltA)
     except:
         getTiltSensor(_TILTPORT)
     try:
@@ -257,11 +280,8 @@ def transmitSensorValues():
     imuV = [0, 0, 0]
     tiltV = [0, 0, 0]
     for j in range(3):
-        for i in range(10):
-            imuV[j] += imuA[i][j]
-            tiltV[j] += tiltA[i][j]
-        imuV[j] = floor(0.1*imuV[j])
-        tiltV[j] = floor(15.4*tiltV[j])
+        tiltV[j] = floor(154.0966*tiltA[j])
+        imuV[j] = floor(9806.65*imuA[j])
     data = pack('<BB8h', status, currentChecksum, *imuV, floor(0.1*angle), *tiltV, distance)
     #print("data is", data)
     hub.ble.broadcast([data])

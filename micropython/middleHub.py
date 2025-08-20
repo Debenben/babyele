@@ -1,6 +1,6 @@
 from pybricks.hubs import TechnicHub
 from pybricks.pupdevices import Motor
-from pybricks.parameters import Color, Port, Button
+from pybricks.parameters import Color, Port, Button, Axis
 from pybricks.tools import StopWatch
 
 from ustruct import unpack_from, pack, pack_into
@@ -30,7 +30,7 @@ currentCommand = 0
 currentChecksum = 0
 commandTimestamp = StopWatch()
 motors = [0, 0, 0, 0]
-imuA = [[0.0, 0.0, 0.0]]*10
+imuA = [0.0, 0.0, 0.0]
 angles = [0, 0, 0, 0]
 status = 0
 
@@ -115,10 +115,9 @@ def executeCommand(data):
         hub.system.shutdown()
 
 
-
 def getSensorValues():
     global motors, imuA, angles
-    imuA[loopCounter % 10] = list(hub.imu.acceleration())
+    imuA = list(Axis.Z.T*hub.imu.orientation())
     for i in range(0, 4):
         try:
             angles[i] = motors[i].angle()
@@ -219,9 +218,7 @@ def setLedColor():
 def transmitSensorValues():
     imuV = [0, 0, 0]
     for j in range(3):
-        for i in range(10):
-            imuV[j] += imuA[i][j]
-        imuV[j] = floor(0.1*imuV[j])
+        imuV[j] = floor(9806.65*imuA[j])
     data = pack('<BB7h', status, currentChecksum, *imuV, floor(0.1*angles[0]), floor(0.1*angles[1]), floor(0.1*angles[2]), floor(0.1*angles[3]))
     #print("data is", data)
     hub.ble.broadcast([data])
