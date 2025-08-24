@@ -86,7 +86,7 @@ export class PybricksCommander implements CommanderAbstraction {
     }
     this.dog.notifyMotorAngles(motorAngles);
     if(this.currentCommand && this.currentChecksums.every(e => e == this.currentCommand.checksum)) {
-      if(this.currentCommand.data[1] != 2 || motorAngles.every((e,i) => e.every((f,j) => Math.abs(f - 10*this.currentCommand.data.readInt16LE(2 + 6*i + 2*j)) < 200.0))) {
+      if(this.currentCommand.data[1] != 2 || this.dog.motorAngles.every((e,i) => e.every((f,j) => Math.abs(f - 10*this.currentCommand.data.readInt16LE(2 + 6*i + 2*j)) < 200.0))) {
         // not requestMotorAngles command or motorAngles reached destination
         this.currentCommand.callback(0x22);
         this.currentCommand = null;
