@@ -56,8 +56,6 @@ export const vec3Dot = (l: Vec3, r: Vec3) => l[0]*r[0] + l[1]*r[1] + l[2]*r[2];
 
 export const vec3Cross = (l: Vec3, r: Vec3) => [l[1]*r[2] - l[2]*r[1], l[2]*r[0] - l[0]*r[2], l[0]*r[1] - l[1]*r[0]] as Vec3;
 
-export const vec43Cross = (l: Vec43, r: Vec43) => [vec3Cross(l[0], r[0]), vec3Cross(l[1], r[1]), vec3Cross(l[2], r[2]), vec3Cross(l[3], r[3])] as Vec43;
-
 // project v onto plain perpendicular to a
 export const vec3Proj = (v: Vec3, a: Vec3) => {
   const s = vec3Dot(v, a);
@@ -91,8 +89,9 @@ export const vec4Cross = (l: Vec4, r: Vec4) => [
 
 export const vec4Len = (vec: Vec4) => Math.sqrt(vec[0]**2 + vec[1]**2 + vec[2]**2 + vec[3]**2);
 
-export const vec4Inv = (vec: Vec4) => {
-  const s = vec4Len(vec)**2;
-  if(s > 0) return [-vec[0]/s, -vec[1]/s, -vec[2]/s, vec[3]/s] as Vec4;
-  else return [0, 0, 0, 1] as Vec4;
+export const vec4Normalize = (vec: Vec4) => {
+  const l = vec4Len(vec);
+  if(l > 0) return [vec[0]/l, vec[1]/l, vec[2]/l, vec[3]/l] as Vec4;
+  else return vec;
 }
+

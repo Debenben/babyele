@@ -1,6 +1,7 @@
 import { ipcRenderer } from 'electron';
 import { Infobox, Gauge, buildGauge, ToggleButton, ThreePrint } from './infobox';
 import { GuiTexture } from './guitexture';
+import { Quaternion } from 'babylonjs';
 
 export class DogInfobox extends Infobox {
   tiltText: ThreePrint;
@@ -53,7 +54,8 @@ export class DogInfobox extends Infobox {
   }
   updateRotation = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      this.rotationText.setThreeText(arg2.map(e => (e*180/Math.PI).toFixed(2) + "°"));
+      const angles = Quaternion.FromArray(arg2).toEulerAngles();
+      this.rotationText.setThreeText([angles.x, angles.y, angles.z].map(e => (e*180/Math.PI).toFixed(2) + "°"));
       this.rotationGauge.setIndicatorPosition(arg2);
     }
   }

@@ -51,6 +51,9 @@ const buildSelectionPanel = (renderer : GuiRenderer) => {
     renderer.positionLines.isVisible = checked;
     renderer.defaultPositionLines.isVisible = checked;
   });
+  checkboxGroup.addCheckbox("rotation plane", (checked) => {
+    renderer.rotationPlane.setEnabled(checked);
+  });
   checkboxGroup.addCheckbox("joint markers", (checked) => {
     jointNames.map(e => renderer.scene.getMeshByName(e).isVisible = checked);
   });

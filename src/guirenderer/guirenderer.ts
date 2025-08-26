@@ -19,6 +19,7 @@ export class GuiRenderer {
   gravityLines: BABYLON.LinesMesh;
   displacementLines: BABYLON.LinesMesh;
   positionLines: BABYLON.LinesMesh;
+  rotationPlane: BABYLON.Mesh;
   defaultPositionLines: BABYLON.LinesMesh;
   selectedItems: string[] = [];
   previewItem: string;
@@ -97,6 +98,7 @@ export class GuiRenderer {
     this.displacementLines = await buildDisplacementLines(scene);
     this.positionLines = await buildPositionLines(scene);
     this.positionLines.parent = dog;
+    this.rotationPlane = await buildRotationPlane(scene);
     this.defaultPositionLines = await buildDefaultPositionLines(scene);
     this.defaultPositionLines.parent = dog;
     scene.registerBeforeRender(() => {
@@ -393,6 +395,12 @@ const buildDefaultPositionLines = async (scene: BABYLON.Scene) => {
   return lines;
 }
 
+const buildRotationPlane = async (scene: BABYLON.Scene) => {
+  const plane = BABYLON.MeshBuilder.CreatePlane("rotationPlane", {size: Param.LEG_SEPARATION_WIDTH, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+  plane.setEnabled(false);
+  return plane;
+}
+
 const importMesh = async (scene: BABYLON.Scene, meshName: string, fileName: string, scaling: Vector3) => {
   const {meshes} = await BABYLON.SceneLoader.ImportMeshAsync("", "../public/", fileName, scene);
   meshes[0].name = meshName + "Root";
@@ -474,9 +482,10 @@ ipcRenderer.on('notifyAcceleration', (event, arg1, arg2) => {
 });
 ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
   if(!renderer.useTilt) {
-    renderer.setDogRotation(Vector3.FromArray(arg2));
+    renderer.setDogRotation(Quaternion.FromArray(arg2).toEulerAngles());
   }
-  else renderer.setDogRotation(new Vector3(null, arg2[1], null));
+  else renderer.setDogRotation(new Vector3(null, Quaternion.FromArray(arg2).toEulerAngles().y, null));
+  renderer.rotationPlane.lookAt(new Vector3(arg2[0], arg2[1], arg2[2]));
 });
 ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
   if(renderer.adjustHeight) renderer.setDogPosition(new Vector3(-arg2[0], null, -arg2[2]));

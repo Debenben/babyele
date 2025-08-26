@@ -1,8 +1,8 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { CommanderAbstraction } from "./commanderinterface";
 import { SensorAbstraction } from "./sensorinterface";
-import { legAnglesFromMotorAngles, legPositionsFromMotorAngles, dogRotationFromMotorAngles, dogPositionFromMotorAngles, motorAnglesFromLegPositions, motorAnglesFromLegAngles, durationsFromMotorAngles, dogRotationFromAcceleration, legAnglesFromAcceleration, motorAnglesTimeEvolution, quatFromAxisAngle, eulerFromQuat } from "./conversions";
-import { Vec3, Vec4, Vec43, hubNames, motorNames, legNames, compareArrays, vec3IsZero, vec43IsZero, vec3AbsMax, vec43AbsMax, vec3Copy, vec43Copy, vec43Sum, vec3Len, vec3Normalize, vec3Sub, vec4Cross, vec4Inv, vec3Rotate } from "./tools";
+import { legAnglesFromMotorAngles, legPositionsFromMotorAngles, dogRotationFromMotorAngles, dogPositionFromMotorAngles, motorAnglesFromLegPositions, motorAnglesFromLegAngles, durationsFromMotorAngles, dogRotationFromAcceleration, legAnglesFromAcceleration, motorAnglesTimeEvolution, quatFromAxisAngle } from "./conversions";
+import { Vec3, Vec4, Vec43, hubNames, motorNames, legNames, compareArrays, vec3IsZero, vec43IsZero, vec3AbsMax, vec43AbsMax, vec3Copy, vec43Copy, vec43Sum, vec3Len, vec3Normalize, vec4Normalize, vec3Sub, vec4Cross, vec3Rotate } from "./tools";
 
 const MOTOR_UPDATE_INTERVAL = 200; // interval in milliseconds for updating motor commands
 const HUB_TIMEOUT = 10000; // timeout in milliseconds for showing hub as offline
@@ -116,7 +116,7 @@ export class Dog implements DogAbstraction {
       }
       if(arg1 === "getProperties") {
         this.send('notifyDogPosition', "dog", dogPositionFromMotorAngles(this.motorAngles));
-        this.send('notifyDogRotation', "dog", eulerFromQuat(dogRotationFromMotorAngles(this.motorAngles)));
+        this.send('notifyDogRotation', "dog", dogRotationFromMotorAngles(this.motorAngles));
       }
     });
     for(let i = 0; i < 6; i++) {
@@ -213,7 +213,7 @@ export class Dog implements DogAbstraction {
       this.send('notifyLegPosition', legNames[i], legPositions[i]);
     }
     this.send('notifyDogPosition', 'dog', dogPositionFromMotorAngles(this.motorAngles));
-    this.send('notifyDogRotation', 'dog', eulerFromQuat(dogRotationFromMotorAngles(this.motorAngles)));
+    this.send('notifyDogRotation', 'dog', dogRotationFromMotorAngles(this.motorAngles));
   }
 
   async notifyTopAcceleration(acceleration: Vec43) {
@@ -286,7 +286,8 @@ export class Dog implements DogAbstraction {
         const motorAnglesEvolved = motorAnglesTimeEvolution(this.motorAngles, this._motorAnglesTimestamps, this._moveSpeed);
 	const speed = 0.01*Math.max(vec43AbsMax(vec43Copy(this.positionSpeed)), vec3AbsMax(vec3Copy(this.rotationSpeed)));
         const averagePositionDiff = vec3Len(vec43Sum(legPositionsFromMotorAngles(vec43Copy(motorAnglesEvolved))).map((e,i) => e - vec43Sum(legPositionsFromMotorAngles(this.startMoveMotorAngles))[i]));
-        const averageRotationAngle = quatToAngle(vec4Cross(dogRotationFromMotorAngles(vec43Copy(motorAnglesEvolved)), vec4Inv(dogRotationFromMotorAngles(this.startMoveMotorAngles))));
+        const averageRotation = vec4Cross(dogRotationFromMotorAngles(vec43Copy(this.startMoveMotorAngles)), dogRotationFromMotorAngles(vec43Copy(motorAnglesEvolved)));
+        const averageRotationAngle = quatToAngle(vec4Normalize(averageRotation));
         const destPositions = legPositionsFromMotorAngles(vec43Copy(this.startMoveMotorAngles));
 	let durations = null as Vec43;
         let maxDuration = 0;
@@ -294,14 +295,10 @@ export class Dog implements DogAbstraction {
         // iteratively improve speeds for up to 10 iterations
         for(let ni = 0; ni < 10; ni++) {
           for(let i = 0; i < 4; i++) {
-            // reset destPosition every iterateion
+            // reset destPosition every iteration
             destPositions[i] = legPositionsFromMotorAngles(vec43Copy(this.startMoveMotorAngles))[i];
-            if(!vec3IsZero(this.rotationSpeed)) {
-              destPositions[i] = vec3Rotate(destPositions[i], quatFromAxisAngle(this.rotationSpeed, averageRotationAngle + moveLength));
-            }
-            if(!vec43IsZero(this.positionSpeed)) {
-              destPositions[i] = destPositions[i].map((e,j) => e + vec3Normalize(this.positionSpeed[i])[j]*(averagePositionDiff + moveLength));
-            }
+            destPositions[i] = destPositions[i].map((e,j) => e + vec3Normalize(this.positionSpeed[i])[j]*(averagePositionDiff + moveLength));
+            destPositions[i] = vec3Rotate(destPositions[i], quatFromAxisAngle(this.rotationSpeed, averageRotationAngle + moveLength));
           }
           const destMotorAngles = motorAnglesFromLegPositions(destPositions, this.bendForward);
           durations = durationsFromMotorAngles(motorAnglesEvolved, destMotorAngles);
