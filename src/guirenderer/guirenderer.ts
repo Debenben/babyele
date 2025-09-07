@@ -397,6 +397,9 @@ const buildDefaultPositionLines = async (scene: BABYLON.Scene) => {
 
 const buildRotationPlane = async (scene: BABYLON.Scene) => {
   const plane = BABYLON.MeshBuilder.CreatePlane("rotationPlane", {size: Param.LEG_SEPARATION_WIDTH, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+  plane.position.y = 0.5*Param.LEG_FOOT_DIAMETER;
+  const ringMat = await BABYLON.NodeMaterial.ParseFromFileAsync("ringMat", "../public/ringMaterial.json", scene);
+  plane.material = ringMat;
   plane.setEnabled(false);
   return plane;
 }
@@ -485,7 +488,10 @@ ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
     renderer.setDogRotation(Quaternion.FromArray(arg2).toEulerAngles());
   }
   else renderer.setDogRotation(new Vector3(null, Quaternion.FromArray(arg2).toEulerAngles().y, null));
-  renderer.rotationPlane.lookAt(new Vector3(arg2[0], arg2[1], arg2[2]));
+  if(renderer.rotationPlane.isEnabled()) {
+    renderer.rotationPlane.lookAt(new Vector3(arg2[0], arg2[1] + 0.5*Param.LEG_FOOT_DIAMETER, arg2[2]));
+    (renderer.rotationPlane.material.getBlockByName("arcLength") as BABYLON.InputBlock).value = 4*Math.acos(arg2[3])/Math.PI;
+  }
 });
 ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {
   if(renderer.adjustHeight) renderer.setDogPosition(new Vector3(-arg2[0], null, -arg2[2]));
