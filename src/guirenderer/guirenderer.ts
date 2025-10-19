@@ -132,8 +132,10 @@ export class GuiRenderer {
   setAcceleration(meshName: string, vec: Vector3) {
     const zangle = Math.atan2(vec.x, vec.y);
     const xangle = -Math.atan2(vec.z, Math.sqrt(vec.y**2 + vec.x**2));
-    const rotation = Quaternion.FromEulerAngles(xangle, 0, zangle).invert().toEulerAngles();
-    this.scene.getMeshByName(meshName + "Acceleration").rotation = rotation;
+    const mesh = this.scene.getMeshByName(meshName + "Acceleration");
+    const rotationQuat = new Quaternion();
+    mesh.parent.getWorldMatrix().decompose(new BABYLON.Vector3(), rotationQuat, new BABYLON.Vector3());
+    mesh.rotationQuaternion = rotationQuat.invert().multiply(Quaternion.FromEulerAngles(xangle, 0, zangle));
   }
 
   setFootPosition(meshName: string, vec: Vector3) {
@@ -429,7 +431,8 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   shoulder.position = new Vector3(0, Param.LEG_MOUNT_HEIGHT, -Param.LEG_MOUNT_WIDTH);
   shoulder.isPickable = false;
   shoulder.isVisible = false;
-  const topScaling = new Vector3(Param.LEG_LENGTH_TOP, Param.LEG_LENGTH_TOP, Param.LEG_MOUNT_WIDTH);
+  const mirror = meshName.endsWith("Right") ? -1 : 1;
+  const topScaling = new Vector3(mirror*Param.LEG_LENGTH_TOP, Param.LEG_LENGTH_TOP, Param.LEG_MOUNT_WIDTH);
   const topLeg = await importMesh(scene, meshName + "Top", "upper.glb", topScaling);
   topLeg.parent = shoulder;
   const knee = BABYLON.MeshBuilder.CreateSphere(meshName + "Knee", {diameter: Param.LEG_FOOT_DIAMETER}, scene);
@@ -439,8 +442,9 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   knee.isVisible = false;
   const hub = await importMesh(scene, meshName.replace("leg", "hub"), "hub.glb", hubScaling);
   hub.parent = topLeg;
+  hub.position.x = mirror*0.1*Param.LEG_LENGTH_TOP;
   hub.position.y = -Param.LEG_LENGTH_TOP/2;
-  hub.rotation = new Vector3(0, Math.PI/2, -Math.PI/2);
+  hub.rotation = new Vector3(-mirror*Param.LEG_TOP_HUB_ANGLE, Math.PI/2, -Math.PI/2);
   const topAcceleration = await buildAcceleration(scene, meshName + "Top");
   topAcceleration.parent = hub;
   const bottomScaling = new Vector3(Param.LEG_LENGTH_BOTTOM, Param.LEG_LENGTH_BOTTOM, Param.LEG_MOUNT_WIDTH);

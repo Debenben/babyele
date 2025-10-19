@@ -1,4 +1,4 @@
-import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH, MOUNT_MOTOR_RANGE, TOP_MOTOR_RANGE, BOTTOM_MOTOR_RANGE, MOUNT_MOTOR_MAX_SPEED, TOP_MOTOR_MAX_SPEED, BOTTOM_MOTOR_MAX_SPEED } from "./param";
+import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH, MOUNT_MOTOR_RANGE, TOP_MOTOR_RANGE, BOTTOM_MOTOR_RANGE, MOUNT_MOTOR_MAX_SPEED, TOP_MOTOR_MAX_SPEED, BOTTOM_MOTOR_MAX_SPEED, LEG_TOP_HUB_ANGLE } from "./param";
 import { Vec43, Vec3, Vec4, vec43Copy, vec43Sum, vec3Len, vec3Normalize, vec4Normalize, vec3Sub, vec43Sub, vec3Dot, vec3Cross, vec4Cross, vec3Proj, vec3Rotate } from "./tools";
 
 const cosLaw = (rSide: number, lSide: number, angle: number) => {
@@ -167,9 +167,10 @@ export const legAnglesFromAcceleration = (dogAcceleration: Vec3, topAcceleration
   const y = dogAcceleration[1];
   const z = dogAcceleration[2];
   const ref = [[-y, z, -x], [-y, -z, x], [-y, z, -x], [-y, -z, x]] as Vec43;
+  const sign = [-1, 1, -1, 1]; // direction of default hub tilt angle
   for(let i = 0; i < 4; i++) {
     const r = ref[i];
-    const t = topAcceleration[i];
+    const t = vec3Rotate(topAcceleration[i], [0, sign[i]*Math.sin(0.5*LEG_TOP_HUB_ANGLE), 0, Math.cos(0.5*LEG_TOP_HUB_ANGLE)]);
     const b = bottomAcceleration[i];
     const mountAngle = Math.atan2(t[1], Math.sqrt(t[0]**2 + t[2]**2)) - Math.atan2(r[1], Math.sqrt(r[0]**2 + r[2]**2)); 
     const topAngle = -Math.atan2(t[2], t[0]) + Math.atan2(r[2], r[0]);

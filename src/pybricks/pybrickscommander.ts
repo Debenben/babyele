@@ -69,14 +69,13 @@ export class PybricksCommander implements CommanderAbstraction {
     }
     if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)]); // [-x, z, -y]
     const motorAngles = [[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN]] as Vec43
+    const topA = [[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN]] as Vec43
+    const bottomA = [[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN]] as Vec43
     if(id < 5) {
-      const topAcceleration = this.dog.topAcceleration;
-      const bottomAcceleration = this.dog.bottomAcceleration;
-      topAcceleration[id - 1] = [-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)];
+      topA[id - 1] = [-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)];
       motorAngles[id - 1][2] = 10*data.readInt16LE(28);
-      bottomAcceleration[id - 1] = [data.readInt16LE(32), data.readInt16LE(30), data.readInt16LE(34)];
-      this.dog.notifyTopAcceleration(topAcceleration);
-      this.dog.notifyBottomAcceleration(bottomAcceleration);
+      bottomA[id - 1] = [data.readInt16LE(32), data.readInt16LE(30), data.readInt16LE(34)];
+      this.dog.notifyLegAcceleration(topA, bottomA);
     }
     else {
       motorAngles[2*(id - 5)][0] = 10*data.readInt16LE(28);

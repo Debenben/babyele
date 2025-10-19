@@ -1,4 +1,4 @@
-export const LEG_LENGTH_TOP = 240.0; // length of top part of the leg
+export const LEG_LENGTH_TOP = 192.5; // length of top part of the leg (24 studs height, 3 studs width)
 export const LEG_LENGTH_BOTTOM = 288.0; // length of bottom part of the leg
 export const LEG_SEPARATION_WIDTH = 288.0; // distance between left and right legs
 export const LEG_SEPARATION_LENGTH = 392.0; // distance between front and back legs
@@ -8,6 +8,8 @@ export const LEG_PISTON_HEIGHT = 96.0; // distance from bottom of leg mount to t
 export const LEG_PISTON_WIDTH = 144.0; // distance from bottom of leg mount to bottom of piston
 export const LEG_PISTON_LENGTH = 200.0; // length of piston when leg is vertical
 export const LEG_FOOT_DIAMETER = 56.0; // diameter of turntable at foot
+
+export const LEG_TOP_HUB_ANGLE = 0.1243549945 // tilt angle of the hub in radiants when leg is upright
 
 export const MOUNT_MOTOR_RANGE = 400; // motor rotation in degree needed for one millimeter piston extension
 export const MOUNT_MOTOR_MAX_SPEED = 882; // degree per second at 7.5V

@@ -216,17 +216,14 @@ export class Dog implements DogAbstraction {
     this.send('notifyDogRotation', 'dog', dogRotationFromMotorAngles(this.motorAngles));
   }
 
-  async notifyTopAcceleration(acceleration: Vec43) {
-    this._topAcceleration = acceleration;
+  async notifyLegAcceleration(topA: Vec43, bottomA: Vec43) {
     for(let i = 0; i < 4; i++) {
+      if(topA[i].every(isNaN) && bottomA[i].every(isNaN)) continue;
+      for(let j = 0; j < 3; j++) {
+        if(!isNaN(topA[i][j])) this._topAcceleration[i][j] = topA[i][j];
+        if(!isNaN(bottomA[i][j])) this._bottomAcceleration[i][j] = bottomA[i][j];
+      }
       this.send('notifyAcceleration', legNames[i] + "Top", this.topAcceleration[i]);
-      this.send('notifyTilt', legNames[i], legAnglesFromAcceleration(this.dogAcceleration, this.topAcceleration, this.bottomAcceleration)[i]);
-    }
-  }
-
-  async notifyBottomAcceleration(acceleration: Vec43) {
-    this._bottomAcceleration = acceleration;
-    for(let i = 0; i < 4; i++) {
       this.send('notifyAcceleration', legNames[i] + "Bottom", this.bottomAcceleration[i]);
       this.send('notifyTilt', legNames[i], legAnglesFromAcceleration(this.dogAcceleration, this.topAcceleration, this.bottomAcceleration)[i]);
     }
