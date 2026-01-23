@@ -29,7 +29,7 @@ async function createPoweredUP() {
     const library = await import("./poweredup/poweredupsimulation");
     return new library.SimulationPowered();
   }
-  const library = await import("@debenben/node-poweredup");
+  const library = await import("node-poweredup");
   return new library.PoweredUP();
 }
 
@@ -39,7 +39,7 @@ async function createHciSocket() {
     const library = await import("./pybricks/simulationhcisocket");
     return new library.SimulationHciSocket();
   }
-  const library = require('@abandonware/bluetooth-hci-socket');
+  const library = require('@stoprocent/bluetooth-hci-socket');
   return new library();
 }
 

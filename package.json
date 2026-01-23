@@ -1,6 +1,6 @@
 {
   "name": "babyele",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "program to control lego walker",
   "main": ".webpack/main",
   "scripts": {
@@ -15,8 +15,8 @@
   "author": "bene",
   "license": "ISC",
   "dependencies": {
-    "@abandonware/bluetooth-hci-socket": "^0.5.3-12",
-    "@debenben/node-poweredup": "^9.0.13",
+    "@stoprocent/bluetooth-hci-socket": "^2.2.3",
+    "node-poweredup": "^10.0.0",
     "babylonjs": "^8.11.0",
     "babylonjs-gui": "^8.11.0",
     "babylonjs-loaders": "^8.11.0",
