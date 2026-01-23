@@ -447,7 +447,7 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   hub.rotation = new Vector3(-mirror*Param.LEG_TOP_HUB_ANGLE, Math.PI/2, -Math.PI/2);
   const topAcceleration = await buildAcceleration(scene, meshName + "Top");
   topAcceleration.parent = hub;
-  const bottomScaling = new Vector3(Param.LEG_LENGTH_BOTTOM, Param.LEG_LENGTH_BOTTOM, Param.LEG_MOUNT_WIDTH);
+  const bottomScaling = new Vector3(mirror*Param.LEG_LENGTH_BOTTOM, Param.LEG_LENGTH_BOTTOM, Param.LEG_MOUNT_WIDTH);
   const bottomLeg = await importMesh(scene, meshName + "Bottom", "lower.glb", bottomScaling);
   bottomLeg.parent = knee;
   const bottomAccelerometer = new BABYLON.TransformNode(meshName + "BottomAccelerometer");
