@@ -56,13 +56,13 @@ export class DogInfobox extends Infobox {
     if(arg1 === this.name) {
       const angles = Quaternion.FromArray(arg2).toEulerAngles();
       this.rotationText.setThreeText([angles.x, angles.y, angles.z].map(e => (e*180/Math.PI).toFixed(2) + "°"));
-      this.rotationGauge.setIndicatorPosition(arg2);
+      this.rotationGauge.setIndicatorPosition(arg2.map(e => 2*Math.atan(10*e)/Math.PI));
     }
   }
   updatePosition = (event, arg1, arg2) => {
     if(arg1 === this.name) {
       this.positionText.setThreeText(arg2.map(e => e.toFixed(2)));
-      this.positionGauge.setIndicatorPosition(arg2.map(e => 0.002*e));
+      this.positionGauge.setIndicatorPosition(arg2.map(e => 2*Math.atan(0.01*e)/Math.PI));
     }
   }
 }

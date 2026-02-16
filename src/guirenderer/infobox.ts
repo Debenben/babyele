@@ -232,9 +232,9 @@ export const buildGauge = (infobox: Infobox, isRotationGauge: boolean) => {
   gauge.ind3 = buildIndicator([1, 0, 2], -2*Math.PI/3);
   gauge.setIndicatorPosition = (position: number[]) => {
     if(isRotationGauge) {
-      setKnob(gauge.ind1, [2, 1 + position[2], 0]);
-      setKnob(gauge.ind2, [0, 2, 1 + position[0]]);
-      setKnob(gauge.ind3, [1 + position[1], 0, 2]);
+      setKnob(gauge.ind1, [2, 1 + position[1], 0]);
+      setKnob(gauge.ind2, [0, 2, 1 + position[2]]);
+      setKnob(gauge.ind3, [1 + position[0], 0, 2]);
     }
     else {
       setKnob(gauge.ind1, [2, 1 + position[0], 0]);
