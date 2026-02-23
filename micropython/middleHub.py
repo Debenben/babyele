@@ -74,10 +74,10 @@ def executeCommand(data):
     global motors, currentCommand, currentChecksum, commandTimestamp
     checksum = 0
     try:
-        command = unpack_from('<B', data[0], 0)[0]
+        command = data[0][0]
         mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', data[0], 1 + 12*(_HUBID - 5))
         for i in range(25):
-            checksum ^= unpack_from('<B', data[0], i)[0]
+            checksum ^= data[0][i]
     except:
         #print("failed to unpack", data)
         return

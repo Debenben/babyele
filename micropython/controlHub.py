@@ -144,9 +144,9 @@ def executeCommand(data):
     global hubTimestamps, hubSensorData, hubChecksums
     checksum = 0
     try:
-        cmd = unpack_from('<B', data[0], 0)[0]
+        cmd = data[0][0]
         for i in range(25):
-            checksum ^= unpack_from('<B', data[0], i)[0]
+            checksum ^= data[0][i]
     except:
         #print("failed to unpack", data)
         return
