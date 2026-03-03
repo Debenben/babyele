@@ -69,18 +69,19 @@ export class HubInfobox extends Infobox {
       this.panel.addControl(this.accelerationTopText);
       this.panel.addControl(this.accelerationBottomText);
       this.accelerationBottomText.isVisible = this.showAcceleration;
-      const sliderDest = this.name.replace("hub","leg");
+      const dest = this.name.replace("hub","leg");
       ipcRenderer.on('notifyBendForward', this.updateBendForward);
       this.positionText = new ThreePrint("pos");
+      this.positionText.setThreeAction((vec) => ipcRenderer.send(dest, "requestPositionSpeed", vec.map(x => 100*x)));
       this.panel.addControl(this.positionText);
       ipcRenderer.on('notifyLegPosition', this.updatePosition);
       this.gauge = buildGauge(this, false);
       this.panel.addControl(this.gauge);
       this.bendForward = new ToggleButton("bend forward", "bend backward", (forward) => {
-        ipcRenderer.send(sliderDest, "setBendForward", forward);
+        ipcRenderer.send(dest, "setBendForward", forward);
       });
       this.panel.addControl(this.bendForward);
-      ipcRenderer.send(sliderDest, "getProperties");
+      ipcRenderer.send(dest, "getProperties");
     }
     else {
       this.stateIcons.push(new StateIcon("motorB"));

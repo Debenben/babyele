@@ -16,7 +16,6 @@ export class Infobox extends Container {
     this.setPaddingInPixels(10);
     this.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
     this.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this.zIndex = 20;
     this.fillRectangle = new Rectangle("background");
     this.fillRectangle.thickness = 1;
     this.fillRectangle.cornerRadius = 5;
@@ -29,6 +28,7 @@ export class Infobox extends Container {
     this.setPreview(preview);
   }
   setPreview(preview: boolean) {
+    this.zIndex = preview ? 21 : 22;
     this.color = preview ? "#3cd73c80" : "#ff6e5a80";
     this.fillRectangle.background = this.color;
     this.fillRectangle.color = preview ? "#3cd73cc0" : "#ff6e5ac0";
@@ -127,6 +127,26 @@ export class ThreePrint extends Grid {
   setThreeText(vec3: string[]) {
     for(let i=0; i<3; i++) {
       this.coordText[i].text = vec3[i];
+    }
+  }
+  setThreeAction(callback: (v: vec3) => void) {
+    for(let i=0; i<3; i++) {
+      const it = this.coordText[i];
+      it.onPointerEnterObservable.add(() => {
+        it.color = "lightgrey";
+      });
+      it.onPointerOutObservable.add(() => { 
+        it.color = "black";
+        callback([0,0,0] as vec3);
+      });
+      it.onPointerDownObservable.add((info) => {
+        it.color = "red";
+        callback([(i==0)*(1 - info.buttonIndex), (i==1)*(1 - info.buttonIndex), (i==2)*(1 - info.buttonIndex)] as vec3);
+      });
+      it.onPointerUpObservable.add(() => {
+        it.color = "white";
+        callback([0,0,0] as vec3);
+      });
     }
   }
 }

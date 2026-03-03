@@ -22,11 +22,13 @@ export class DogInfobox extends Infobox {
     ipcRenderer.on('notifyTilt', this.updateTilt);
     this.panel.addControl(this.tiltText);
     this.rotationText = new ThreePrint("rot");
+    this.rotationText.setThreeAction((vec) => ipcRenderer.send("dog", "requestRotationSpeed", vec.map(x => 100*x)));
     this.panel.addControl(this.rotationText);
     ipcRenderer.on('notifyDogRotation', this.updateRotation);
     this.rotationGauge = buildGauge(this, true);
     this.panel.addControl(this.rotationGauge);
     this.positionText = new ThreePrint("pos");
+    this.positionText.setThreeAction((vec) => ipcRenderer.send("dog", "requestPositionSpeed", vec.map(x => 100*x)));
     this.panel.addControl(this.positionText);
     ipcRenderer.on('notifyDogPosition', this.updatePosition);
     this.positionGauge = buildGauge(this, false);
