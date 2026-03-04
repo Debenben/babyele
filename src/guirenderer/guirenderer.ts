@@ -172,7 +172,7 @@ export class GuiRenderer {
         break;
       case "online":
         if(renderer.previewItem === meshName || renderer.selectedItems.filter(s => s === meshName).length) return;
-        // no break
+        // fall through
       default:
 	renderer.guiTexture.removeInfobox(meshName);
         renderer.selectedItems = renderer.selectedItems.filter(s => s !== meshName);

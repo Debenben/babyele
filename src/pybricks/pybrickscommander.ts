@@ -25,8 +25,8 @@ const LE_SET_ADVERTISE_ENABLE_CMD = OCF_LE_SET_ADVERTISE_ENABLE | OGF_LE_CTL << 
 
 class Command {
   data: Buffer
-  promise: Promise<any>
-  callback: any
+  promise: Promise
+  callback: (number) => Promise<number>
   checksum: number
   constructor(data: Buffer) {
     this.data = data;
@@ -34,7 +34,7 @@ class Command {
     for(let i=1; i<26; i++) {
       this.checksum ^= data[i];
     }
-    this.promise = new Promise<any>((resolve) => {
+    this.promise = new Promise<number>((resolve) => {
       this.callback = (exitStatus: number) => resolve(exitStatus);
     });
   }

@@ -1,5 +1,5 @@
 import { LEG_LENGTH_TOP, LEG_LENGTH_BOTTOM, LEG_MOUNT_HEIGHT, LEG_MOUNT_WIDTH, LEG_SEPARATION_LENGTH, LEG_SEPARATION_WIDTH, LEG_PISTON_HEIGHT, LEG_PISTON_WIDTH, LEG_PISTON_LENGTH, MOUNT_MOTOR_RANGE, TOP_MOTOR_RANGE, BOTTOM_MOTOR_RANGE, MOUNT_MOTOR_MAX_SPEED, TOP_MOTOR_MAX_SPEED, BOTTOM_MOTOR_MAX_SPEED, LEG_TOP_HUB_ANGLE } from "./param";
-import { Vec43, Vec3, Vec4, vec43Copy, vec43Sum, vec3Len, vec3Normalize, vec4Normalize, vec3Sub, vec43Sub, vec3Dot, vec3Cross, vec4Cross, vec3Proj, vec3Rotate } from "./tools";
+import { Vec43, Vec3, Vec4, vec43Copy, vec43Sum, vec3Len, vec43Sub, vec3Dot, vec3Cross, vec4Cross, vec3Proj, vec3Rotate } from "./tools";
 
 const cosLaw = (rSide: number, lSide: number, angle: number) => {
   // returns the side length opposite of the angle in a triangle with rSide and lSide side lengths adjacent to the angle

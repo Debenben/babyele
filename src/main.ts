@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
-import * as path from "path";
 import { MoveController } from "./movecontroller"
 import { CommanderAbstraction } from "./commanderinterface"
 import { Dog } from "./dog"

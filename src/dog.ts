@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain } from "electron";
 import { CommanderAbstraction } from "./commanderinterface";
 import { SensorAbstraction } from "./sensorinterface";
 import { legAnglesFromMotorAngles, legPositionsFromMotorAngles, dogRotationFromMotorAngles, dogPositionFromMotorAngles, motorAnglesFromLegPositions, motorAnglesFromLegAngles, durationsFromMotorAngles, dogRotationFromAcceleration, legAnglesFromAcceleration, motorAnglesTimeEvolution, quatFromAxisAngle } from "./conversions";
-import { Vec3, Vec4, Vec43, hubNames, motorNames, legNames, compareArrays, vec3IsZero, vec43IsZero, vec3AbsMax, vec43AbsMax, vec3Copy, vec43Copy, vec43Sum, vec3Len, vec3Normalize, vec4Normalize, vec3Sub, vec4Cross, vec3Rotate } from "./tools";
+import { Vec3, Vec4, Vec43, hubNames, motorNames, legNames, vec3IsZero, vec43IsZero, vec3AbsMax, vec43AbsMax, vec3Copy, vec43Copy, vec43Sum, vec3Len, vec3Normalize, vec4Normalize, vec3Sub, vec4Cross, vec3Rotate } from "./tools";
 
 const MOTOR_UPDATE_INTERVAL = 200; // interval in milliseconds for updating motor commands
 const HUB_TIMEOUT = 10000; // timeout in milliseconds for showing hub as offline

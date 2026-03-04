@@ -180,7 +180,7 @@ class StateIcon extends Image {
 
 class DensityLine extends Rectangle {
   bins = new Array(180).fill(0)
-  getColor = (e) => "rgba(0,0,0,1)"
+  getColor = () => "rgba(0,0,0,1)"
 
   constructor(preview: boolean) {
     super();

@@ -14,7 +14,7 @@ export interface HubAbstraction extends EventEmitter {
   disconnect: () => Promise<void>;
   shutdown: () => Promise<void>;
   getDeviceAtPort: (portName: string) => any;
-  waitForDeviceByType: (deviceType: number) => Promise<any>;
+  waitForDeviceByType: (deviceType: number) => Promise;
   send: (message: Buffer, characteristic: string) => Promise<void>;
 }
 
