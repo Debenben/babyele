@@ -53,8 +53,10 @@ class Indicator extends Container {
   highlight = false;
   select = false;
   arrowImage = new Image("arrow", "../public/arrow_u.svg");
-  constructor() {
+  constructor(pix: number) {
     super();
+    this.widthInPixels = pix;
+    this.heightInPixels = pix;
     this.arrowImage.widthInPixels = 30;
     this.arrowImage.heightInPixels = 30;
     this.arrowImage.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
@@ -81,12 +83,12 @@ const gaugeToSpeed = (angle: number) => {
   return speed;
 }
 
-const buildAngleGauge = (infobox: LegInfobox) => {
+const buildAngleGauge = (ibox: LegInfobox) => {
   const gauge = new Container();
   gauge.widthInPixels = 240;
   gauge.heightInPixels = 280;
-  gauge.paddingBottomInPixels = -0.05*infobox.widthInPixels;
-  gauge.paddingTopInPixels = 0.05*infobox.widthInPixels;
+  gauge.paddingBottomInPixels = -0.05*ibox.widthInPixels;
+  gauge.paddingTopInPixels = 0.05*ibox.widthInPixels;
   const innerRadius = 80;
   const middleRadius = 110;
   const outerRadius = 140;
@@ -94,25 +96,19 @@ const buildAngleGauge = (infobox: LegInfobox) => {
   const scale = new Image("scale", "../public/dial.svg");
   gauge.addControl(scale);
 
-  infobox.infoText = buildText("---");
-  infobox.infoText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-  gauge.addControl(infobox.infoText);
+  ibox.infoText = buildText("---");
+  ibox.infoText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+  gauge.addControl(ibox.infoText);
 
-  infobox.speedArrow = new Indicator();
-  infobox.speedArrow.widthInPixels = 2*outerRadius;
-  infobox.speedArrow.heightInPixels = 2*outerRadius;
-  gauge.addControl(infobox.speedArrow);
+  ibox.speedArrow = new Indicator(2*outerRadius);
+  gauge.addControl(ibox.speedArrow);
 
-  infobox.angleArrow = new Indicator();
-  infobox.angleArrow.arrowImage.rotation = Math.PI;
-  infobox.angleArrow.widthInPixels = 2*middleRadius;
-  infobox.angleArrow.heightInPixels = 2*middleRadius;
-  gauge.addControl(infobox.angleArrow);
+  ibox.angleArrow = new Indicator(2*middleRadius);
+  ibox.angleArrow.arrowImage.rotation = Math.PI;
+  gauge.addControl(ibox.angleArrow);
 
-  infobox.tiltArrow = new Indicator();
-  infobox.tiltArrow.widthInPixels = 2*innerRadius;
-  infobox.tiltArrow.heightInPixels = 2*innerRadius;
-  gauge.addControl(infobox.tiltArrow);
+  ibox.tiltArrow = new Indicator(2*innerRadius);
+  gauge.addControl(ibox.tiltArrow);
 
   const mouseOverlay = new Container();
   mouseOverlay.widthInPixels = gauge.widthInPixels;
@@ -120,82 +116,82 @@ const buildAngleGauge = (infobox: LegInfobox) => {
   const gaugeOnPointer = (vec) => {
     const xval = vec.x - mouseOverlay.centerX;
     const yval = -vec.y + mouseOverlay.centerY;
-    const radius = Math.sqrt(xval**2 + yval**2)/infobox.guiTexture.getScale();
+    const radius = Math.sqrt(xval**2 + yval**2)/ibox.guiTexture.getScale();
     const angle = Math.atan2(xval, yval);
-    if(radius < outerRadius && radius > middleRadius && Math.abs(angle) < 0.9 && !infobox.angleArrow.select && !infobox.tiltArrow.select) {
-      infobox.speedArrow.highlight = true;
-      infobox.angleArrow.highlight = false;
-      infobox.tiltArrow.highlight  = false;
-      infobox.speedArrow.rotation = (angle > Math.PI/4 ? Math.PI/4 : (angle < -Math.PI/4 ? -Math.PI/4 : angle));
-      infobox.angleArrow.rotation = rotationToGauge(infobox.rotationValue);
-      infobox.infoText.color = "lightgrey";
-      infobox.infoText.text = gaugeToSpeed(angle).toString();
-      if(infobox.speedArrow.select) {
-        ipcRenderer.send(infobox.name, "requestRotationSpeed", gaugeToSpeed(angle));
+    if(radius < outerRadius && radius > middleRadius && Math.abs(angle) < 0.9 && !ibox.angleArrow.select && !ibox.tiltArrow.select) {
+      ibox.speedArrow.highlight = true;
+      ibox.angleArrow.highlight = false;
+      ibox.tiltArrow.highlight  = false;
+      ibox.speedArrow.rotation = (angle > Math.PI/4 ? Math.PI/4 : (angle < -Math.PI/4 ? -Math.PI/4 : angle));
+      ibox.angleArrow.rotation = rotationToGauge(ibox.rotationValue);
+      ibox.infoText.color = "lightgrey";
+      ibox.infoText.text = gaugeToSpeed(angle).toString();
+      if(ibox.speedArrow.select) {
+        ipcRenderer.send(ibox.name, "requestRotationSpeed", gaugeToSpeed(angle));
       }
     }
-    else if (radius < middleRadius && radius > innerRadius && !infobox.speedArrow.select && !infobox.tiltArrow.select) {
-      infobox.speedArrow.highlight = false;
-      infobox.angleArrow.highlight = true;
-      infobox.tiltArrow.highlight  = false;
-      infobox.speedArrow.rotation = 0;
-      infobox.angleArrow.rotation = angle;
-      infobox.infoText.color = "lightgrey";
-      infobox.infoText.text = printDegree(gaugeToRotation(angle));
-      if(infobox.angleArrow.select){
-        ipcRenderer.send(infobox.name, "requestRotationAngle", gaugeToRotation(angle));
+    else if (radius < middleRadius && radius > innerRadius && !ibox.speedArrow.select && !ibox.tiltArrow.select) {
+      ibox.speedArrow.highlight = false;
+      ibox.angleArrow.highlight = true;
+      ibox.tiltArrow.highlight  = false;
+      ibox.speedArrow.rotation = 0;
+      ibox.angleArrow.rotation = angle;
+      ibox.infoText.color = "lightgrey";
+      ibox.infoText.text = printDegree(gaugeToRotation(angle));
+      if(ibox.angleArrow.select){
+        ipcRenderer.send(ibox.name, "requestRotationAngle", gaugeToRotation(angle));
       }
     }
-    else if (radius < innerRadius && !infobox.speedArrow.select && !infobox.angleArrow.select) {
-      infobox.speedArrow.highlight = false;
-      infobox.angleArrow.highlight = false;
-      infobox.tiltArrow.highlight  = true;
-      infobox.speedArrow.rotation = 0;
-      infobox.angleArrow.rotation = rotationToGauge(infobox.rotationValue);
-      infobox.infoText.color = "lightgrey";
-      infobox.infoText.text = printDegree(infobox.tiltValue);
-      if(infobox.tiltArrow.select) {
-        ipcRenderer.send(infobox.name, "requestSync");
+    else if (radius < innerRadius && !ibox.speedArrow.select && !ibox.angleArrow.select) {
+      ibox.speedArrow.highlight = false;
+      ibox.angleArrow.highlight = false;
+      ibox.tiltArrow.highlight  = true;
+      ibox.speedArrow.rotation = 0;
+      ibox.angleArrow.rotation = rotationToGauge(ibox.rotationValue);
+      ibox.infoText.color = "lightgrey";
+      ibox.infoText.text = printDegree(ibox.tiltValue);
+      if(ibox.tiltArrow.select) {
+        ipcRenderer.send(ibox.name, "requestSync");
       }
     }
-    else if (!infobox.speedArrow.select && !infobox.angleArrow.select && !infobox.tiltArrow.select) {
-      infobox.speedArrow.highlight = false;
-      infobox.angleArrow.highlight = false;
-      infobox.tiltArrow.highlight  = false;
-      infobox.speedArrow.rotation = 0;
-      infobox.angleArrow.rotation = rotationToGauge(infobox.rotationValue);
-      infobox.infoText.color = "black";
-      infobox.infoText.text = printDegree(infobox.rotationValue);
+    else if (!ibox.speedArrow.select && !ibox.angleArrow.select && !ibox.tiltArrow.select) {
+      ibox.speedArrow.highlight = false;
+      ibox.angleArrow.highlight = false;
+      ibox.tiltArrow.highlight  = false;
+      ibox.speedArrow.rotation = 0;
+      ibox.angleArrow.rotation = rotationToGauge(ibox.rotationValue);
+      ibox.infoText.color = "black";
+      ibox.infoText.text = printDegree(ibox.rotationValue);
     }
-    infobox.speedArrow.updateImage();
-    infobox.angleArrow.updateImage();
-    infobox.tiltArrow.updateImage();
+    ibox.speedArrow.updateImage();
+    ibox.angleArrow.updateImage();
+    ibox.tiltArrow.updateImage();
   };
   mouseOverlay.onPointerMoveObservable.add(gaugeOnPointer);
   mouseOverlay.onPointerOutObservable.add(gaugeOnPointer);
   mouseOverlay.onPointerDownObservable.add((vec) => {
     const xval = vec.x - mouseOverlay.centerX;
     const yval = -vec.y + mouseOverlay.centerY;
-    const radius = Math.sqrt(xval**2 + yval**2)/infobox.guiTexture.getScale();
+    const radius = Math.sqrt(xval**2 + yval**2)/ibox.guiTexture.getScale();
     const angle = Math.atan2(xval, yval);
     if(radius < outerRadius && radius > middleRadius && Math.abs(angle) < 0.9) {
-      infobox.speedArrow.select = true;
+      ibox.speedArrow.select = true;
     }
     else if (radius < middleRadius && radius > innerRadius) {
-      infobox.angleArrow.select = true;
+      ibox.angleArrow.select = true;
     }
     else if (radius < innerRadius) {
-      infobox.tiltArrow.select = true;
+      ibox.tiltArrow.select = true;
     }
     gaugeOnPointer(vec);
   });
   mouseOverlay.onPointerUpObservable.add((vec) => {
-    if(infobox.speedArrow.select) {
-      ipcRenderer.send(infobox.name, "requestRotationSpeed", 0);
+    if(ibox.speedArrow.select) {
+      ipcRenderer.send(ibox.name, "requestRotationSpeed", 0);
     }
-    infobox.speedArrow.select = false;
-    infobox.angleArrow.select = false;
-    infobox.tiltArrow.select  = false;
+    ibox.speedArrow.select = false;
+    ibox.angleArrow.select = false;
+    ibox.tiltArrow.select  = false;
     gaugeOnPointer(vec);
   });
   gauge.addControl(mouseOverlay);
