@@ -14,6 +14,7 @@ async function createWindow() {
   mainWindow = new BrowserWindow({
     height: 600,
     width: 800,
+    backgroundColor: '#0f0f1f',
     webPreferences: { nodeIntegration: true, contextIsolation: false, sandbox: false },
   });
 
