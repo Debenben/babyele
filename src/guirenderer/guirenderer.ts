@@ -1,5 +1,4 @@
-import * as BABYLON from 'babylonjs';
-import { Vector3, Quaternion } from 'babylonjs';
+import { Vector3, Quaternion, Scene, Engine, ArcRotateCamera, NodeMaterial, ActionManager, LinesMesh, Mesh, DirectionalLight, HemisphericLight, ShadowGenerator, MeshBuilder, Color3, TransformNode, InputBlock, Layer, EffectWrapper, EffectRenderer, MirrorTexture, Plane, ReflectionBlock, ExecuteCodeAction, RenderTargetTexture, Constants, SceneLoader } from 'babylonjs';
 import 'babylonjs-loaders';
 import { ipcRenderer } from 'electron';
 import { GuiTexture } from "./guitexture";
@@ -8,19 +7,19 @@ import * as Param from '../param';
 
 export class GuiRenderer {
   canvas: HTMLCanvasElement;
-  engine: BABYLON.Engine;
-  scene: BABYLON.Scene;
-  camera: BABYLON.ArcRotateCamera;
-  greyMaterial: BABYLON.NodeMaterial;
-  greenMaterial: BABYLON.NodeMaterial;
-  pickMaterial: BABYLON.NodeMaterial;
-  redMaterial: BABYLON.NodeMaterial;
-  actionManager: BABYLON.ActionManager;
-  gravityLines: BABYLON.LinesMesh;
-  displacementLines: BABYLON.LinesMesh;
-  positionLines: BABYLON.LinesMesh;
-  rotationPlane: BABYLON.Mesh;
-  defaultPositionLines: BABYLON.LinesMesh;
+  engine: Engine;
+  scene: Scene;
+  camera: ArcRotateCamera;
+  greyMaterial: NodeMaterial;
+  greenMaterial: NodeMaterial;
+  pickMaterial: NodeMaterial;
+  redMaterial: NodeMaterial;
+  actionManager: ActionManager;
+  gravityLines: LinesMesh;
+  displacementLines: LinesMesh;
+  positionLines: LinesMesh;
+  rotationPlane: Mesh;
+  defaultPositionLines: LinesMesh;
   selectedItems: string[] = [];
   previewItem: string;
   useTilt = false;
@@ -28,32 +27,32 @@ export class GuiRenderer {
   guiTexture: GuiTexture;
 
   async createScene() {
-    const scene = new BABYLON.Scene(this.engine);
+    const scene = new Scene(this.engine);
     // scene.debugLayer.show();
     this.scene = scene;
 
     buildBackground(scene, this.engine);
-    this.actionManager = new BABYLON.ActionManager(scene);
+    this.actionManager = new ActionManager(scene);
     this.guiTexture = new GuiTexture(this);
 
     const cameraCenter = new Vector3(0, Param.LEG_LENGTH_TOP + Param.LEG_LENGTH_BOTTOM, 0).scale(0.5);
-    this.camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/3, Math.PI/3, 3*Param.LEG_SEPARATION_LENGTH, cameraCenter, scene);
+    this.camera = new ArcRotateCamera("camera", -Math.PI/3, Math.PI/3, 3*Param.LEG_SEPARATION_LENGTH, cameraCenter, scene);
     this.camera.attachControl(this.canvas, true);
     this.camera.lowerRadiusLimit = 0.5*Param.LEG_SEPARATION_LENGTH;
     this.camera.minZ = 0.1*this.camera.lowerRadiusLimit;
     this.camera.upperRadiusLimit = 5.0*Param.LEG_SEPARATION_LENGTH;
     this.camera.maxZ = 10*this.camera.upperRadiusLimit;
     this.camera.wheelPrecision = 10/this.camera.minZ;
-    const dirLight = new BABYLON.DirectionalLight("dirLight", new Vector3(1, -2, 1).scale(Param.LEG_SEPARATION_LENGTH), scene);
+    const dirLight = new DirectionalLight("dirLight", new Vector3(1, -2, 1).scale(Param.LEG_SEPARATION_LENGTH), scene);
     dirLight.intensity = 0.8;
     dirLight.parent = this.camera;
-    const hemLight = new BABYLON.HemisphericLight("hemLight", new Vector3(0, 1, 0), scene);
+    const hemLight = new HemisphericLight("hemLight", new Vector3(0, 1, 0), scene);
     hemLight.intensity = 0.4;
 
-    this.greyMaterial = await buildMaterial(scene, new BABYLON.Color3(0.1,0.1,0.1), new BABYLON.Color3(0.2,0.2,0.2));
-    this.greenMaterial = await buildMaterial(scene, new BABYLON.Color3(0.05,0.4,0.05), new BABYLON.Color3(0.1,0.95,0.1));
-    this.pickMaterial = await buildMaterial(scene, new BABYLON.Color3(0.1,0.9,0.1), new BABYLON.Color3(0.1,0.95,0.1));
-    this.redMaterial = await buildMaterial(scene, new BABYLON.Color3(0.9,0.1,0.1), new BABYLON.Color3(0.95,0.1,0.1));
+    this.greyMaterial = await buildMaterial(scene, new Color3(0.1,0.1,0.1), new Color3(0.2,0.2,0.2));
+    this.greenMaterial = await buildMaterial(scene, new Color3(0.05,0.4,0.05), new Color3(0.1,0.95,0.1));
+    this.pickMaterial = await buildMaterial(scene, new Color3(0.1,0.9,0.1), new Color3(0.1,0.95,0.1));
+    this.redMaterial = await buildMaterial(scene, new Color3(0.9,0.1,0.1), new Color3(0.95,0.1,0.1));
 
     const dogScaling = new Vector3(Param.LEG_SEPARATION_LENGTH - 4.0*Param.LEG_MOUNT_HEIGHT, 4.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
     const dog = await importMesh(scene, "dog", "middle.glb", dogScaling);
@@ -85,14 +84,14 @@ export class GuiRenderer {
     legBackRight.parent = backHub;
     legBackRight.position = new Vector3(0, -Param.LEG_MOUNT_HEIGHT, -(Param.LEG_SEPARATION_WIDTH/2 - Param.LEG_MOUNT_WIDTH));
 
-    const shadowCaster = new BABYLON.ShadowGenerator(1024, dirLight);
+    const shadowCaster = new ShadowGenerator(1024, dirLight);
     shadowCaster.addShadowCaster(dog);
     shadowCaster.useCloseExponentialShadowMap = true;
     buildGround(scene);
 
-    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickDownTrigger, pickItem));
-    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, overItem));
-    this.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, outItem));
+    this.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickDownTrigger, pickItem));
+    this.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, overItem));
+    this.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, outItem));
 
     this.gravityLines = await buildGravityLines(scene);
     this.displacementLines = await buildDisplacementLines(scene);
@@ -103,9 +102,9 @@ export class GuiRenderer {
     this.defaultPositionLines.parent = dog;
     scene.registerBeforeRender(() => {
       if(this.adjustHeight) setBodyHeight(scene);
-      if(this.gravityLines.isVisible) BABYLON.MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), instance: this.gravityLines}, scene);
-      if(this.positionLines.isVisible) BABYLON.MeshBuilder.CreateLineSystem("positionLines", {lines: getPositionLinesPath(scene), instance: this.positionLines}, scene);
-      if(this.defaultPositionLines.isVisible) BABYLON.MeshBuilder.CreateLineSystem("defaultPositionLines", {lines: getDefaultPositionLinesPath(scene), instance: this.defaultPositionLines}, scene);
+      if(this.gravityLines.isVisible) MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), instance: this.gravityLines}, scene);
+      if(this.positionLines.isVisible) MeshBuilder.CreateLineSystem("positionLines", {lines: getPositionLinesPath(scene), instance: this.positionLines}, scene);
+      if(this.defaultPositionLines.isVisible) MeshBuilder.CreateLineSystem("defaultPositionLines", {lines: getDefaultPositionLinesPath(scene), instance: this.defaultPositionLines}, scene);
     });
   }
 
@@ -134,7 +133,7 @@ export class GuiRenderer {
     const xangle = -Math.atan2(vec.z, Math.sqrt(vec.y**2 + vec.x**2));
     const mesh = this.scene.getMeshByName(meshName + "Acceleration");
     const rotationQuat = new Quaternion();
-    mesh.parent.getWorldMatrix().decompose(new BABYLON.Vector3(), rotationQuat, new BABYLON.Vector3());
+    mesh.parent.getWorldMatrix().decompose(new Vector3(), rotationQuat, new Vector3());
     mesh.rotationQuaternion = rotationQuat.invert().multiply(Quaternion.FromEulerAngles(xangle, 0, zangle));
   }
 
@@ -184,7 +183,7 @@ export class GuiRenderer {
 
   async initialize() {
     this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
-    this.engine = new BABYLON.Engine(this.canvas, true);
+    this.engine = new Engine(this.canvas, true);
     await this.createScene();
 
     this.engine.runRenderLoop(() => {
@@ -206,25 +205,25 @@ const defaultRelativeLegPositions = [new Vector3( 0.5*Param.LEG_SEPARATION_LENGT
                                      new Vector3(-0.5*Param.LEG_SEPARATION_LENGTH, 0.001,  0.5*Param.LEG_SEPARATION_WIDTH),
                                      new Vector3(-0.5*Param.LEG_SEPARATION_LENGTH, 0.001, -0.5*Param.LEG_SEPARATION_WIDTH)];
 
-const setBodyHeight = (scene: BABYLON.Scene) => {
+const setBodyHeight = (scene: Scene) => {
   const dog = scene.getMeshByName('dogRoot');
   dog.position.y -= Math.min(...jointNames.map(e => getClearance(scene, e)));
 }
 
-const getClearance = (scene: BABYLON.Scene, meshName: string) => {
+const getClearance = (scene: Scene, meshName: string) => {
   const mesh = scene.getMeshByName(meshName);
   const position = Vector3.TransformCoordinates(new Vector3(0, 0, 0), mesh.getWorldMatrix());
   return position.y - Param.LEG_FOOT_DIAMETER/2;
 }
 
-const getProjection = (scene: BABYLON.Scene, meshName: string) => {
+const getProjection = (scene: Scene, meshName: string) => {
   const mesh = scene.getMeshByName(meshName);
   const position = Vector3.TransformCoordinates(new Vector3(0, 0, 0), mesh.getWorldMatrix());
   position.y = 0;
   return position;
 }
 
-const getGravityLinesPath = (scene: BABYLON.Scene) => {
+const getGravityLinesPath = (scene: Scene) => {
   const system = [];
   for (const i in legNames) {
     for (const j in legNames) {
@@ -249,7 +248,7 @@ const getDisplacementLinesPath = () => {
   return system;
 }
 
-const getPositionLinesPath = (scene: BABYLON.Scene) => {
+const getPositionLinesPath = (scene: Scene) => {
   const system = [];
   const average = new Vector3(0, 0, 0);
   for (const i in legNames) {
@@ -264,7 +263,7 @@ const getPositionLinesPath = (scene: BABYLON.Scene) => {
   return system;
 }
 
-const getDefaultPositionLinesPath = (scene: BABYLON.Scene) => {
+const getDefaultPositionLinesPath = (scene: Scene) => {
   const system = [];
   const average = new Vector3(0, 0, 0);
   for (const i in legNames) {
@@ -299,12 +298,12 @@ const overItem = (event) => {
   renderer.setState(event.meshUnderPointer.name, "preview");
 }
 
-const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
-  const backTexture = new BABYLON.RenderTargetTexture("backgroundTexture", 400, scene)
-  const background = new BABYLON.Layer("background", null, scene);
+const buildBackground = (scene: Scene, engine: Engine) => {
+  const backTexture = new RenderTargetTexture("backgroundTexture", 400, scene)
+  const background = new Layer("background", null, scene);
   background.isBackground = true;
   background.texture = backTexture;
-  const renderImage = new BABYLON.EffectWrapper({
+  const renderImage = new EffectWrapper({
     engine,
     fragmentShader: `
       varying vec2 vUV;
@@ -324,38 +323,38 @@ const buildBackground = (scene: BABYLON.Scene, engine: BABYLON.Engine) => {
     `
   });
   renderImage.effect.executeWhenCompiled(() => {
-    const effectRenderer = new BABYLON.EffectRenderer(engine);
+    const effectRenderer = new EffectRenderer(engine);
     effectRenderer.render(renderImage, backTexture);
   });
   return background;
 }
 
-const buildGround = async (scene: BABYLON.Scene) => {
+const buildGround = async (scene: Scene) => {
   const radius = 4*Param.LEG_SEPARATION_WIDTH;
-  const groundMat = await BABYLON.NodeMaterial.ParseFromFileAsync("groundMat", "../public/groundMaterial.json", scene);
-  (groundMat.getBlockByName("BaseRadius") as BABYLON.InputBlock).value = radius;
-  (groundMat.getBlockByName("XTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_LENGTH;
-  (groundMat.getBlockByName("ZTicsSpacing") as BABYLON.InputBlock).value = 0.1*Param.LEG_SEPARATION_WIDTH;
-  const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:2*radius, height:2*radius}, scene);
+  const groundMat = await NodeMaterial.ParseFromFileAsync("groundMat", "../public/groundMaterial.json", scene);
+  (groundMat.getBlockByName("BaseRadius") as InputBlock).value = radius;
+  (groundMat.getBlockByName("XTicsSpacing") as InputBlock).value = 0.1*Param.LEG_SEPARATION_LENGTH;
+  (groundMat.getBlockByName("ZTicsSpacing") as InputBlock).value = 0.1*Param.LEG_SEPARATION_WIDTH;
+  const ground = MeshBuilder.CreateGround("ground", {width:2*radius, height:2*radius}, scene);
   ground.material = groundMat;
   ground.receiveShadows = true;
-  const reflectionTexture = new BABYLON.MirrorTexture("mirrorTexture", 1024, scene, true);
-  reflectionTexture.mirrorPlane = BABYLON.Plane.FromPositionAndNormal(ground.position, ground.getFacetNormal(0).scale(-1));
+  const reflectionTexture = new MirrorTexture("mirrorTexture", 1024, scene, true);
+  reflectionTexture.mirrorPlane = Plane.FromPositionAndNormal(ground.position, ground.getFacetNormal(0).scale(-1));
   reflectionTexture.renderList = scene.getMeshByName("dogRoot").getChildMeshes().filter(m => !m.name.endsWith("Lines"));
-  (groundMat.getBlockByName("Reflection") as BABYLON.ReflectionBlock).texture = reflectionTexture;
+  (groundMat.getBlockByName("Reflection") as ReflectionBlock).texture = reflectionTexture;
   scene.customRenderTargets.push(reflectionTexture);
   return ground;
 }
 
-const buildMaterial = async (scene: BABYLON.Scene, diffuseColor: BABYLON.Color3, lineColor: BABYLON.Color3) => {
-  const material = await BABYLON.NodeMaterial.ParseFromFileAsync("gridMaterial", "../public/gridMaterial.json", scene);
-  (material.getBlockByName("Line color") as BABYLON.InputBlock).value = lineColor;
-  (material.getBlockByName("Diffuse color") as BABYLON.InputBlock).value = diffuseColor;
+const buildMaterial = async (scene: Scene, diffuseColor: Color3, lineColor: Color3) => {
+  const material = await NodeMaterial.ParseFromFileAsync("gridMaterial", "../public/gridMaterial.json", scene);
+  (material.getBlockByName("Line color") as InputBlock).value = lineColor;
+  (material.getBlockByName("Diffuse color") as InputBlock).value = diffuseColor;
   return material;
 }
 
-const buildAcceleration = async (scene: BABYLON.Scene, meshName: string) => {
-  const arrow = BABYLON.MeshBuilder.CreateCylinder(meshName + "Acceleration", {height: 3*Param.LEG_LENGTH_TOP, diameterTop: 0.04*Param.LEG_LENGTH_TOP, diameterBottom: 0});
+const buildAcceleration = async (scene: Scene, meshName: string) => {
+  const arrow = MeshBuilder.CreateCylinder(meshName + "Acceleration", {height: 3*Param.LEG_LENGTH_TOP, diameterTop: 0.04*Param.LEG_LENGTH_TOP, diameterBottom: 0});
   arrow.isPickable = false;
   const hub = await importMesh(scene, meshName + "AccelerationHub", "hub.glb", hubScaling);
   hub.parent = arrow;
@@ -365,49 +364,49 @@ const buildAcceleration = async (scene: BABYLON.Scene, meshName: string) => {
   return arrow;
 }
 
-const buildGravityLines = async (scene: BABYLON.Scene) => {
-  const lines = BABYLON.MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), updatable: true}, scene);
-  lines.color = new BABYLON.Color3(0.7, 0.6, 0.6);
+const buildGravityLines = async (scene: Scene) => {
+  const lines = MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), updatable: true}, scene);
+  lines.color = new Color3(0.7, 0.6, 0.6);
   lines.isVisible = false;
-  lines.material.depthFunction = BABYLON.Constants.ALWAYS;
+  lines.material.depthFunction = Constants.ALWAYS;
   return lines;
 }
 
-const buildDisplacementLines = async (scene: BABYLON.Scene) => {
-  const lines = BABYLON.MeshBuilder.CreateLineSystem("displacementLines", {lines: getDisplacementLinesPath(), updatable: false}, scene);
-  lines.color = new BABYLON.Color3(0.3, 0.35, 0.3);
+const buildDisplacementLines = async (scene: Scene) => {
+  const lines = MeshBuilder.CreateLineSystem("displacementLines", {lines: getDisplacementLinesPath(), updatable: false}, scene);
+  lines.color = new Color3(0.3, 0.35, 0.3);
   lines.isVisible = false;
-  lines.material.depthFunction = BABYLON.Constants.ALWAYS;
+  lines.material.depthFunction = Constants.ALWAYS;
   return lines;
 }
 
-const buildPositionLines = async (scene: BABYLON.Scene) => {
-  const lines = BABYLON.MeshBuilder.CreateLineSystem("positionLines", {lines: getPositionLinesPath(scene), updatable: true}, scene);
-  lines.color = new BABYLON.Color3(0.3, 0.5, 0.8);
+const buildPositionLines = async (scene: Scene) => {
+  const lines = MeshBuilder.CreateLineSystem("positionLines", {lines: getPositionLinesPath(scene), updatable: true}, scene);
+  lines.color = new Color3(0.3, 0.5, 0.8);
   lines.isVisible = false;
-  lines.material.depthFunction = BABYLON.Constants.ALWAYS;
+  lines.material.depthFunction = Constants.ALWAYS;
   return lines;
 }
 
-const buildDefaultPositionLines = async (scene: BABYLON.Scene) => {
-  const lines = BABYLON.MeshBuilder.CreateLineSystem("defaultPositionLines", {lines: getDefaultPositionLinesPath(scene), updatable: true}, scene);
-  lines.color = new BABYLON.Color3(0.8, 0.8, 0.2);
+const buildDefaultPositionLines = async (scene: Scene) => {
+  const lines = MeshBuilder.CreateLineSystem("defaultPositionLines", {lines: getDefaultPositionLinesPath(scene), updatable: true}, scene);
+  lines.color = new Color3(0.8, 0.8, 0.2);
   lines.isVisible = false;
-  lines.material.depthFunction = BABYLON.Constants.ALWAYS;
+  lines.material.depthFunction = Constants.ALWAYS;
   return lines;
 }
 
-const buildRotationPlane = async (scene: BABYLON.Scene) => {
-  const plane = BABYLON.MeshBuilder.CreatePlane("rotationPlane", {size: Param.LEG_SEPARATION_WIDTH, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+const buildRotationPlane = async (scene: Scene) => {
+  const plane = MeshBuilder.CreatePlane("rotationPlane", {size: Param.LEG_SEPARATION_WIDTH, sideOrientation: Mesh.DOUBLESIDE}, scene);
   plane.position.y = 0.5*Param.LEG_FOOT_DIAMETER;
-  const ringMat = await BABYLON.NodeMaterial.ParseFromFileAsync("ringMat", "../public/ringMaterial.json", scene);
+  const ringMat = await NodeMaterial.ParseFromFileAsync("ringMat", "../public/ringMaterial.json", scene);
   plane.material = ringMat;
   plane.setEnabled(false);
   return plane;
 }
 
-const importMesh = async (scene: BABYLON.Scene, meshName: string, fileName: string, scaling: Vector3) => {
-  const {meshes} = await BABYLON.SceneLoader.ImportMeshAsync("", "../public/", fileName, scene);
+const importMesh = async (scene: Scene, meshName: string, fileName: string, scaling: Vector3) => {
+  const {meshes} = await SceneLoader.ImportMeshAsync("", "../public/", fileName, scene);
   meshes[0].name = meshName + "Root";
   meshes[0].rotation = new Vector3(0, 0, 0);
   meshes[0].scaling = new Vector3(1, 1, 1);
@@ -421,12 +420,12 @@ const importMesh = async (scene: BABYLON.Scene, meshName: string, fileName: stri
   return meshes[0];
 }
 
-const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
-  const leg = new BABYLON.TransformNode(meshName);
+const buildLeg = async (scene: Scene, meshName: string) => {
+  const leg = new TransformNode(meshName);
   const mountScaling = new Vector3(2*Param.LEG_MOUNT_HEIGHT, 2*Param.LEG_MOUNT_HEIGHT, 2*Param.LEG_MOUNT_WIDTH);
   const mount = await importMesh(scene, meshName + "Mount", "mount.glb", mountScaling);
   mount.parent = leg;
-  const shoulder = BABYLON.MeshBuilder.CreateSphere(meshName + "Shoulder", {diameter: Param.LEG_FOOT_DIAMETER}, scene);
+  const shoulder = MeshBuilder.CreateSphere(meshName + "Shoulder", {diameter: Param.LEG_FOOT_DIAMETER}, scene);
   shoulder.parent = mount;
   shoulder.position = new Vector3(0, Param.LEG_MOUNT_HEIGHT, -Param.LEG_MOUNT_WIDTH);
   shoulder.isPickable = false;
@@ -435,7 +434,7 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   const topScaling = new Vector3(mirror*Param.LEG_LENGTH_TOP, Param.LEG_LENGTH_TOP, Param.LEG_MOUNT_WIDTH);
   const topLeg = await importMesh(scene, meshName + "Top", "upper.glb", topScaling);
   topLeg.parent = shoulder;
-  const knee = BABYLON.MeshBuilder.CreateSphere(meshName + "Knee", {diameter: Param.LEG_FOOT_DIAMETER}, scene);
+  const knee = MeshBuilder.CreateSphere(meshName + "Knee", {diameter: Param.LEG_FOOT_DIAMETER}, scene);
   knee.position.y = -Param.LEG_LENGTH_TOP;
   knee.parent = topLeg;
   knee.isPickable = false;
@@ -450,13 +449,13 @@ const buildLeg = async (scene: BABYLON.Scene, meshName: string) => {
   const bottomScaling = new Vector3(mirror*Param.LEG_LENGTH_BOTTOM, Param.LEG_LENGTH_BOTTOM, Param.LEG_MOUNT_WIDTH);
   const bottomLeg = await importMesh(scene, meshName + "Bottom", "lower.glb", bottomScaling);
   bottomLeg.parent = knee;
-  const bottomAccelerometer = new BABYLON.TransformNode(meshName + "BottomAccelerometer");
+  const bottomAccelerometer = new TransformNode(meshName + "BottomAccelerometer");
   bottomAccelerometer.parent = bottomLeg;
   bottomAccelerometer.position.y = -Param.LEG_LENGTH_BOTTOM/2;
   bottomAccelerometer.rotation = new Vector3(0, Math.PI/2, -Math.PI/2);
   const bottomAcceleration = await buildAcceleration(scene, meshName + "Bottom");
   bottomAcceleration.parent = bottomAccelerometer;
-  const foot = BABYLON.MeshBuilder.CreateSphere(meshName + "Foot", {diameter: Param.LEG_FOOT_DIAMETER}, scene);
+  const foot = MeshBuilder.CreateSphere(meshName + "Foot", {diameter: Param.LEG_FOOT_DIAMETER}, scene);
   foot.parent = scene.getMeshByName("dogRoot");
   //foot.parent = bottomLeg;
   //foot.position.y = -Param.LEG_LENGTH_BOTTOM;
@@ -494,7 +493,7 @@ ipcRenderer.on('notifyDogRotation', (event, arg1, arg2) => {
   else renderer.setDogRotation(new Vector3(null, Quaternion.FromArray(arg2).toEulerAngles().y, null));
   if(renderer.rotationPlane.isEnabled()) {
     renderer.rotationPlane.lookAt(new Vector3(arg2[0], arg2[1] + 0.5*Param.LEG_FOOT_DIAMETER, arg2[2]));
-    (renderer.rotationPlane.material.getBlockByName("arcLength") as BABYLON.InputBlock).value = 4*Math.acos(arg2[3])/Math.PI;
+    (renderer.rotationPlane.material.getBlockByName("arcLength") as InputBlock).value = 4*Math.acos(arg2[3])/Math.PI;
   }
 });
 ipcRenderer.on('notifyDogPosition', (event, arg1, arg2) => {

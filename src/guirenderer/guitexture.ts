@@ -1,4 +1,4 @@
-import * as BABYLON from 'babylonjs';
+import { Vector2, KeyboardInfo, KeyboardEventTypes } from 'babylonjs';
 import { AdvancedDynamicTexture, Control, Button, Grid, Container } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { GuiRenderer } from './guirenderer';
@@ -67,7 +67,7 @@ export class GuiTexture {
 class DragHelper extends Container {
   guiTexture: GuiTexture;
   container: Container;
-  startPosition: BABYLON.Vector2;
+  startPosition: Vector2;
   constructor(guiTexture: GuiTexture) {
     super();
     this.guiTexture = guiTexture;
@@ -92,7 +92,7 @@ class DragHelper extends Container {
     });
     ipcRenderer.on("startGuiDrag", (event, original, startPosition, moveDummy) => {
       if(moveDummy) {
-        this.startPosition = new BABYLON.Vector2(original.widthInPixels,original.heightInPixels).scaleInPlace(0.5);
+        this.startPosition = new Vector2(original.widthInPixels,original.heightInPixels).scaleInPlace(0.5);
         this.container = original.clone();
         this.container.widthInPixels = original.widthInPixels; // fixed width
         this.container.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
@@ -190,9 +190,9 @@ const buildTopMenuButton = (displayText: string) => {
   return button;
 }
 
-const onKeyPress = (kbInfo: BABYLON.KeyboardInfo) => {
+const onKeyPress = (kbInfo: KeyboardInfo) => {
   switch (kbInfo.type) {
-    case BABYLON.KeyboardEventTypes.KEYDOWN:
+    case KeyboardEventTypes.KEYDOWN:
       switch (kbInfo.event.key) {
         case " ":
           ipcRenderer.send('requestMode', "BUTTON");
@@ -227,7 +227,7 @@ const onKeyPress = (kbInfo: BABYLON.KeyboardInfo) => {
           break;
       }
       break;
-    case BABYLON.KeyboardEventTypes.KEYUP:
+    case KeyboardEventTypes.KEYUP:
       ipcRenderer.send("dog", "requestPositionSpeed", [0, 0, 0]);
       break;
   }

@@ -1,3 +1,4 @@
+import { ICanvasRenderingContext } from "babylonjs";
 import { Grid, TextBlock, Image, Rectangle } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Infobox, Gauge, buildText, ThreePrint, buildGauge, ToggleButton } from './infobox';
@@ -191,7 +192,7 @@ class DensityLine extends Rectangle {
     if(preview) this.getColor = (e) => "rgba(" + Math.sqrt(1000*e) + ", 255, " + Math.sqrt(1000*e) + ", " + 0.2*e + ")";
     else this.getColor = (e) => "rgba(255, " + Math.sqrt(1000*e) + ", " + Math.sqrt(1000*e) + ", " + 0.2*e + ")";
   }
-  protected _localDraw(ctx: BABYLON.ICanvasRenderingContext) {
+  protected _localDraw(ctx: ICanvasRenderingContext) {
     ctx.fillStyle = "#000000c0";
     ctx.fillRect(this._currentMeasure.left, this._currentMeasure.top, this._currentMeasure.width, this._currentMeasure.height);
     const rectWidth = (this._currentMeasure.width - 10)/this.bins.length;
