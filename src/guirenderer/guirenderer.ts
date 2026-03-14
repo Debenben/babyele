@@ -44,15 +44,17 @@ export class GuiRenderer {
     this.camera.maxZ = 10*this.camera.upperRadiusLimit;
     this.camera.wheelPrecision = 10/this.camera.minZ;
     const dirLight = new DirectionalLight("dirLight", new Vector3(1, -2, 1).scale(Param.LEG_SEPARATION_LENGTH), scene);
-    dirLight.intensity = 0.8;
+    dirLight.intensity = 5.0;
+    dirLight.diffuse = new Color3(0.3,0.95,0.95);
     dirLight.parent = this.camera;
     const hemLight = new HemisphericLight("hemLight", new Vector3(0, 1, 0), scene);
-    hemLight.intensity = 0.4;
+    dirLight.diffuse = new Color3(0.5,0.3,0.3);
+    hemLight.intensity = 0.8;
 
     this.greyMaterial = await buildMaterial(scene, new Color3(0.1,0.1,0.1), new Color3(0.2,0.2,0.2));
-    this.greenMaterial = await buildMaterial(scene, new Color3(0.05,0.4,0.05), new Color3(0.1,0.95,0.1));
-    this.pickMaterial = await buildMaterial(scene, new Color3(0.1,0.9,0.1), new Color3(0.1,0.95,0.1));
-    this.redMaterial = await buildMaterial(scene, new Color3(0.9,0.1,0.1), new Color3(0.95,0.1,0.1));
+    this.greenMaterial = await buildMaterial(scene, new Color3(0.05,0.4,0.05), new Color3(0.05,0.95,0.05));
+    this.pickMaterial = await buildMaterial(scene, new Color3(0.1,0.8,0.1), new Color3(0.05,0.1,0.05));
+    this.redMaterial = await buildMaterial(scene, new Color3(0.8,0.1,0.1), new Color3(0.1,0.05,0.05));
 
     const dogScaling = new Vector3(Param.LEG_SEPARATION_LENGTH - 4.0*Param.LEG_MOUNT_HEIGHT, 4.0*Param.LEG_MOUNT_HEIGHT, Param.LEG_SEPARATION_WIDTH - Param.LEG_MOUNT_WIDTH);
     const dog = await importMesh(scene, "dog", "middle.glb", dogScaling);
