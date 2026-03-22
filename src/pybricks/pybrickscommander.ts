@@ -8,20 +8,12 @@ const HCI_EVENT_PKT = 0x04;
 
 const EVT_LE_META_EVENT = 0x3e;
 
-const OGF_LE_CTL = 0x08;
-const OCF_LE_SET_SCAN_PARAMETERS = 0x000b;
-const OCF_LE_SET_SCAN_ENABLE = 0x000c;
-const OCF_LE_SET_ADVERTISING_PARAMETERS = 0x0006;
-const OCF_LE_SET_ADVERTISING_DATA = 0x0008;
-const OCF_LE_SET_SCAN_RESPONSE_DATA = 0x0009;
-const OCF_LE_SET_ADVERTISE_ENABLE = 0x000a;
-
-const LE_SET_SCAN_PARAMETERS_CMD = OCF_LE_SET_SCAN_PARAMETERS | OGF_LE_CTL << 10;
-const LE_SET_SCAN_ENABLE_CMD = OCF_LE_SET_SCAN_ENABLE | OGF_LE_CTL << 10;
-const LE_SET_ADVERTISING_PARAMETERS_CMD = OCF_LE_SET_ADVERTISING_PARAMETERS | OGF_LE_CTL << 10;
-const LE_SET_SCAN_RESPONSE_DATA_CMD = OCF_LE_SET_SCAN_RESPONSE_DATA | OGF_LE_CTL << 10;
-const LE_SET_ADVERTISING_DATA_CMD = OCF_LE_SET_ADVERTISING_DATA | OGF_LE_CTL << 10;
-const LE_SET_ADVERTISE_ENABLE_CMD = OCF_LE_SET_ADVERTISE_ENABLE | OGF_LE_CTL << 10;
+const LE_SET_SCAN_PARAMETERS_CMD = 0x200b;
+const LE_SET_SCAN_ENABLE_CMD = 0x200c;
+const LE_SET_ADVERTISING_PARAMETERS_CMD = 0x2006;
+const LE_SET_ADVERTISING_DATA_CMD = 0x2008;
+const LE_SET_SCAN_RESPONSE_DATA_CMD = 0x2009;
+const LE_SET_ADVERTISE_ENABLE_CMD = 0x200a;
 
 class Command {
   data: Buffer
@@ -50,7 +42,7 @@ export class PybricksCommander implements CommanderAbstraction {
   constructor(dog: SensorAbstraction, socket: SocketAbstraction) {
     this.dog = dog;
     this.socket = socket;
-    this.socket.on('data', this.onData.bind(this))
+    this.socket.on('data', this.onData.bind(this));
     this.socket.on('error', (e) => console.error(e));
   }
 
@@ -60,9 +52,16 @@ export class PybricksCommander implements CommanderAbstraction {
     if(data.readUInt8(15) != 0xff) return; // manufacturer data
     if(data.readUInt16LE(16) != 0x0397) return; // lego
     const id = data.readUInt8(18);
-    if(id < 1 || id > 6) return;
-    if(id < 5 && data.readUInt8(19) != 0xd2) return;
-    if(id > 4 && data.readUInt8(19) != 0xd0) return;
+    const type = data.readUInt8(19);
+    if(id > 6) return;
+    if(id > 0 && id < 5 && type != 0xd2) return;
+    if(id > 4 && type != 0xd0) return;
+    if(id == 0) { // external control command
+      if(this.currentCommand) this.currentCommand.callback(0x24);
+      this.currentCommand = new Command(data.subarray(19, 19 + 26));
+      this.setBroadcast(0, this.currentCommand.data);
+      return;
+    }
     this.currentChecksums[id - 1] = data.readUInt8(21);
     if(this.currentCommand && this.currentChecksums[id -1] == this.currentCommand.checksum) {
       this.dog.notifyHubStatus(id - 1, data.readUInt8(20), Date.now(), data.readInt8(data.length - 1));

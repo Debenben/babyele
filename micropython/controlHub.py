@@ -123,7 +123,7 @@ hub.speaker.volume(10)
 
 def getSpeedCmd(speed, counter):
     buffer = bytearray(pack('<B12h',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
-    pack_into('<h', buffer, 1 + 2*counter, speed)
+    pack_into('<h', buffer, 1 + 2*counter, floor(speed))
     return [buffer]
 
 
@@ -231,26 +231,25 @@ def getCommand():
         else:
             pitch, roll = hub.imu.tilt()
             if(selection > 0 and selection < 5):
-                motor = 1
-                if(roll < -15):
-                    motor = 2
-                elif(roll > 15):
-                    motor = 0
-                command = getSpeedCmd(pitch*30, motor + 3*(selection - 1))
-                sendCommand(command)
+                if(roll < -10):
+                    motor = 1 + selection % 2
+                    sendCommand(getSpeedCmd(pitch*30, motor + 3*(selection - 1)))
+                elif(roll > 10):
+                    motor = 1 + (selection + 1) % 2
+                    sendCommand(getSpeedCmd(pitch*30, motor + 3*(selection - 1)))
+                else:
+                    sendCommand(getSpeedCmd(0, 0))
+
             elif(selection > 4 and selection < 7):
                 motor = 0
-                if(roll < -20):
-                    motor = 1
-                elif(roll < 0):
+                if(roll < -10):
                     motor = 0
-                elif(roll < 20):
+                    sendCommand(getSpeedCmd(pitch*30, motor + 6*(selection - 5)))
+                elif(roll > 10):
                     motor = 3
+                    sendCommand(getSpeedCmd(pitch*30, motor + 6*(selection - 5)))
                 else:
-                    motor = 4
-                command = getSpeedCmd(pitch*30, motor + 6*(selection - 5))
-                sendCommand(command)
-
+                    sendCommand(getSpeedCmd(0, 0))
 
 
 def setLedColor():

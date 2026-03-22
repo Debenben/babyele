@@ -36,11 +36,18 @@ async function createPoweredUP() {
 async function createHciSocket() {
   if(process.argv.includes('--simulation')) {
     console.log("Starting simulation...");
-    const library = await import("./pybricks/simulationhcisocket");
-    return new library.SimulationHciSocket();
+    const sim = await import("./pybricks/simulationhcisocket");
+    return new sim.SimulationHciSocket();
   }
-  const library = require('@stoprocent/bluetooth-hci-socket');
-  return new library();
+  else if(process.argv.includes('--inventor')) {
+    console.log("Starting simulation for inventorhub...");
+    const inventor = await import("./pybricks/inventorhcisocket");
+    const real = require('@stoprocent/bluetooth-hci-socket');
+    const sim = await import("./pybricks/simulationhcisocket");
+    return new inventor.InventorHciSocket(new real(), new sim.SimulationHciSocket());
+  }
+  const real = require('@stoprocent/bluetooth-hci-socket');
+  return new real();
 }
 
 app.on("ready", () => {
