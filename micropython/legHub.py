@@ -30,7 +30,7 @@ loopCounter = 0
 buttonMode = _BUTTON_IDLE
 currentCommand = 0
 currentChecksum = 0
-commandTimestamp = StopWatch()
+commandTimestamp = -100000
 motor = 0
 tiltSensor = 0
 distanceSensor = 0
@@ -42,6 +42,7 @@ status = 0
 
 hub = TechnicHub(observe_channels=[0], broadcast_channel=_HUBID)
 hub.system.set_stop_button(None)
+time = StopWatch()
 
 
 class TiltSensor(PUPDevice):
@@ -128,7 +129,7 @@ def getStatus():
         status += 4
     if(distanceSensor):
         status += 8
-    if(commandTimestamp.time() < 100):
+    if(time.time() - commandTimestamp < 100):
         status += 32
     if(buttonMode):
         status += 64
@@ -145,7 +146,7 @@ def executeCommand(data):
     except:
         #print("failed to unpack", data)
         return
-    commandTimestamp.reset()
+    commandTimestamp = time.time()
     currentCommand = data
     currentChecksum = checksum
     #print("command", cmd, bottom)

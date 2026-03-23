@@ -28,7 +28,7 @@ loopCounter = 0
 buttonMode = _BUTTON_IDLE
 currentCommand = 0
 currentChecksum = 0
-commandTimestamp = StopWatch()
+commandTimestamp = -100000
 motors = [0, 0, 0, 0]
 imuA = [0.0, 0.0, 0.0]
 angles = [0, 0, 0, 0]
@@ -36,6 +36,7 @@ status = 0
 
 hub = TechnicHub(observe_channels=[0], broadcast_channel=_HUBID)
 hub.system.set_stop_button(None)
+time = StopWatch()
 
 
 def getSpeedCmd(speed, counter):
@@ -64,7 +65,7 @@ def getStatus():
     for i in range(0, 4):
         if motors[i]:
             status += 2**(i+1)
-    if(commandTimestamp.time() < 100):
+    if(time.time() - commandTimestamp < 100):
         status += 32
     if(buttonMode):
         status += 64
@@ -81,7 +82,7 @@ def executeCommand(data):
     except:
         #print("failed to unpack", data)
         return
-    commandTimestamp.reset()
+    commandTimestamp = time.time()
     currentCommand = data
     currentChecksum = checksum
     #print("command", cmd, mount1, top1, mount2, top2)
