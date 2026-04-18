@@ -1,6 +1,6 @@
 {
   "name": "babyele",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "program to control lego walker",
   "main": ".webpack/main",
   "scripts": {
@@ -16,9 +16,9 @@
   "license": "ISC",
   "dependencies": {
     "@stoprocent/bluetooth-hci-socket": "^2.2.5",
-    "babylonjs": "^8.11.0",
-    "babylonjs-gui": "^8.52.0",
-    "babylonjs-loaders": "^8.52.0",
+    "babylonjs": "^9.2.0",
+    "babylonjs-gui": "^9.2.0",
+    "babylonjs-loaders": "^9.2.0",
     "electron-squirrel-startup": "^1.0.1",
     "node-poweredup": "^10.1.0"
   },
@@ -30,19 +30,18 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron-forge/plugin-webpack": "^7.11.1",
-    "@electron/fuses": "^1.8.0",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
     "@vercel/webpack-asset-relocator-loader": "^1.10.0",
     "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^7.1.0",
-    "electron": "40.7.0",
-    "eslint": "^8.57.0",
+    "electron": "41.2.1",
+    "eslint": "^9.39.4",
     "eslint-plugin-import": "^2.32.0",
     "node-loader": "^2.1.0",
     "style-loader": "^4.0.0",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
-    "typescript": "~5.9.3"
+    "typescript": "^6.0.3"
   }
 }

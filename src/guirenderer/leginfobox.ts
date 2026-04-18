@@ -10,6 +10,7 @@ export class LegInfobox extends Infobox {
   tiltArrow: Indicator;
   rotationValue = 0;
   tiltValue = 0;
+  speedValue = 0;
   infoText: TextBlock;
 
   constructor(name: string, preview: boolean, guiTexture: GuiTexture) {
@@ -21,11 +22,13 @@ export class LegInfobox extends Infobox {
     this.panel.addControl(this.gauge);
     ipcRenderer.on('notifyLegRotation', this.updateAngle);
     ipcRenderer.on('notifyTilt', this.updateTilt);
+    ipcRenderer.on('notifyMotorSpeed', this.updateMotorSpeed);
     ipcRenderer.send(this.name.replace("Top","").replace("Bottom","").replace("Mount",""), "getProperties");
   }
   removeControls() {
     ipcRenderer.removeListener('notifyLegRotation', this.updateAngle);
     ipcRenderer.removeListener('notifyTilt', this.updateTilt);
+    ipcRenderer.removeListener('notifyMotorSpeed', this.updateMotorSpeed);
   }
   updateTilt = (event, arg1, arg2) => {
     if(this.name.startsWith(arg1)) {
@@ -42,6 +45,14 @@ export class LegInfobox extends Infobox {
       if(!this.angleArrow.highlight) {
         this.angleArrow.rotation = rotationToGauge(this.rotationValue);
         if(this.infoText.color == "black") this.infoText.text = printDegree(this.rotationValue);
+      }
+    }
+  }
+  updateMotorSpeed = (event, arg1, arg2) => {
+    if(this.name.startsWith(arg1)) {
+      this.speedValue = extractCoordinate(arg2, this.name);
+      if(!this.speedArrow.highlight) {
+        this.speedArrow.rotation = speedToGauge(this.speedValue);
       }
     }
   }
@@ -81,6 +92,9 @@ const gaugeToSpeed = (angle: number) => {
   if(speed > 1000) speed = 1000;
   else if (speed < -1000) speed = -1000;
   return speed;
+}
+const speedToGauge = (speed: number) => {
+  return speed*Math.PI/4000;
 }
 
 const buildAngleGauge = (ibox: LegInfobox) => {
@@ -134,7 +148,7 @@ const buildAngleGauge = (ibox: LegInfobox) => {
       ibox.speedArrow.highlight = false;
       ibox.angleArrow.highlight = true;
       ibox.tiltArrow.highlight  = false;
-      ibox.speedArrow.rotation = 0;
+      ibox.speedArrow.rotation = speedToGauge(ibox.speedValue);
       ibox.angleArrow.rotation = angle;
       ibox.infoText.color = "lightgrey";
       ibox.infoText.text = printDegree(gaugeToRotation(angle));
@@ -146,7 +160,7 @@ const buildAngleGauge = (ibox: LegInfobox) => {
       ibox.speedArrow.highlight = false;
       ibox.angleArrow.highlight = false;
       ibox.tiltArrow.highlight  = true;
-      ibox.speedArrow.rotation = 0;
+      ibox.speedArrow.rotation = speedToGauge(ibox.speedValue);
       ibox.angleArrow.rotation = rotationToGauge(ibox.rotationValue);
       ibox.infoText.color = "lightgrey";
       ibox.infoText.text = printDegree(ibox.tiltValue);
@@ -158,7 +172,7 @@ const buildAngleGauge = (ibox: LegInfobox) => {
       ibox.speedArrow.highlight = false;
       ibox.angleArrow.highlight = false;
       ibox.tiltArrow.highlight  = false;
-      ibox.speedArrow.rotation = 0;
+      ibox.speedArrow.rotation = speedToGauge(ibox.speedValue);
       ibox.angleArrow.rotation = rotationToGauge(ibox.rotationValue);
       ibox.infoText.color = "black";
       ibox.infoText.text = printDegree(ibox.rotationValue);

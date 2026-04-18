@@ -52,13 +52,13 @@ export class InventorHciSocket extends EventEmitter implements SocketAbstraction
     if(data.readUInt16LE(16) != 0x0397) return; // lego
     const len = data.readUInt8(19) & 0x1F;
  
-    const cmd = Buffer.allocUnsafe(36).fill(0);
+    const cmd = Buffer.allocUnsafe(6 + len + 5).fill(0);
     cmd.writeUInt8(HCI_COMMAND_PKT, 0);
     cmd.writeUInt16LE(LE_SET_ADVERTISING_DATA_CMD, 1); // command
-    cmd.writeUInt8(len + 6, 3); // length
-    cmd.writeUInt8(len + 5, 4); // length
-    cmd.writeUInt8(len + 4, 5); // length
+    cmd.writeUInt8(len + 7, 3); // length
+    cmd.writeUInt8(len + 6, 4); // length
+    cmd.writeUInt8(len + 5, 5); // length
     data.copy(cmd, 6, 15, 15 + len + 5);
     socket.write(cmd);
   }
-
+}

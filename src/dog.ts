@@ -86,6 +86,7 @@ export class Dog implements DogAbstraction {
   requestMotorSpeeds(motorSpeeds: Vec43) {
     clearInterval(this._moveSpeedIntervalID);
     this._moveSpeedIntervalID = null;
+    this.notifyMotorSpeeds(motorSpeeds);
     return this.commander.requestMotorSpeeds(motorSpeeds);
   }
 
@@ -238,6 +239,12 @@ export class Dog implements DogAbstraction {
     }
   }
 
+  async notifyMotorSpeeds(motorSpeeds: Vec43) {
+    for(let i = 0; i < 4; i++) {
+      this.send('notifyMotorSpeed', legNames[i], motorSpeeds[i]);
+    }
+  }
+
   requestMoveSpeed() {
     ipcMain.emit('requestMode', 'internal', 'MANUAL');
     if(vec43IsZero(this.positionSpeed) && vec3IsZero(this.rotationSpeed)) {
@@ -273,6 +280,7 @@ export class Dog implements DogAbstraction {
           moveLength *= (MOTOR_UPDATE_INTERVAL*speed/(maxDuration*1000));
         }
 	this._moveSpeed = durations.map(e => e.map(f => 1000*speed*f/maxDuration)) as Vec43;
+        this.notifyMotorSpeeds(this._moveSpeed);
 	return this.commander.requestMotorSpeeds(this._moveSpeed);
       }, MOTOR_UPDATE_INTERVAL);
     }
@@ -304,6 +312,7 @@ export class Dog implements DogAbstraction {
           moveLength *= (MOTOR_UPDATE_INTERVAL*speed/(maxDuration*1000));
         }
 	this._moveSpeed = durations.map(e => e.map(f => 1000*speed*f/maxDuration)) as Vec43;
+        this.notifyMotorSpeeds(this._moveSpeed);
 	return this.commander.requestMotorSpeeds(this._moveSpeed);
       }, MOTOR_UPDATE_INTERVAL);
     }

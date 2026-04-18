@@ -138,7 +138,7 @@ class SimulationPybricksHub {
       this.tiltSensors = [new SimulationTiltSensor([0, 0, 9800])];
     }
     this.broadcastInterval = setRandomInterval(() => {
-      const data = Buffer.allocUnsafe(37);
+      var data = Buffer.allocUnsafe(39);
       data.writeUInt8(0xff, 15); // manufacturer data
       data.writeUInt16LE(0x0397, 16) // lego
       data.writeUInt8(this.hubId, 18);
@@ -147,6 +147,7 @@ class SimulationPybricksHub {
         data.writeUInt8(0b00101111, 20);
       }
       else {
+        data = data.subarray(0, 37);
         data.writeUInt8(0xd0, 19);
         data.writeUInt8(0b00111111, 20);
       }
@@ -161,14 +162,17 @@ class SimulationPybricksHub {
 	data.writeInt16LE(bottomAcceleration[0], 30);
 	data.writeInt16LE(bottomAcceleration[1], 32);
 	data.writeInt16LE(bottomAcceleration[2], 34);
+	data.writeInt16LE(0x2222, 36); //colorDistanceSensor
+        data.writeInt8(-Math.round(80*Math.random()), 38);
       }
       else {
         data.writeInt16LE(this.motors[1].getRotation(), 30);
         data.writeInt16LE(this.motors[2].getRotation(), 32);
         data.writeInt16LE(this.motors[3].getRotation(), 34);
+        data.writeInt8(-Math.round(80*Math.random()), 36);
       }
-      data.writeInt8(-Math.round(80*Math.random()), 36);
       this.socket.emit('data', data);
+      console.log("simulation socket sending", data);
     }, 30 + 30*Math.random(), 200 + 200*Math.random());
   }
 

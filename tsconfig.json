@@ -7,13 +7,13 @@
     "esModuleInterop": true,
     "noImplicitAny": false,
     "sourceMap": true,
-    "baseUrl": ".",
-    "outDir": "dist",
-    "moduleResolution": "node",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "paths": {
-      "*": ["node_modules/*"]
+      "*": ["./node_modules/*"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["./src/**/*"]
 }
