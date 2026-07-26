@@ -1,4 +1,5 @@
 from pybricks.hubs import TechnicHub
+from pybricks.messaging import BLERadio
 from pybricks.pupdevices import Motor
 from pybricks.parameters import Color, Port, Button, Axis
 from pybricks.tools import StopWatch
@@ -25,7 +26,7 @@ _BUTTON_INACTIVE = const(3)
 
 
 loopCounter = 0
-buttonMode = _BUTTON_IDLE
+buttonMode = _BUTTON_INACTIVE
 currentCommand = 0
 currentChecksum = 0
 commandTimestamp = -100000
@@ -34,8 +35,9 @@ imuA = [0.0, 0.0, 0.0]
 angles = [0, 0, 0, 0]
 status = 0
 
-hub = TechnicHub(observe_channels=[0], broadcast_channel=_HUBID)
+hub = TechnicHub()
 hub.system.set_stop_button(None)
+radio = BLERadio(observe_channels=[0], broadcast_channel=_HUBID)
 time = StopWatch()
 
 
@@ -136,7 +138,7 @@ def getCommand():
             executeCommand(getSpeedCmd(0, 0))
             buttonMode = _BUTTON_ACTIVE
         else:
-            receive = hub.ble.observe(0)
+            receive = radio.observe(0)
             if receive:
                 executeCommand(receive)
     elif buttonMode == _BUTTON_ACTIVE:
@@ -222,7 +224,7 @@ def transmitSensorValues():
         imuV[j] = floor(9806.65*imuA[j])
     data = pack('<BB7h', status, currentChecksum, *imuV, floor(0.1*angles[0]), floor(0.1*angles[1]), floor(0.1*angles[2]), floor(0.1*angles[3]))
     #print("data is", data)
-    hub.ble.broadcast([data])
+    radio.broadcast([data])
 
 
 while(True):

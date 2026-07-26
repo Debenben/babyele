@@ -1,4 +1,5 @@
 from pybricks.hubs import InventorHub
+from pybricks.messaging import BLERadio
 from pybricks.parameters import Color, Button
 from pybricks.tools import wait, StopWatch, Matrix
 
@@ -137,9 +138,10 @@ hubTimestamps = [-100000, -100000, -100000, -100000, -100000, -100000, -100000]
 hubChecksums = [0, 0, 0, 0, 0, 0, 0]
 
 
-hub = InventorHub(observe_channels=[0,1,2,3,4,5,6], broadcast_channel=_HUBID)
+hub = InventorHub()
 hub.system.set_stop_button(None)
 hub.speaker.volume(10)
+radio = BLERadio(observe_channels=[0,1,2,3,4,5,6], broadcast_channel=_HUBID)
 time = StopWatch()
 
 
@@ -355,7 +357,7 @@ def executeCommand(data):
 def getSensorData():
     global hubSensorData, hubTimestamps, hubChecksums, commandCounter
     for i in range(1, 7):
-        receive = hub.ble.observe(i)
+        receive = radio.observe(i)
         if receive:
             hubSensorData[i] = receive[0]
             try:
@@ -389,7 +391,7 @@ def getCommand():
             buttonMode = _BUTTON_ACTIVE
             selection = _SELECT_RETURN
         else:
-            receive = hub.ble.observe(0)
+            receive = radio.observe(0)
             if receive:
                 executeCommand(receive)
     elif buttonMode == _BUTTON_ACTIVE:
@@ -526,7 +528,7 @@ def setLedColor():
 
 
 def sendCommand(command):
-    hub.ble.broadcast(command)
+    radio.broadcast(command)
     executeCommand(command)
 
 
