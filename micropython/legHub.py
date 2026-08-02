@@ -13,13 +13,18 @@ _MOTORPORT = Port.A
 _TILTPORT = Port.B
 _DISTANCEPORT = Port.C
 
-_CMD_KEEPALIVE = const(0)
+_CMD_SUBCMD = const(0)
 _CMD_SPEED = const(1)
 _CMD_ANGLE = const(2)
-_CMD_RESET = const(3)
-_CMD_SHUTDOWN = const(4)
+_CMD_DATA = const(3)
 
-_CMD_SHUTDOWN_PACK = [pack('<B12h',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
+_SUBCMD_WAIT = const(0)
+_SUBCMD_SHUTDOWN = const(1)
+_SUBCMD_STORE = const(2)
+_SUBCMD_EXECUTE = const(3)
+_SUBCMD_RESET = const(4)
+
+_CMD_SHUTDOWN_PACK = [pack('<3B11h',_CMD_SUBCMD, _SUBCMD_SHUTDOWN,0,0,0, 0,0,0, 0,0,0, 0,0,0)]
 
 _BUTTON_IDLE = const(0)
 _BUTTON_ACTIVE = const(1)
@@ -28,7 +33,7 @@ _BUTTON_INACTIVE = const(3)
 
 
 loopCounter = 0
-buttonMode = _BUTTON_IDLE
+buttonMode = _BUTTON_INACTIVE
 currentCommand = 0
 currentChecksum = 0
 commandTimestamp = -100000
@@ -137,43 +142,72 @@ def getStatus():
         status += 64
 
 
-def executeCommand(data):
-    global motor, currentCommand, currentChecksum, commandTimestamp
+def updateCurrentCommand(data):
+    global currentCommand, currentChecksum, commandTimestamp
     checksum = 0
     try:
-        command = data[0][0]
-        mount, top, bottom = unpack_from('<hhh', data[0], 1 + 6*(_HUBID - 1))
         for i in range(25):
             checksum ^= data[0][i]
     except:
-        #print("failed to unpack", data)
+        #print("failed to calculate checksum")
         return
     commandTimestamp = time.time()
     currentCommand = data
     currentChecksum = checksum
-    #print("command", cmd, bottom)
-    if command == _CMD_KEEPALIVE:
-        pass
-    elif command == _CMD_SPEED:
-        try:
-            if bottom == 0:
-                motor.brake()
+
+
+def executeCommand(data):
+    global motor
+    try:
+        command = data[0][0]
+        if command == _CMD_SUBCMD:
+            updateCurrentCommand(data)
+            subcmd = data[0][1]
+            if subcmd == _SUBCMD_WAIT:
+                pass
+            elif subcmd == _SUBCMD_SHUTDOWN:
+                hub.system.shutdown()
+            elif subcmd == _SUBCMD_STORE:
+                pass
+            elif subcmd == _SUBCMD_EXECUTE:
+                pass
+        elif command == _CMD_DATA:
+            if currentCommand[0][1] == _CMD_SUBCMD and currentCommand[0][2] == _SUBCMD_STORE:
+                updateCurrentCommand(data)
+                pass
+            if currentCommand[0][1] == _CMD_SUBCMD and currentCommand[0][2] == _SUBCMD_RESET:
+                updateCurrentCommand(data)
+                mount, top, bottom = unpack_from('<hhh', data[0], 1 + 6*(_HUBID - 1))
+                try:
+                    motor.reset_angle(bottom*10)
+                except:
+                    getMotor(_MOTORPORT)
             else:
-                motor.run(bottom)
-        except:
-            getMotor(_MOTORPORT)
-    elif command == _CMD_ANGLE:
-        try:
-            motor.track_target(bottom*10)
-        except:
-            getMotor(_MOTORPORT)
-    elif command == _CMD_RESET:
-        try:
-            motor.reset_angle(bottom*10)
-        except:
-            getMotor(_MOTORPORT)
-    elif command == _CMD_SHUTDOWN:
-        hub.system.shutdown()
+                updateCurrentCommand(data)
+                #print("recieved data after cmd", currentCommand[0])
+                return
+        else:
+            mount, top, bottom = unpack_from('<hhh', data[0], 1 + 6*(_HUBID - 1))
+            updateCurrentCommand(data)
+            if command == _CMD_SPEED:
+                try:
+                    if bottom == 0:
+                        motor.brake()
+                    else:
+                        motor.run(bottom)
+                except:
+                    getMotor(_MOTORPORT)
+            elif command == _CMD_ANGLE:
+                try:
+                    motor.track_target(bottom*10)
+                except:
+                    getMotor(_MOTORPORT)
+            else:
+                #print("unknown command", command)
+                return
+    except:
+        #print("failed to unpack", data)
+        return
 
 
 def getSensorValues():

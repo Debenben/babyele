@@ -122,6 +122,7 @@ class SimulationPybricksHub {
   broadcastInterval;
   motors: SimulationMotor[]
   tiltSensors : SimulationTiltSensor[]
+  currentCommand : Buffer
   currentChecksum : number
 
   constructor(socket: SimulationHciSocket, hubId: number) {
@@ -178,10 +179,15 @@ class SimulationPybricksHub {
 
   processBroadcast(data: Buffer) {
     const command = data.readUInt8(11);
-    let checksum = 0;
-    for(let i=0; i<25; i++) checksum ^= data.readUInt8(11 + i);
-    this.currentChecksum = checksum;
-    if(command == 1) {
+    if(command == 0) { //SUBCMD
+      const subcmd = data.readUInt8(12);
+      if(subcmd == 1) {
+        console.log("shutting down simulation hub id", this.hubId);
+        this.broadcastInterval.clear();
+        this.processBroadcast = (data) => {return;};
+      }
+    }
+    else if(command == 1) { //SPEED
       if(this.hubId < 5) {
         this.motors[0].setSpeed(data.readInt16LE(10 + 6*this.hubId));
       }
@@ -192,7 +198,7 @@ class SimulationPybricksHub {
         this.motors[3].setSpeed(data.readInt16LE(12*this.hubId - 40));
       }
     }
-    else if(command == 2) {
+    else if(command == 2) { //ANGLE
       if(this.hubId < 5) {
         this.motors[0].setDestRotation(data.readInt16LE(10 + 6*this.hubId));
       }
@@ -203,21 +209,24 @@ class SimulationPybricksHub {
         this.motors[3].setDestRotation(data.readInt16LE(12*this.hubId - 40));
       }
     }
-    else if(command == 3) {
-      if(this.hubId < 5) {
-        this.motors[0].reset(data.readInt16LE(10 + 6*this.hubId));
-      }
-      else {
-        this.motors[0].reset(data.readInt16LE(12*this.hubId - 48));
-        this.motors[1].reset(data.readInt16LE(12*this.hubId - 46));
-        this.motors[2].reset(data.readInt16LE(12*this.hubId - 42));
-        this.motors[3].reset(data.readInt16LE(12*this.hubId - 40));
+    else if(command == 3) { //DATA
+      if(this.currentCommand.readUInt8(11) == 0 && this.currentCommand.readUInt8(12) == 4) {
+        console.log("reset simulation hub id", this.hubId);
+        if(this.hubId < 5) {
+          this.motors[0].reset(data.readInt16LE(10 + 6*this.hubId));
+        }
+        else {
+          this.motors[0].reset(data.readInt16LE(12*this.hubId - 48));
+          this.motors[1].reset(data.readInt16LE(12*this.hubId - 46));
+          this.motors[2].reset(data.readInt16LE(12*this.hubId - 42));
+          this.motors[3].reset(data.readInt16LE(12*this.hubId - 40));
+        }
       }
     }
-    else if(command == 4) {
-      console.log("shutting down simulation hub id", this.hubId);
-      this.broadcastInterval.clear();
-    }
+    let checksum = 0;
+    for(let i=0; i<25; i++) checksum ^= data.readUInt8(11 + i);
+    this.currentChecksum = checksum;
+    this.currentCommand = data;
   }
 }
 

@@ -230,13 +230,15 @@ export class PybricksCommander implements CommanderAbstraction {
   }
 
   async requestKeepalive() {
+    await new Promise(resolve => setTimeout(resolve, 0));
+    if this.currentCommand return;
     this.commandCounter += 1;
     if(this.commandCounter >= 2**16) this.commandCounter = 0;
-    return this.sendCommand(0, [[this.commandCounter,0,0], [0,0,0], [0,0,0], [0,0,0]]);
+    return this.sendCommand(0, [[0,0,this.commandCounter], [0,0,0], [0,0,0], [0,0,0]]);
   }
 
   async requestShutdown() {
-    return this.sendCommand(4, [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]);
+    return this.sendCommand(0, [[1,0,0], [0,0,0], [0,0,0], [0,0,0]]);
   }
 
   async requestMotorSpeeds (motorSpeeds: Vec43) {
@@ -251,6 +253,7 @@ export class PybricksCommander implements CommanderAbstraction {
 
   async requestSync (motorAngles: Vec43) {
     // console.log("requesting sync with", motorAngles);
+    await Promise.race([this.sendCommand(0, [[4,0,0], [0,0,0], [0,0,0], [0,0,0]]), new Promise(resolve => setTimeout(resolve, 500)]));
     return this.sendCommand(3, motorAngles.map(e => e.map(v => v/10)) as Vec43);
   }
 }

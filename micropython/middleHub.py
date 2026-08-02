@@ -11,13 +11,18 @@ from umath import floor
 _HUBID = const(5)
 _MOTORPORTS = [Port.B, Port.D, Port.A, Port.C]
 
-_CMD_KEEPALIVE = const(0)
+_CMD_SUBCMD = const(0)
 _CMD_SPEED = const(1)
 _CMD_ANGLE = const(2)
-_CMD_RESET = const(3)
-_CMD_SHUTDOWN = const(4)
+_CMD_DATA = const(3)
 
-_CMD_SHUTDOWN_PACK = [pack('<B12h',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
+_SUBCMD_WAIT = const(0)
+_SUBCMD_SHUTDOWN = const(1)
+_SUBCMD_STORE = const(2)
+_SUBCMD_EXECUTE = const(3)
+_SUBCMD_RESET = const(4)
+
+_CMD_SHUTDOWN_PACK = [pack('<3B11h',_CMD_SUBCMD, _SUBCMD_SHUTDOWN,0,0,0, 0,0,0, 0,0,0, 0,0,0)]
 
 _BUTTON_IDLE = const(0)
 _BUTTON_ACTIVE = const(1)
@@ -73,49 +78,78 @@ def getStatus():
         status += 64
 
 
-def executeCommand(data):
-    global motors, currentCommand, currentChecksum, commandTimestamp
+def updateCurrentCommand(data):
+    global currentCommand, currentChecksum, commandTimestamp
     checksum = 0
     try:
-        command = data[0][0]
-        mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', data[0], 1 + 12*(_HUBID - 5))
         for i in range(25):
             checksum ^= data[0][i]
     except:
-        #print("failed to unpack", data)
+        #print("failed to calculate checksum")
         return
     commandTimestamp = time.time()
     currentCommand = data
     currentChecksum = checksum
-    #print("command", cmd, mount1, top1, mount2, top2)
-    if command == _CMD_KEEPALIVE:
-        pass
-    elif command == _CMD_SPEED:
-        target = [2*mount1, top1, 2*mount2, top2]
-        for i in range(0, 4):
-            try:
-                if target[i] == 0:
-                    motors[i].brake()
-                else:
-                    motors[i].run(target[i])
-            except:
-                getMotor(_MOTORPORTS[i])
-    elif command == _CMD_ANGLE:
-        target = [10*mount1, 10*top1, 10*mount2, 10*top2]
-        for i in range(0, 4):
-            try:
-                motors[i].track_target(target[i])
-            except:
-                getMotor(_MOTORPORTS[i])
-    elif command == _CMD_RESET:
-        target = [10*mount1, 10*top1, 10*mount2, 10*top2]
-        for i in range(0, 4):
-            try:
-                motors[i].reset_angle(target[i])
-            except:
-                getMotor(_MOTORPORTS[i])
-    elif command == _CMD_SHUTDOWN:
-        hub.system.shutdown()
+
+
+def executeCommand(data):
+    global motors
+    try:
+        command = data[0][0]
+        if command == _CMD_SUBCMD:
+            updateCurrentCommand(data)
+            subcmd = data[0][1]
+            if subcmd == _SUBCMD_WAIT:
+                pass
+            elif subcmd == _SUBCMD_SHUTDOWN:
+                hub.system.shutdown()
+            elif subcmd == _SUBCMD_STORE:
+                pass
+            elif subcmd == _SUBCMD_EXECUTE:
+                pass
+        elif command == _CMD_DATA:
+            if currentCommand[0][1] == _CMD_SUBCMD and currentCommand[0][2] == _SUBCMD_STORE:
+                updateCurrentCommand(data)
+                pass
+            if currentCommand[0][1] == _CMD_SUBCMD and currentCommand[0][2] == _SUBCMD_RESET:
+                updateCurrentCommand(data)
+                mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', data[0], 1 + 12*(_HUBID - 5))
+                target = [10*mount1, 10*top1, 10*mount2, 10*top2]
+                for i in range(0, 4):
+                    try:
+                        motors[i].reset_angle(target[i])
+                    except:
+                        getMotor(_MOTORPORTS[i])
+            else:
+                updateCurrentCommand(data)
+                #print("recieved data after cmd", currentCommand[0])
+                return
+        else:
+            mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', data[0], 1 + 12*(_HUBID - 5))
+            updateCurrentCommand(data)
+            if command == _CMD_SPEED:
+                target = [2*mount1, top1, 2*mount2, top2]
+                for i in range(0, 4):
+                    try:
+                        if target[i] == 0:
+                            motors[i].brake()
+                        else:
+                            motors[i].run(target[i])
+                    except:
+                        getMotor(_MOTORPORTS[i])
+            elif command == _CMD_ANGLE:
+                target = [10*mount1, 10*top1, 10*mount2, 10*top2]
+                for i in range(0, 4):
+                    try:
+                        motors[i].track_target(target[i])
+                    except:
+                        getMotor(_MOTORPORTS[i])
+            else:
+                #print("unknown command", command)
+                return
+    except:
+        #print("failed to unpack", data)
+        return
 
 
 def getSensorValues():
@@ -176,7 +210,6 @@ def getCommand():
 
             buttonMode = _BUTTON_INACTIVE
 
-            
 
 def setLedColor():
     global loopCounter

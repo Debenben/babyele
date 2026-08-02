@@ -9,13 +9,18 @@ from urandom import randint
 
 _HUBID = const(0)
 
-_CMD_KEEPALIVE = const(0)
+_CMD_SUBCMD = const(0)
 _CMD_SPEED = const(1)
 _CMD_ANGLE = const(2)
-_CMD_RESET = const(3)
-_CMD_SHUTDOWN = const(4)
+_CMD_DATA = const(3)
 
-_CMD_SHUTDOWN_PACK = [pack('<B12h',_CMD_SHUTDOWN, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]
+_SUBCMD_WAIT = const(0)
+_SUBCMD_SHUTDOWN = const(1)
+_SUBCMD_STORE = const(2)
+_SUBCMD_EXECUTE = const(3)
+_SUBCMD_RESET = const(4)
+
+_CMD_SHUTDOWN_PACK = [pack('<3B11h',_CMD_SUBCMD, _SUBCMD_SHUTDOWN,0,0,0, 0,0,0, 0,0,0, 0,0,0)]
 
 _BUTTON_IDLE = const(0)
 _BUTTON_ACTIVE = const(1)
@@ -130,7 +135,7 @@ Matrix(
 
 loopCounter = 0
 commandCounter = 0
-buttonMode = _BUTTON_IDLE
+buttonMode = _BUTTON_INACTIVE
 selection = _SELECT_RETURN
 selectedSpeed = 0
 hubSensorData = [None, None, None, None, None, None, None]
@@ -164,10 +169,6 @@ defaultLegPositions = [0.5*_LEG_SEPARATION_LENGTH, -_LEG_MOUNT_HEIGHT,  (0.5*_LE
                       -0.5*_LEG_SEPARATION_LENGTH, -_LEG_MOUNT_HEIGHT,  (0.5*_LEG_SEPARATION_WIDTH - _LEG_MOUNT_WIDTH),
                       -0.5*_LEG_SEPARATION_LENGTH, -_LEG_MOUNT_HEIGHT, -(0.5*_LEG_SEPARATION_WIDTH - _LEG_MOUNT_WIDTH)]
 
-defaultRelativeLegPositions = [0.5*_LEG_SEPARATION_LENGTH, 0,  (0.5*_LEG_SEPARATION_WIDTH - _LEG_MOUNT_WIDTH),
-                               0.5*_LEG_SEPARATION_LENGTH, 0, -(0.5*_LEG_SEPARATION_WIDTH - _LEG_MOUNT_WIDTH),
-                              -0.5*_LEG_SEPARATION_LENGTH, 0,  (0.5*_LEG_SEPARATION_WIDTH - _LEG_MOUNT_WIDTH),
-                              -0.5*_LEG_SEPARATION_LENGTH, 0, -(0.5*_LEG_SEPARATION_WIDTH - _LEG_MOUNT_WIDTH)]
 
 mountAngleOffset = invCosLaw(_LEG_PISTON_HEIGHT, _LEG_PISTON_WIDTH, _LEG_PISTON_LENGTH)
 
@@ -267,42 +268,6 @@ def dogPositionFromMotorAngles(motorAngles):
     #return vec3Rotate(averagePosition, dogRotationFromMotorAngles(motorAngles));
     return averagePosition
 
-
-def dogRotationFromMotorAngles(motorAngles):
-    averagePosition = [0, 0, 0]
-    legPositions = legPositionsFromMotorAngles(motorAngles)
-    for i in range(12):
-        averagePosition[i % 3] += legPositions[i]
-    for i in range(12):
-        legPositions[i] -= averagePosition[i % 3]
-    quat = [0, 0, 0, 1]
-    for i in range(4):
-        axis = [legPositions[3*i + 1]*defaultRelativeLegPositions[3*i + 2] - legPositions[3*i + 2]*defaultRelativeLegPositions[3*i + 1],
-                legPositions[3*i + 2]*defaultRelativeLegPositions[3*i + 0] - legPositions[3*i + 0]*defaultRelativeLegPositions[3*i + 2],
-                legPositions[3*i + 0]*defaultRelativeLegPositions[3*i + 1] - legPositions[3*i + 1]*defaultRelativeLegPositions[3*i + 0]]
-        legPositionsLength = sqrt(legPositions[3*i]**2 + legPositions[3*i + 1]**2 + legPositions[3*i + 2])
-        defaultRelativeLegPositionsLength = sqrt(defaultRelativeLegPositions[3*i]**2 + defaultRelativeLegPositions[3*i + 1]**2 + defaultRelativeLegPositions[3*i + 2]**2)
-        if legPositionsLength > 0 and defaultRelativeLegPositionsLength > 0:
-            dot = legPositions[3*i]*defaultRelativeLegPositions[3*i] + legPositions[3*i + 1]*defaultRelativeLegPositions[3*i + 1] + legPositions[3*i + 2]*defaultRelativeLegPositions[3*i + 2]
-            angle = acos(dot/(legPositionsLength*defaultRelativeLegPositionsLength))
-
-  for(let i = 0; i < 4; i++) {
-    const axis = vec3Cross(relativePositions[i], defaultRelativeLegPositions[i]);
-    const angle = Math.acos(vec3Dot(relativePositions[i], defaultRelativeLegPositions[i]) / (vec3Len(relativePositions[i]) * vec3Len(defaultRelativeLegPositions[i])));
-    if(!isNaN(angle)) quat = vec4Cross(quatFromAxisAngle(axis, angle), quat);
-  }
-  const axis = [quat[0], quat[1], quat[2]];
-  let rotationAngle = 0;
-  for(let i = 0; i < 4; i++) {
-    const relativeProj = vec3Proj(relativePositions[i], axis);
-    const defaultProj = vec3Proj(defaultRelativeLegPositions[i], axis);
-    const angle = Math.acos(vec3Dot(relativeProj, defaultProj) / (vec3Len(relativeProj) * vec3Len(defaultProj)));
-    if(!isNaN(angle)) rotationAngle += 0.25*angle;
-  }
-  return quatFromAxisAngle(axis, rotationAngle);
-}
-
-
 def getBoundSpeed(speed):
     if speed > 1000:
         return 1000
@@ -335,6 +300,7 @@ def executeCommand(data):
     checksum = 0
     try:
         cmd = data[0][0]
+        subcmd = data[0][1]
         for i in range(25):
             checksum ^= data[0][i]
     except:
@@ -343,7 +309,7 @@ def executeCommand(data):
     hubTimestamps[0] = time.time()
     hubSensorData[0] = data
     hubChecksums[0] = checksum
-    if cmd == _CMD_SHUTDOWN:
+    if cmd == _CMD_SUBCMD and subcmd == _SUBCMD_SHUTDOWN:
         hub.speaker.beep(1000, 20)
         wait(100)
         hub.speaker.beep(1000, 20)
@@ -353,6 +319,7 @@ def executeCommand(data):
         hub.speaker.beep(1000, 20)
         wait(100)
         hub.system.shutdown()
+
 
 def getSensorData():
     global hubSensorData, hubTimestamps, hubChecksums, commandCounter
@@ -371,11 +338,11 @@ def getSensorData():
                 if (i <= 4 and (status & 0b00110011 == 0b00100011)) or (i > 4 and (status & 0b00111111 == 0b00111111)):
                     hubTimestamps[i] = time.time()
                     if all(hubChecksums[i] == hubChecksums[0] for i in range(6)):
+                        #print("all checksums", hubChecksums[i])
                         commandCounter += 1
                         if commandCounter >= 2**16:
                             commandCounter = 0
-                        command = [pack('<B12h',_CMD_KEEPALIVE, commandCounter,0,0, 0,0,0, 0,0,0, 0,0,0)]
-                        #print("all checksums", hubChecksums[i])
+                        command = [pack('<3B11h',_CMD_SUBCMD, _SUBCMD_WAIT,0,0,commandCounter, 0,0,0, 0,0,0, 0,0,0)]
                         sendCommand(command)
 
 
@@ -484,7 +451,11 @@ def getCommand():
             elif(selection == _SELECT_RETURN):
                 if(pressed == {Button.BLUETOOTH}):
                     selectedSpeed = 1000
-                    sendCommand([pack('<B12h',_CMD_RESET, 0,0,0, 0,0,0, 0,0,0, 0,0,0)])
+                    sendCommand([pack('<3B11h',_CMD_SUBCMD, _SUBCMD_RESET,0,0,0, 0,0,0, 0,0,0, 0,0,0)])
+                    hub.speaker.beep(500, 100)
+                    wait(300)
+                    hub.speaker.beep(500, 100)
+                    sendCommand([pack('<B12h',_CMD_DATA, 0,0,0, 0,0,0, 0,0,0, 0,0,0)])
                 else:
                     selectedSpeed = 0
 
@@ -532,7 +503,7 @@ def sendCommand(command):
     executeCommand(command)
 
 
-command = [pack('<B12h',_CMD_KEEPALIVE, commandCounter,0,0, 0,0,0, 0,0,0, 0,0,0)]
+command = [pack('<3B11h',_CMD_SUBCMD, _SUBCMD_WAIT,0,0,commandCounter, 0,0,0, 0,0,0, 0,0,0)]
 sendCommand(command)
 while(True):
     getCommand()
