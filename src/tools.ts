@@ -56,6 +56,8 @@ export const vec3Dot = (l: Vec3, r: Vec3) => l[0]*r[0] + l[1]*r[1] + l[2]*r[2];
 
 export const vec3Cross = (l: Vec3, r: Vec3) => [l[1]*r[2] - l[2]*r[1], l[2]*r[0] - l[0]*r[2], l[0]*r[1] - l[1]*r[0]] as Vec3;
 
+export const vec3Outer = (l: Vec3, r: Vec3) => [[l[0]*r[0],l[0]*r[1],l[0]*r[2]], [l[1]*r[0],l[1]*r[1],l[1]*r[2]], [l[2]*r[0],l[2]*r[1],l[2]*r[2]]] as Vec33;
+
 // project v onto plain perpendicular to a
 export const vec3Proj = (v: Vec3, a: Vec3) => {
   const s = vec3Dot(v, a);
@@ -95,3 +97,100 @@ export const vec4Normalize = (vec: Vec4) => {
   else return vec;
 }
 
+export const vec43Centroid = (v: Vec43) => [0.25*(v[0][0]+v[1][0]+v[2][0]+v[3][0]), 0.25*(v[0][1]+v[1][1]+v[2][1]+v[3][1]), 0.25*(v[0][2]+v[1][2]+v[2][2]+v[3][2])] as Vec3
+
+export const mat3T = (m: number[][]) => [
+  [m[0][0], m[1][0], m[2][0]],
+  [m[0][1], m[1][1], m[2][1]],
+  [m[0][2], m[1][2], m[2][2]]];
+
+export const mat3Mul = (a: number[][], b: number[][]) => {
+  const r = [[0,0,0],[0,0,0],[0,0,0]];
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++)
+      r[i][j] = a[i][0]*b[0][j] + a[i][1]*b[1][j] + a[i][2]*b[2][j];
+  return r;
+}
+
+export const mat3Det = (m: number[][]) => m[0][0]*(m[1][1]*m[2][2] - m[1][2]*m[2][1]) - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1] - m[1][1]*m[2][0]);
+
+export const svd3x3 = (H: number[][]) => {
+  const HT = mat3T(H);
+  const HT_H = mat3Mul(HT, H);
+  const { eigenvalues, eigenvectors } = eigenSymmetric3x3(HT_H);
+  let V = eigenvectors;
+  const U = [[0,0,0],[0,0,0],[0,0,0]];
+  for (let i = 0; i < 3; i++) {
+    const sigma = Math.sqrt(Math.max(eigenvalues[i], 0));
+    const colV = [V[0][i], V[1][i], V[2][i]];
+    const Hv = [
+      H[0][0]*colV[0] + H[0][1]*colV[1] + H[0][2]*colV[2],
+      H[1][0]*colV[0] + H[1][1]*colV[1] + H[1][2]*colV[2],
+      H[2][0]*colV[0] + H[2][1]*colV[1] + H[2][2]*colV[2],
+    ];
+    const scale = sigma > 1e-9 ? 1 / sigma : 0;
+    U[0][i] = Hv[0] * scale;
+    U[1][i] = Hv[1] * scale;
+    U[2][i] = Hv[2] * scale;
+  }
+  return { U, V };
+}
+
+function eigenSymmetric3x3(m: number[][]): {
+  eigenvalues: number[],
+  eigenvectors: number[][]
+} {
+  let A = [
+    [m[0][0], m[0][1], m[0][2]],
+    [m[1][0], m[1][1], m[1][2]],
+    [m[2][0], m[2][1], m[2][2]],
+  ];
+  let V = [[1,0,0],[0,1,0],[0,0,1]];
+
+  for (let iter = 0; iter < 20; iter++) {
+    // find largest off-diagonal
+    let p = 0, q = 1;
+    let max = Math.abs(A[0][1]);
+    const check = (i: number, j: number) => {
+      const v = Math.abs(A[i][j]);
+      if (v > max) { max = v; p = i; q = j; }
+    };
+    check(0,2); check(1,2);
+    if (max < 1e-12) break;
+
+    const app = A[p][p], aqq = A[q][q], apq = A[p][q];
+    const phi = 0.5 * Math.atan2(2*apq, aqq - app);
+    const c = Math.cos(phi), s = Math.sin(phi);
+
+    // rotate A
+    for (let k = 0; k < 3; k++) {
+      const Akp = A[k][p], Akq = A[k][q];
+      A[k][p] = c*Akp - s*Akq;
+      A[k][q] = s*Akp + c*Akq;
+    }
+    for (let k = 0; k < 3; k++) {
+      const Apk = A[p][k], Aqk = A[q][k];
+      A[p][k] = c*Apk - s*Aqk;
+      A[q][k] = s*Apk + c*Aqk;
+    }
+    A[p][q] = A[q][p] = 0;
+
+    // rotate V
+    for (let k = 0; k < 3; k++) {
+      const Vkp = V[k][p], Vkq = V[k][q];
+      V[k][p] = c*Vkp - s*Vkq;
+      V[k][q] = s*Vkp + c*Vkq;
+    }
+  }
+
+  const eigenvalues = [A[0][0], A[1][1], A[2][2]];
+  // sort by descending eigenvalue
+  const idx = [0,1,2].sort((i,j) => eigenvalues[j] - eigenvalues[i]);
+  const evals = idx.map(i => eigenvalues[i]);
+  const evecs = [
+    [V[0][idx[0]], V[0][idx[1]], V[0][idx[2]]],
+    [V[1][idx[0]], V[1][idx[1]], V[1][idx[2]]],
+    [V[2][idx[0]], V[2][idx[1]], V[2][idx[2]]],
+  ];
+  return { eigenvalues: evals, eigenvectors: evecs };
+}
