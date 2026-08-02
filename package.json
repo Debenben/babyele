@@ -1,6 +1,6 @@
 {
   "name": "babyele",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "description": "program to control lego walker",
   "main": ".webpack/main",
   "scripts": {
@@ -15,12 +15,13 @@
   "author": "bene",
   "license": "ISC",
   "dependencies": {
-    "@stoprocent/bluetooth-hci-socket": "^2.2.5",
+    "@stoprocent/bluetooth-hci-socket": "^2.3.0",
     "babylonjs": "^9.2.0",
     "babylonjs-gui": "^9.2.0",
     "babylonjs-loaders": "^9.2.0",
     "electron-squirrel-startup": "^1.0.1",
-    "node-poweredup": "^10.1.0"
+    "node-poweredup": "^10.1.0",
+    "node-addon-api": "8.7.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",
@@ -35,7 +36,7 @@
     "@vercel/webpack-asset-relocator-loader": "^1.10.0",
     "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^7.1.0",
-    "electron": "41.2.1",
+    "electron": "^43.2.0",
     "eslint": "^9.39.4",
     "eslint-plugin-import": "^2.32.0",
     "node-loader": "^2.1.0",
