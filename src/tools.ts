@@ -115,11 +115,10 @@ export const mat3Mul = (a: number[][], b: number[][]) => {
 export const mat3Det = (m: number[][]) => m[0][0]*(m[1][1]*m[2][2] - m[1][2]*m[2][1]) - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1] - m[1][1]*m[2][0]);
 
 export const svd3x3 = (H: number[][]) => {
-  const HT = mat3T(H);
-  const HT_H = mat3Mul(HT, H);
-  const { eigenvalues, eigenvectors } = eigenSymmetric3x3(HT_H);
-  let V = eigenvectors;
-  const U = [[0,0,0],[0,0,0],[0,0,0]];
+  const HT_H = mat3Mul(mat3T(H), H);
+  const { eigenvalues, eigenvectors } = eigen3x3(HT_H);
+  const U = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  const V = eigenvectors;
   for (let i = 0; i < 3; i++) {
     const sigma = Math.sqrt(Math.max(eigenvalues[i], 0));
     const colV = [V[0][i], V[1][i], V[2][i]];
@@ -128,65 +127,84 @@ export const svd3x3 = (H: number[][]) => {
       H[1][0]*colV[0] + H[1][1]*colV[1] + H[1][2]*colV[2],
       H[2][0]*colV[0] + H[2][1]*colV[1] + H[2][2]*colV[2],
     ];
-    const scale = sigma > 1e-9 ? 1 / sigma : 0;
-    U[0][i] = Hv[0] * scale;
-    U[1][i] = Hv[1] * scale;
-    U[2][i] = Hv[2] * scale;
+    if (sigma > 1e-9) {
+      U[0][i] = Hv[0] / sigma;
+      U[1][i] = Hv[1] / sigma;
+      U[2][i] = Hv[2] / sigma;
+    } else {
+      U[0][i] = 0;
+      U[1][i] = 0;
+      U[2][i] = 0;
+    }
+  }
+  for (let i = 0; i < 3; i++) {
+    const len = Math.sqrt(U[0][i] ** 2 + U[1][i] ** 2 + U[2][i] ** 2);
+    if (len > 1e-9) {
+      U[0][i] /= len;
+      U[1][i] /= len;
+      U[2][i] /= len;
+    } else {
+      const bases = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+      for (const b of bases) {
+        let cand = [...b];
+        for (let j = 0; j < i; j++) {
+          const dot = cand[0] * U[0][j] + cand[1] * U[1][j] + cand[2] * U[2][j];
+          cand[0] -= dot * U[0][j];
+          cand[1] -= dot * U[1][j];
+          cand[2] -= dot * U[2][j];
+        }
+        const candLen = Math.sqrt(cand[0] ** 2 + cand[1] ** 2 + cand[2] ** 2);
+        if (candLen > 1e-9) {
+          U[0][i] = cand[0] / candLen;
+          U[1][i] = cand[1] / candLen;
+          U[2][i] = cand[2] / candLen;
+          break;
+        }
+      }
+    }
   }
   return { U, V };
-}
+};
 
-function eigenSymmetric3x3(m: number[][]): {
-  eigenvalues: number[],
-  eigenvectors: number[][]
-} {
-  let A = [
+export const eigen3x3 = (m: number[][]) => {
+  const A = [
     [m[0][0], m[0][1], m[0][2]],
     [m[1][0], m[1][1], m[1][2]],
     [m[2][0], m[2][1], m[2][2]],
   ];
-  let V = [[1,0,0],[0,1,0],[0,0,1]];
-
-  for (let iter = 0; iter < 20; iter++) {
-    // find largest off-diagonal
+  const V = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  for (let iter = 0; iter < 50; iter++) {
     let p = 0, q = 1;
     let max = Math.abs(A[0][1]);
     const check = (i: number, j: number) => {
       const v = Math.abs(A[i][j]);
       if (v > max) { max = v; p = i; q = j; }
     };
-    check(0,2); check(1,2);
+    check(0, 2); check(1, 2);
     if (max < 1e-12) break;
-
     const app = A[p][p], aqq = A[q][q], apq = A[p][q];
-    const phi = 0.5 * Math.atan2(2*apq, aqq - app);
+    const phi = 0.5*Math.atan2(2*apq, aqq - app);
     const c = Math.cos(phi), s = Math.sin(phi);
-
-    // rotate A
     for (let k = 0; k < 3; k++) {
-      const Akp = A[k][p], Akq = A[k][q];
-      A[k][p] = c*Akp - s*Akq;
-      A[k][q] = s*Akp + c*Akq;
+      if (k !== p && k !== q) {
+        const akp = A[k][p];
+        const akq = A[k][q];
+        A[k][p] = A[p][k] = c*akp - s*akq;
+        A[k][q] = A[q][k] = s*akp + c*akq;
+      }
     }
-    for (let k = 0; k < 3; k++) {
-      const Apk = A[p][k], Aqk = A[q][k];
-      A[p][k] = c*Apk - s*Aqk;
-      A[q][k] = s*Apk + c*Aqk;
-    }
+    A[p][p] = c*c*app - 2*c*s*apq + s*s*aqq;
+    A[q][q] = s*s*app + 2*c*s*apq + c*c*aqq;
     A[p][q] = A[q][p] = 0;
-
-    // rotate V
     for (let k = 0; k < 3; k++) {
-      const Vkp = V[k][p], Vkq = V[k][q];
-      V[k][p] = c*Vkp - s*Vkq;
-      V[k][q] = s*Vkp + c*Vkq;
+      const vkp = V[k][p], vkq = V[k][q];
+      V[k][p] = c*vkp - s*vkq;
+      V[k][q] = s*vkp + c*vkq;
     }
   }
-
-  const eigenvalues = [A[0][0], A[1][1], A[2][2]];
-  // sort by descending eigenvalue
-  const idx = [0,1,2].sort((i,j) => eigenvalues[j] - eigenvalues[i]);
-  const evals = idx.map(i => eigenvalues[i]);
+  const ev = [A[0][0], A[1][1], A[2][2]];
+  const idx = [0, 1, 2].sort((i, j) => ev[j] - ev[i]);
+  const evals = idx.map(i => ev[i]);
   const evecs = [
     [V[0][idx[0]], V[0][idx[1]], V[0][idx[2]]],
     [V[1][idx[0]], V[1][idx[1]], V[1][idx[2]]],

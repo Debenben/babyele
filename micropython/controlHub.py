@@ -3,7 +3,7 @@ from pybricks.messaging import BLERadio
 from pybricks.parameters import Color, Button
 from pybricks.tools import wait, StopWatch, Matrix
 
-from umath import floor, acos, pi, sqrt, sin, cos, asin, acos, atan2
+from umath import floor, acos, pi, sqrt, sin, cos, asin, acos, atan2, copysign
 from ustruct import unpack_from, pack, pack_into
 from urandom import randint
 
@@ -156,12 +156,160 @@ def cosLaw(rSide, lSide, angle):
 
 def invCosLaw(rSide, lSide, oSide):
     cosVal = (rSide**2 + lSide**2 - oSide**2)/(2*rSide*lSide)
-    if cosVal > 1.0:
-        return 1.0
-    elif cosVal < -1.0:
-        return -1.0
+    return acos(max(-1.0, min(1.0, cosVal)))
+
+
+def mat3_T(A):
+    return [
+        [A[0][0], A[1][0], A[2][0]],
+        [A[0][1], A[1][1], A[2][1]],
+        [A[0][2], A[1][2], A[2][2]]
+    ]
+
+
+def mat3_mul(A, B):
+    C = [[0,0,0],[0,0,0],[0,0,0]]
+    for r in range(3):
+        for c in range(3):
+            C[r][c] = (
+                A[r][0]*B[0][c] +
+                A[r][1]*B[1][c] +
+                A[r][2]*B[2][c]
+            )
+    return C
+
+
+def mat3_det(M):
+    return (
+        M[0][0]*(M[1][1]*M[2][2] - M[1][2]*M[2][1]) -
+        M[0][1]*(M[1][0]*M[2][2] - M[1][2]*M[2][0]) +
+        M[0][2]*(M[1][0]*M[2][1] - M[1][1]*M[2][0])
+    )
+
+
+def vec3_rotate(v, R):
+    x = v[0]
+    y = v[1]
+    z = v[2]
+    return [
+        R[0][0]*x + R[0][1]*y + R[0][2]*z,
+        R[1][0]*x + R[1][1]*y + R[1][2]*z,
+        R[2][0]*x + R[2][1]*y + R[2][2]*z
+    ]
+
+
+def quat_from_mat3(m):
+    trace = m[0][0] + m[1][1] + m[2][2]
+    if trace > 0:
+        s = sqrt(trace + 1.0) * 2
+        w = 0.25 * s
+        x = (m[2][1] - m[1][2]) / s
+        y = (m[0][2] - m[2][0]) / s
+        z = (m[1][0] - m[0][1]) / s
+        return [x, y, z, w]
+    if m[0][0] > m[1][1] and m[0][0] > m[2][2]:
+        s = sqrt(1.0 + m[0][0] - m[1][1] - m[2][2]) * 2
+        x = 0.25 * s
+        y = (m[0][1] + m[1][0]) / s
+        z = (m[0][2] + m[2][0]) / s
+        w = (m[2][1] - m[1][2]) / s
+        return [x, y, z, w]
+    if m[1][1] > m[2][2]:
+        s = sqrt(1.0 + m[1][1] - m[0][0] - m[2][2]) * 2
+        x = (m[0][1] + m[1][0]) / s
+        y = 0.25 * s
+        z = (m[1][2] + m[2][1]) / s
+        w = (m[0][2] - m[2][0]) / s
+        return [x, y, z, w]
+    s = sqrt(1.0 + m[2][2] - m[0][0] - m[1][1]) * 2
+    x = (m[0][2] + m[2][0]) / s
+    y = (m[1][2] + m[2][1]) / s
+    z = 0.25 * s
+    w = (m[1][0] - m[0][1]) / s
+    return [x, y, z, w]
+
+
+def euler_from_quat(q):
+    x, y, z, w = q
+    siny = 2 * (w*y + x*z)
+    cosy = 1 - 2 * (y*y + z*z)
+    yaw = atan2(siny, cosy)
+    sinp = 2 * (w*x - y*z)
+    if abs(sinp) >= 1:
+        pitch = copysign(pi/2, sinp)
     else:
-        return cosVal
+        pitch = asin(sinp)
+    sinr = 2 * (w*z + x*y)
+    cosr = 1 - 2 * (z*z + x*x)
+    roll = atan2(sinr, cosr)
+    return [pitch*180/pi, yaw*180/pi, roll*180/pi]
+
+
+def svd3x3(A):
+    M = [[A[i][j] for j in range(3)] for i in range(3)]
+    U_T = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    for _ in range(30):
+        converged = True
+        for p in range(3):
+            for q in range(p+1, 3):
+                a = sum(M[p][k]**2 for k in range(3))
+                b = sum(M[q][k]**2 for k in range(3))
+                c = sum(M[p][k]*M[q][k] for k in range(3))
+                if abs(c) < 1e-12:
+                    if a < b:
+                        cs, sn = 0.0, 1.0
+                    else:
+                        continue
+                else:
+                    converged = False
+                    tau = (b - a) / (2.0*c)
+                    t = 1.0 / (abs(tau) + sqrt(1.0 + tau*tau))
+                    if tau < 0:
+                        t = -t
+                    cs = 1.0 / sqrt(1.0 + t*t)
+                    sn = t*cs
+                for k in range(3):
+                    mpk, mqk = M[p][k], M[q][k]
+                    M[p][k] = cs*mpk - sn*mqk
+                    M[q][k] = sn*mpk + cs*mqk
+                for k in range(3):
+                    upk, uqk = U_T[p][k], U_T[q][k]
+                    U_T[p][k] = cs*upk - sn*uqk
+                    U_T[q][k] = sn*upk + cs*uqk
+        if converged:
+            break
+    S = [0.0, 0.0, 0.0]
+    for i in range(3):
+        S[i] = sqrt(sum(M[i][k]**2 for k in range(3)))
+    V_T = [[0.0]*3 for _ in range(3)]
+    for i in range(3):
+        if S[i] > 1e-12:
+            for k in range(3):
+                V_T[i][k] = M[i][k] / S[i]
+    indices = [0, 1, 2]
+    indices.sort(key=lambda x: S[x], reverse=True)
+    S_sorted = [S[i] for i in indices]
+    U_T_sorted = [U_T[i] for i in indices]
+    V_T_sorted = [V_T[i] for i in indices]
+    for mat in (U_T_sorted, V_T_sorted):
+        for i in range(3):
+            norm = sqrt(sum(x**2 for x in mat[i]))
+            if norm < 1e-6:
+                for unit in [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]:
+                    v = unit[:]
+                    for j in range(i):
+                        dot = sum(mat[j][k]*unit[k] for k in range(3))
+                        for k in range(3):
+                            v[k] -= dot*mat[j][k]
+                    v_norm = sqrt(sum(x**2 for x in v))
+                    if v_norm > 1e-4:
+                        mat[i] = [x / v_norm for x in v]
+                        break
+            else:
+                mat[i] = [x / norm for x in mat[i]]
+    U = [[U_T_sorted[j][i] for j in range(3)] for i in range(3)]
+    V = [[V_T_sorted[j][i] for j in range(3)] for i in range(3)]
+    return (U, V)
 
 
 defaultLegPositions = [0.5*_LEG_SEPARATION_LENGTH, -_LEG_MOUNT_HEIGHT,  (0.5*_LEG_SEPARATION_WIDTH - _LEG_MOUNT_WIDTH),
@@ -177,13 +325,13 @@ def getMotorAngles():
     motorAngles = [None for i in range(12)]
     for i in range(1, 5):
         if hubSensorData[i] is not None:
-            motorAngles[3*(i - 1) + 2] = unpack_from('<h', hubSensorData[i], 8)[0]
+            motorAngles[3*(i - 1) + 2] = 10*unpack_from('<h', hubSensorData[i], 8)[0]
     for i in range(5, 7):
         if hubSensorData[i] is not None:
-            motorAngles[6*(i - 5)] = unpack_from('<h', hubSensorData[i], 8)[0]
-            motorAngles[6*(i - 5) + 1] = unpack_from('<h', hubSensorData[i], 10)[0]
-            motorAngles[6*(i - 5) + 3] = unpack_from('<h', hubSensorData[i], 12)[0]
-            motorAngles[6*(i - 5) + 4] = unpack_from('<h', hubSensorData[i], 14)[0]
+            motorAngles[6*(i - 5)] = 10*unpack_from('<h', hubSensorData[i], 8)[0]
+            motorAngles[6*(i - 5) + 1] = 10*unpack_from('<h', hubSensorData[i], 10)[0]
+            motorAngles[6*(i - 5) + 3] = 10*unpack_from('<h', hubSensorData[i], 12)[0]
+            motorAngles[6*(i - 5) + 4] = 10*unpack_from('<h', hubSensorData[i], 14)[0]
     return motorAngles
 
 
@@ -260,13 +408,62 @@ def motorAnglesFromLegPositions(positions, bendForward):
     return motorAnglesFromLegAngles(positions)
 
 
-def dogPositionFromMotorAngles(motorAngles):
-    averagePosition = [0, 0, 0]
+def dogRotationFromLegPositions(legPositions):
+    A = legPositions
+    B = defaultLegPositions
+    centroidA = [0,0,0]
+    centroidB = [0,0,0]
+    for i in range(4):
+        centroidA[0] += A[3*i+0]
+        centroidA[1] += A[3*i+1]
+        centroidA[2] += A[3*i+2]
+        centroidB[0] += B[3*i+0]
+        centroidB[1] += B[3*i+1]
+        centroidB[2] += B[3*i+2]
+    centroidA = [centroidA[0]/4, centroidA[1]/4, centroidA[2]/4]
+    centroidB = [centroidB[0]/4, centroidB[1]/4, centroidB[2]/4]
+    AA = [0]*12
+    BB = [0]*12
+    for i in range(4):
+        AA[3*i+0] = A[3*i+0] - centroidA[0]
+        AA[3*i+1] = A[3*i+1] - centroidA[1]
+        AA[3*i+2] = A[3*i+2] - centroidA[2]
+        BB[3*i+0] = B[3*i+0] - centroidB[0]
+        BB[3*i+1] = B[3*i+1] - centroidB[1]
+        BB[3*i+2] = B[3*i+2] - centroidB[2]
+    H = [[0,0,0],[0,0,0],[0,0,0]]
+    for i in range(4):
+        ax = AA[3*i+0]; ay = AA[3*i+1]; az = AA[3*i+2]
+        bx = BB[3*i+0]; by = BB[3*i+1]; bz = BB[3*i+2]
+        H[0][0] += ax*bx; H[0][1] += ax*by; H[0][2] += ax*bz
+        H[1][0] += ay*bx; H[1][1] += ay*by; H[1][2] += ay*bz
+        H[2][0] += az*bx; H[2][1] += az*by; H[2][2] += az*bz
+    U, V = svd3x3(H)
+    R = mat3_mul(V, mat3_T(U))
+    if mat3_det(R) < 0:
+        V[0][2] = -V[0][2]
+        V[1][2] = -V[1][2]
+        V[2][2] = -V[2][2]
+        R = mat3_mul(V, mat3_T(U))
+    return R
+
+
+def dogRotationFromMotorAngles(motorAngles):
     legPositions = legPositionsFromMotorAngles(motorAngles)
+    return dogRotationFromLegPositions(legPositions)
+
+
+def dogPositionFromMotorAngles(motorAngles):
+    legPositions = legPositionsFromMotorAngles(motorAngles)
+    averagePosition = [0, 0, 0]
     for i in range(12):
-        averagePosition[i % 3] += legPositions[i]
-    #return vec3Rotate(averagePosition, dogRotationFromMotorAngles(motorAngles));
-    return averagePosition
+        if legPositions[i] is not None:
+            averagePosition[i % 3] += 0.25*legPositions[i]
+        else:
+            return [None, None, None]
+    #return averagePosition
+    return vec3_rotate(averagePosition, dogRotationFromLegPositions(legPositions));
+
 
 def getBoundSpeed(speed):
     if speed > 1000:
@@ -274,6 +471,7 @@ def getBoundSpeed(speed):
     elif speed < -1000:
         return -1000
     return round(speed)
+
 
 def getSpeedCmd(speed, counter):
     buffer = bytearray(pack('<B12h',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
@@ -294,6 +492,7 @@ def getStatus():
     if(buttonMode):
         status += 64
     return status
+
 
 def executeCommand(data):
     global hubTimestamps, hubSensorData, hubChecksums
@@ -393,8 +592,9 @@ def getCommand():
             if(selection == 0):
                 if pressed == {Button.BLUETOOTH, Button.LEFT} or pressed == {Button.BLUETOOTH, Button.RIGHT} or pressed == {Button.BLUETOOTH}:
                     selectedSpeed = 1000
-                    legPositions = legPositionsFromMotorAngles(getMotorAngles())
-                    print("pos", legPositions)
+                    dogPosition = dogPositionFromMotorAngles(getMotorAngles())
+                    dogRotation = euler_from_quat(quat_from_mat3(dogRotationFromMotorAngles(getMotorAngles())))
+                    print("pos", [f"{num:.2f}" for num in dogPosition], "rot", [f"{num:.2f}" for num in dogRotation])
                     if Button.RIGHT in pressed:
                         print("dog up")
                     elif Button.LEFT in pressed:
@@ -414,7 +614,7 @@ def getCommand():
                 if pressed == {Button.BLUETOOTH, Button.LEFT} or pressed == {Button.BLUETOOTH, Button.RIGHT} or pressed == {Button.BLUETOOTH}:
                     selectedSpeed = 1000
                     legPositions = legPositionsFromMotorAngles(getMotorAngles())
-                    print("pos", legPositions)
+                    print("pos", [f"{num:.2f}" for num in legPositions])
                     if Button.RIGHT in pressed:
                         print("leg", selection, "up")
                     elif Button.LEFT in pressed:

@@ -121,7 +121,7 @@ export class PybricksCommander implements CommanderAbstraction {
     this.currentCommand = null;
     this.setScanEnable(false);
     this.setAdvertiseEnable(false);
-
+    this.socket.removeAllListeners('data');
     this.socket.stop();
     console.log("disconnecting");
   }

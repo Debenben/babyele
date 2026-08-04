@@ -29,6 +29,8 @@ export class InventorHciSocket extends EventEmitter implements SocketAbstraction
   }
 
   stop() {
+    this.realSocket.removeAllListeners('data');
+    this.simSocket.removeAllListeners('data');
     this.realSocket.stop();
     this.simSocket.stop();
   }
