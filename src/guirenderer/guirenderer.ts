@@ -28,7 +28,6 @@ export class GuiRenderer {
 
   async createScene() {
     const scene = new Scene(this.engine);
-    // scene.debugLayer.show();
     this.scene = scene;
 
     buildBackground(scene, this.engine);
@@ -45,10 +44,10 @@ export class GuiRenderer {
     this.camera.wheelPrecision = 10/this.camera.minZ;
     const dirLight = new DirectionalLight("dirLight", new Vector3(1, -2, 1).scale(Param.LEG_SEPARATION_LENGTH), scene);
     dirLight.intensity = 5.0;
-    dirLight.diffuse = new Color3(0.3,0.95,0.95);
+    dirLight.diffuse = new Color3(0.5,0.3,0.3);
     dirLight.parent = this.camera;
     const hemLight = new HemisphericLight("hemLight", new Vector3(0, 1, 0), scene);
-    dirLight.diffuse = new Color3(0.5,0.3,0.3);
+    hemLight.diffuse = new Color3(0.5,0.9,0.9);
     hemLight.intensity = 0.8;
 
     this.greyMaterial = await buildMaterial(scene, new Color3(0.1,0.1,0.1), new Color3(0.2,0.2,0.2));
@@ -104,10 +103,12 @@ export class GuiRenderer {
     this.defaultPositionLines.parent = dog;
     scene.registerBeforeRender(() => {
       if(this.adjustHeight) setBodyHeight(scene);
-      if(this.gravityLines.isVisible) MeshBuilder.CreateLineSystem("gravityLines", {lines: getGravityLinesPath(scene), instance: this.gravityLines}, scene);
-      if(this.positionLines.isVisible) MeshBuilder.CreateLineSystem("positionLines", {lines: getPositionLinesPath(scene), instance: this.positionLines}, scene);
-      if(this.defaultPositionLines.isVisible) MeshBuilder.CreateLineSystem("defaultPositionLines", {lines: getDefaultPositionLinesPath(scene), instance: this.defaultPositionLines}, scene);
+      if(this.gravityLines.isVisible) MeshBuilder.CreateLineSystem("", {lines: getGravityLinesPath(scene), instance: this.gravityLines}, scene);
+      if(this.positionLines.isVisible) MeshBuilder.CreateLineSystem("", {lines: getPositionLinesPath(scene), instance: this.positionLines}, scene);
+      if(this.defaultPositionLines.isVisible) MeshBuilder.CreateLineSystem("", {lines: getDefaultPositionLinesPath(scene), instance: this.defaultPositionLines}, scene);
     });
+    // const { ShowInspector } = await import("@babylonjs/inspector");
+    // ShowInspector(scene);
   }
 
   setDogRotation(rotation: Vector3) {
@@ -151,32 +152,32 @@ export class GuiRenderer {
     }
     switch(state) {
       case "select":
-	renderer.guiTexture.showInfobox(meshName, false);
-        renderer.selectedItems.push(meshName);
+	this.guiTexture.showInfobox(meshName, false);
+        this.selectedItems.push(meshName);
         mesh.material = this.redMaterial;
         mesh.showBoundingBox = this.redMaterial.wireframe;
         mesh.isPickable = true;
         break;
       case "offline":
-	renderer.guiTexture.removeInfobox(meshName);
-        renderer.selectedItems = renderer.selectedItems.filter(s => s !== meshName);
+	this.guiTexture.removeInfobox(meshName);
+        this.selectedItems = this.selectedItems.filter(s => s !== meshName);
         mesh.material = this.greyMaterial;
         mesh.showBoundingBox = false;
         mesh.isPickable = false;
         break;
       case "preview":
-	renderer.guiTexture.showInfobox(meshName, true);
-        renderer.selectedItems = renderer.selectedItems.filter(s => s !== meshName);
+	this.guiTexture.showInfobox(meshName, true);
+        this.selectedItems = this.selectedItems.filter(s => s !== meshName);
         mesh.material = this.pickMaterial;
         mesh.showBoundingBox = this.pickMaterial.wireframe;
         mesh.isPickable = true;
         break;
       case "online":
-        if(renderer.previewItem === meshName || renderer.selectedItems.filter(s => s === meshName).length) return;
+        if(this.previewItem === meshName || this.selectedItems.filter(s => s === meshName).length) return;
         // fall through
       default:
-	renderer.guiTexture.removeInfobox(meshName);
-        renderer.selectedItems = renderer.selectedItems.filter(s => s !== meshName);
+	this.guiTexture.removeInfobox(meshName);
+        this.selectedItems = this.selectedItems.filter(s => s !== meshName);
         mesh.material = this.greenMaterial;
         mesh.showBoundingBox = false;
         mesh.isPickable = true;

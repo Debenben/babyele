@@ -6,7 +6,7 @@
   "scripts": {
     "configure": "sudo setcap cap_net_raw+eip ./node_modules/electron/dist/electron && sudo bash -c 'chown root:root $(pwd)/node_modules/electron/dist/chrome-sandbox && chmod 4755 $(pwd)/node_modules/electron/dist/chrome-sandbox'",
     "start": "electron-forge start",
-    "test": "electron-forge start -- -- --simulation ",
+    "test": "electron-forge start -- -- --simulation",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",

@@ -42,12 +42,12 @@ async function createHciSocket() {
   else if(process.argv.includes('--inventor')) {
     console.log("Starting simulation for inventorhub...");
     const inventor = await import("./pybricks/inventorhcisocket");
-    const real = require('@stoprocent/bluetooth-hci-socket');
+    const real = await import('@stoprocent/bluetooth-hci-socket');
     const sim = await import("./pybricks/simulationhcisocket");
-    return new inventor.InventorHciSocket(new real(), new sim.SimulationHciSocket());
+    return new inventor.InventorHciSocket(new real.default(), new sim.SimulationHciSocket());
   }
-  const real = require('@stoprocent/bluetooth-hci-socket');
-  return new real();
+  const real = await import('@stoprocent/bluetooth-hci-socket');
+  return new real.default();
 }
 
 app.on("ready", () => {
@@ -58,12 +58,13 @@ app.on("ready", () => {
   createWindow();
 });
 
-app.on("window-all-closed", () => {
+app.on("window-all-closed", () => { app.quit(); });
+
+app.on("will-quit", async() => {
   if(commander) commander.disconnect();
   controller = null;
   commander = null;
   mainWindow = null;
-  app.quit();
 });
 
 ipcMain.on('rendererInitialized', async () => {

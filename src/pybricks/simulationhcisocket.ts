@@ -70,8 +70,11 @@ class SimulationMotor {
 
   setSpeed(speed: number) {
     this.getRotation()
-    // console.log("simulation motor setting speed to", speed)
-    this.speed = speed*this.maxSpeed/1000;
+    let speedFactor = speed/1000;
+    if(speedFactor > 1) speedFactor = 1; 
+    if(speedFactor < -1) speedFactor = -1; 
+    this.speed = this.maxSpeed*speedFactor;
+    // console.log("simulation motor setting speed to", this.speed)
     this.destRotation = null;
     this.lastRequestTime = Date.now()
   }
