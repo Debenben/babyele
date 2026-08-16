@@ -183,6 +183,10 @@ export const durationsFromMotorAngles = (startMotorAngles: Vec43, endMotorAngles
   return durations;
 }
 
+export const permilleOfMaxSpeed = (motorSpeeds: Vec43): Vec43 => {
+  return motorSpeeds.map((v,i) => v.map((e,j) => e*1000/motorMaxSpeeds[i][j]));
+}
+
 export const motorAnglesTimeEvolution = (startMotorAngles: Vec43, timestamps: Vec43, speed: Vec43): Vec43 => {
   for(let i = 0; i < 4; i++) {
     for(let j = 0; j < 3; j++) {

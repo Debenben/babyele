@@ -74,7 +74,7 @@ class SimulationMotor {
     if(speedFactor > 1) speedFactor = 1; 
     if(speedFactor < -1) speedFactor = -1; 
     this.speed = this.maxSpeed*speedFactor;
-    // console.log("simulation motor setting speed to", this.speed)
+    console.log("simulation motor setting speed to", this.speed)
     this.destRotation = null;
     this.lastRequestTime = Date.now()
   }
@@ -100,12 +100,18 @@ class SimulationMotor {
     if(this.destRotation != null) {
       const targetDifference = this.destRotation - this.rotation;
       this.rotation += Math.sign(targetDifference)*Math.min(this.maxSpeed*timeDifference, Math.abs(targetDifference));
+      this.speed *= 0.7;
+      this.speed += Math.abs(targetDifference) > 10 ? 0.3*Math.sign(targetDifference)*this.maxSpeed : 0;
     }
     else {
       this.rotation += timeDifference*this.speed;
     }
     //console.log("simulation motor rotated", timeDifference, "with speed", this.speed)
     return this.rotation;
+  }
+
+  getSpeed() {
+    return (this.speed + 0.2*(Math.random() - 0.5)*this.maxSpeed)*10000; // 10deg/ms -> deg/s
   }
 }
 
@@ -142,17 +148,17 @@ class SimulationPybricksHub {
       this.tiltSensors = [new SimulationTiltSensor([0, 0, 9800])];
     }
     this.broadcastInterval = setRandomInterval(() => {
-      var data = Buffer.allocUnsafe(39);
+      var data = Buffer.allocUnsafe(45);
       data.writeUInt8(0xff, 15); // manufacturer data
       data.writeUInt16LE(0x0397, 16) // lego
       data.writeUInt8(this.hubId, 18);
       if(this.hubId < 5) {
-        data.writeUInt8(0xd2, 19);
+        data = data.subarray(0, 41);
+        data.writeUInt8(0xd4, 19);
         data.writeUInt8(0b00101111, 20);
       }
       else {
-        data = data.subarray(0, 37);
-        data.writeUInt8(0xd0, 19);
+        data.writeUInt8(0xd8, 19);
         data.writeUInt8(0b00111111, 20);
       }
       data.writeUInt8(this.currentChecksum, 21);
@@ -162,18 +168,23 @@ class SimulationPybricksHub {
       data.writeInt16LE(hubAcceleration[2], 26);
       data.writeInt16LE(this.motors[0].getRotation(), 28);
       if(this.hubId < 5) {
+        data.writeInt16LE(this.motors[0].getSpeed(), 30);
         const bottomAcceleration = this.tiltSensors[1].getAcceleration();
-	data.writeInt16LE(bottomAcceleration[0], 30);
-	data.writeInt16LE(bottomAcceleration[1], 32);
-	data.writeInt16LE(bottomAcceleration[2], 34);
-	data.writeInt16LE(0x2222, 36); //colorDistanceSensor
-        data.writeInt8(-Math.round(80*Math.random()), 38);
+	data.writeInt16LE(bottomAcceleration[0], 32);
+	data.writeInt16LE(bottomAcceleration[1], 34);
+	data.writeInt16LE(bottomAcceleration[2], 36);
+	data.writeInt16LE(0x2222, 38); //colorDistanceSensor
+        data.writeInt8(-Math.round(80*Math.random()), 40);
       }
       else {
         data.writeInt16LE(this.motors[1].getRotation(), 30);
         data.writeInt16LE(this.motors[2].getRotation(), 32);
         data.writeInt16LE(this.motors[3].getRotation(), 34);
-        data.writeInt8(-Math.round(80*Math.random()), 36);
+        data.writeInt16LE(this.motors[0].getSpeed(), 36);
+        data.writeInt16LE(this.motors[1].getSpeed(), 38);
+        data.writeInt16LE(this.motors[2].getSpeed(), 40);
+        data.writeInt16LE(this.motors[3].getSpeed(), 42);
+        data.writeInt8(-Math.round(80*Math.random()), 44);
       }
       this.socket.emit('data', data);
       console.log("simulation socket sending", data);

@@ -41,6 +41,7 @@ motor = 0
 tiltSensor = 0
 distanceSensor = 0
 angle = 0
+speed = 0
 imuA = [0, 0, 0]
 tiltA = [0, 0, 0]
 distance = 0
@@ -211,12 +212,13 @@ def executeCommand(data):
 
 
 def getSensorValues():
-    global motor, tiltSensor, distanceSensor, angle, imuA, tiltA, distance
+    global motor, tiltSensor, distanceSensor, angle, speed, imuA, tiltA, distance
     imuA = list(Axis.Z.T*hub.imu.orientation())
 
     try:
         angle = motor.angle()
-        #print("angle is", angle)
+        speed = motor.speed()
+        #print("angle is", angle, "speed", speed)
     except:
         getMotor(_MOTORPORT)
     try:
@@ -319,7 +321,7 @@ def transmitSensorValues():
     for j in range(3):
         tiltV[j] = floor(154.0966*tiltA[j])
         imuV[j] = floor(9806.65*imuA[j])
-    data = pack('<BB8h', status, currentChecksum, *imuV, floor(0.1*angle), *tiltV, distance)
+    data = pack('<BB9h', status, currentChecksum, *imuV, floor(0.1*angle), speed, *tiltV, distance)
     #print("data is", data)
     radio.broadcast([data])
 

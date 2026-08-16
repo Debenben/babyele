@@ -11,6 +11,7 @@ export interface SensorAbstraction {
   notifyHubStatus: (hubId: number, status: number, timestamp: number, rssi: number) => Promise<void>;
 
   notifyMotorAngles: (motorAngles: Vec43) => Promise<void>;
+  notifyMotorSpeeds: (motorAngles: Vec43) => Promise<void>;
   notifyLegAcceleration: (topA: Vec43, bottomA) => Promise<void>;
   notifyDogAcceleration: (acceleration: Vec3) => Promise<void>;
 }

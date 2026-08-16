@@ -48,14 +48,14 @@ export class PybricksCommander implements CommanderAbstraction {
 
   async onData(data: Buffer) {
     // console.log(data);
-    if(data.length < 35) return;
+    if(data.length < 37) return;
     if(data.readUInt8(15) != 0xff) return; // manufacturer data
     if(data.readUInt16LE(16) != 0x0397) return; // lego
     const id = data.readUInt8(18);
     const type = data.readUInt8(19);
     if(id > 6) return;
-    if(id > 0 && id < 5 && type != 0xd2) return;
-    if(id > 4 && type != 0xd0) return;
+    if(id > 0 && id < 5 && type != 0xd4) return;
+    if(id > 4 && type != 0xd8) return;
     if(id == 0) { // external control command
       if(this.currentCommand) this.currentCommand.callback(0x24);
       this.currentCommand = new Command(data.subarray(19, 19 + 26));
@@ -68,12 +68,14 @@ export class PybricksCommander implements CommanderAbstraction {
     }
     if(id == 5) this.dog.notifyDogAcceleration([-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)]); // [-x, z, -y]
     const motorAngles = [[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN]] as Vec43
+    const motorSpeeds = [[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN]] as Vec43
     const topA = [[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN]] as Vec43
     const bottomA = [[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN],[NaN,NaN,NaN]] as Vec43
     if(id < 5) {
       topA[id - 1] = [-data.readInt16LE(22), data.readInt16LE(26), -data.readInt16LE(24)];
       motorAngles[id - 1][2] = 10*data.readInt16LE(28);
-      bottomA[id - 1] = [data.readInt16LE(32), data.readInt16LE(30), data.readInt16LE(34)];
+      motorSpeeds[id - 1][2] = data.readInt16LE(30);
+      bottomA[id - 1] = [data.readInt16LE(34), data.readInt16LE(32), data.readInt16LE(36)];
       this.dog.notifyLegAcceleration(topA, bottomA);
     }
     else {
@@ -81,8 +83,13 @@ export class PybricksCommander implements CommanderAbstraction {
       motorAngles[2*(id - 5)][1] = 10*data.readInt16LE(30);
       motorAngles[2*(id - 5) + 1][0] = 10*data.readInt16LE(32);
       motorAngles[2*(id - 5) + 1][1] = 10*data.readInt16LE(34);
+      motorSpeeds[2*(id - 5)][0] = data.readInt16LE(36);
+      motorSpeeds[2*(id - 5)][1] = data.readInt16LE(38);
+      motorSpeeds[2*(id - 5) + 1][0] = data.readInt16LE(40);
+      motorSpeeds[2*(id - 5) + 1][1] = data.readInt16LE(42);
     }
     this.dog.notifyMotorAngles(motorAngles);
+    this.dog.notifyMotorSpeeds(motorSpeeds);
     if(this.currentCommand && this.currentChecksums.every(e => e == this.currentCommand.checksum)) {
       if(this.currentCommand.data[1] != 2 || this.dog.motorAngles.every((e,i) => e.every((f,j) => Math.abs(f - 10*this.currentCommand.data.readInt16LE(2 + 6*i + 2*j)) < 200.0))) {
         // not requestMotorAngles command or motorAngles reached destination
