@@ -5,7 +5,7 @@ import { legAnglesFromMotorAngles, legPositionsFromMotorAngles, dogRotationFromM
 import { Vec3, Vec4, Vec43, hubNames, motorNames, legNames, vec3IsZero, vec43IsZero, vec3AbsMax, vec43AbsMax, vec3Copy, vec43Copy, vec43Sum, vec3Len, vec3Normalize, vec4Normalize, vec3Sub, vec4Cross, vec3Rotate } from "./tools";
 
 const MOTOR_UPDATE_INTERVAL = 200; // interval in milliseconds for updating motor commands
-const HUB_TIMEOUT = 10000; // timeout in milliseconds for showing hub as offline
+const HUB_TIMEOUT = 2000; // timeout in milliseconds for showing hub as offline
 
 const quatToAngle = (q: Vec4) => Math.abs(q[3]) >= 1 ? 0 : 2.0*Math.acos(q[3]);
 
@@ -18,8 +18,8 @@ export class Dog implements DogAbstraction {
   commander: CommanderAbstraction
 
   _hubStatus = [0,0,0,0,0,0]
-  _hubTimestamps = [[0],[0],[0],[0],[0],[0]]
-  _hubRssis = [[0],[0],[0],[0],[0],[0]]
+  _hubTimestamps = [[],[],[],[],[],[]]
+  _hubRssis = [[],[],[],[],[],[]]
   _hubTimestampsIntervalID: NodeJS.Timeout = null
 
   _motorAngles: Vec43 = [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]
@@ -183,8 +183,8 @@ export class Dog implements DogAbstraction {
   }
 
   async notifyHubStatus(id: number, status: number, timestamp: number, rssi: number) {
-    this._hubTimestamps[id].push(timestamp);
-    this._hubRssis[id].push(rssi);
+    if(timestamp) this._hubTimestamps[id].push(timestamp);
+    if(rssi) this._hubRssis[id].push(rssi);
     if(this._hubStatus[id] == status) return;
     this._hubStatus[id] = status;
     this.send('notifyStatus', hubNames[id], status);

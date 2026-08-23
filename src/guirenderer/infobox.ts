@@ -8,7 +8,7 @@ export class Infobox extends Container {
   fillRectangle: Rectangle;
   heading: Rectangle;
 
-  constructor(name: string, preview: boolean, guiTexture: GuiTexture) {
+  constructor(name: string, colorString: string, guiTexture: GuiTexture) {
     super(name);
     this.guiTexture = guiTexture;
     this.widthInPixels = 300;
@@ -24,14 +24,13 @@ export class Infobox extends Container {
     this.panel = new StackPanel("infoboxPanel");
     this.addControl(this.panel);
     this.heading = buildHeading(this);
+    this.setColor(colorString);
     this.panel.addControl(this.heading);
-    this.setPreview(preview);
   }
-  setPreview(preview: boolean) {
-    this.zIndex = preview ? 21 : 22;
-    this.color = preview ? "#3cd73c80" : "#ff6e5a80";
+  setColor(colorString: boolean) {
+    this.color = colorString + "80";
     this.fillRectangle.background = this.color;
-    this.fillRectangle.color = preview ? "#3cd73cc0" : "#ff6e5ac0";
+    this.fillRectangle.color = colorString + "c0";
     this.heading.background = this.fillRectangle.color;
   }
   addControls(){return}
@@ -80,7 +79,7 @@ const buildHeading = (infobox: Infobox) => {
   button.onPointerEnterObservable.add(() => button.thickness = 1);
   button.onPointerOutObservable.add(() => button.thickness = 0);
   button.onPointerClickObservable.add(() => {
-    infobox.guiTexture.renderer.setState(infobox.name, "default");
+    infobox.guiTexture.renderer.toggleSelection(infobox.name);
   });
   heading.addControl(button);
   return heading;

@@ -109,10 +109,10 @@ def executeCommand(data):
             elif subcmd == _SUBCMD_EXECUTE:
                 pass
         elif command == _CMD_DATA:
-            if currentCommand[0][1] == _CMD_SUBCMD and currentCommand[0][2] == _SUBCMD_STORE:
+            if currentCommand[0][0] == _CMD_SUBCMD and currentCommand[0][1] == _SUBCMD_STORE:
                 updateCurrentCommand(data)
                 pass
-            if currentCommand[0][1] == _CMD_SUBCMD and currentCommand[0][2] == _SUBCMD_RESET:
+            elif currentCommand[0][0] == _CMD_SUBCMD and currentCommand[0][1] == _SUBCMD_RESET:
                 updateCurrentCommand(data)
                 mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', data[0], 1 + 12*(_HUBID - 5))
                 target = [10*mount1, 10*top1, 10*mount2, 10*top2]

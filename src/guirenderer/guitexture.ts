@@ -48,17 +48,17 @@ export class GuiTexture {
     });
     this.infoboxes = this.infoboxes.filter(b => b.name !== meshName);
   }
-  showInfobox(meshName: string, preview: boolean) {
+  showInfobox(meshName: string, colorString: string) {
     const boxes = this.infoboxes.filter(b => b.name === meshName);
     if(boxes.length) {
-      boxes.map(b => b.setPreview(preview));
+      boxes.map(b => b.setColor(colorString));
       return;
     }
     let box;
-    if(meshName.startsWith("leg")) box = new LegInfobox(meshName, preview, this);
-    else if(meshName.startsWith("hub")) box = new HubInfobox(meshName, preview, this);
-    else if(meshName === "dog") box = new DogInfobox(meshName, preview, this);
-    else box = new Infobox(meshName, preview, this);
+    if(meshName.startsWith("leg")) box = new LegInfobox(meshName, colorString, this);
+    else if(meshName.startsWith("hub")) box = new HubInfobox(meshName, colorString, this);
+    else if(meshName === "dog") box = new DogInfobox(meshName, colorString, this);
+    else box = new Infobox(meshName, colorString, this);
     this.infoboxes.push(box);
     this.texture.addControl(box);
   }

@@ -90,9 +90,9 @@ export class GuiRenderer {
     shadowCaster.useCloseExponentialShadowMap = true;
     buildGround(scene);
 
-    this.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickDownTrigger, pickItem));
-    this.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, overItem));
-    this.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, outItem));
+    this.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickDownTrigger, event => this.toggleSelection(event.meshUnderPointer.name)));
+    this.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, event => this.showPreview(event.meshUnderPointer.name)));
+    this.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => this.showPreview(null)));
 
     this.gravityLines = await buildGravityLines(scene);
     this.displacementLines = await buildDisplacementLines(scene);
@@ -144,44 +144,17 @@ export class GuiRenderer {
     this.scene.getMeshByName(meshName + "Foot").position = vec;
   }
 
-  setState(meshName: string, state: string) {
+  setStatus(meshName: string, status: number) {
     const mesh = this.scene.getMeshByName(meshName);
     if(!mesh) {
       console.log(meshName + " not found");
       return;
     }
-    switch(state) {
-      case "select":
-	this.guiTexture.showInfobox(meshName, false);
-        this.selectedItems.push(meshName);
-        mesh.material = this.redMaterial;
-        mesh.showBoundingBox = this.redMaterial.wireframe;
-        mesh.isPickable = true;
-        break;
-      case "offline":
-	this.guiTexture.removeInfobox(meshName);
-        this.selectedItems = this.selectedItems.filter(s => s !== meshName);
-        mesh.material = this.greyMaterial;
-        mesh.showBoundingBox = false;
-        mesh.isPickable = false;
-        break;
-      case "preview":
-	this.guiTexture.showInfobox(meshName, true);
-        this.selectedItems = this.selectedItems.filter(s => s !== meshName);
-        mesh.material = this.pickMaterial;
-        mesh.showBoundingBox = this.pickMaterial.wireframe;
-        mesh.isPickable = true;
-        break;
-      case "online":
-        if(this.previewItem === meshName || this.selectedItems.filter(s => s === meshName).length) return;
-        // fall through
-      default:
-	this.guiTexture.removeInfobox(meshName);
-        this.selectedItems = this.selectedItems.filter(s => s !== meshName);
-        mesh.material = this.greenMaterial;
-        mesh.showBoundingBox = false;
-        mesh.isPickable = true;
+    if(this.selectedItems.find(s => s === meshName)) {
+      mesh.material = status ? this.redMaterial : this.greyMaterial;
+      this.guiTexture.showInfobox(meshName, status ? "#ff6e5a" : "#445566");
     }
+    else mesh.material = status ? this.greenMaterial : this.greyMaterial;
   }
 
   async initialize() {
@@ -198,6 +171,45 @@ export class GuiRenderer {
     });
     ipcRenderer.send("rendererInitialized");
     this.engine.resize();
+  }
+
+  toggleSelection(meshName: string) {
+    const mesh = this.scene.getMeshByName(meshName);
+    const isSelected = this.selectedItems.filter(s => s === meshName).length;
+    const isOnline = mesh.material !== this.greyMaterial;
+    if(this.previewItem === meshName) this.previewItem = null;
+    if(isSelected) {
+      this.selectedItems = this.selectedItems.filter(s => s !== meshName);
+      this.guiTexture.removeInfobox(meshName);
+      mesh.showBoundingBox = false;
+      mesh.material = isOnline ? this.greenMaterial : this.greyMaterial;
+    }
+    else {
+      this.selectedItems.push(meshName);
+      this.guiTexture.showInfobox(meshName, isOnline ? "#ff6e5a" : "#445566");
+      mesh.showBoundingBox = this.redMaterial.wireframe;
+      mesh.material = isOnline ? this.redMaterial : this.greyMaterial;
+    }
+  }
+
+  showPreview(meshName: string) {
+    if(this.previewItem !== meshName) {
+      if(this.previewItem) {
+        const mesh = this.scene.getMeshByName(this.previewItem);
+        const isOnline = mesh.material !== this.greyMaterial;
+        mesh.showBoundingBox = false;
+        mesh.material = isOnline ? this.greenMaterial : this.greyMaterial;
+        this.previewItem = null;
+      }
+      if(this.selectedItems.filter(s => s === meshName).length) return;
+      if(meshName) {
+        this.previewItem = meshName;
+        const mesh = this.scene.getMeshByName(meshName);
+        const isOnline = mesh.material !== this.greyMaterial;
+        mesh.showBoundingBox = this.pickMaterial.wireframe;
+        mesh.material = isOnline ? this.pickMaterial : this.greyMaterial;
+      }
+    }
   }
 }
 
@@ -278,27 +290,6 @@ const getDefaultPositionLinesPath = (scene: Scene) => {
     system.push([new Vector3(0, 0, 0), defaultRelativeLegPositions[i]]);
   }
   return system;
-}
-
-const pickItem = (event) => {
-  const isSelected = renderer.selectedItems.filter(s => s === event.meshUnderPointer.name).length;
-  renderer.previewItem = isSelected ? event.meshUnderPointer.name : null;
-  renderer.setState(event.meshUnderPointer.name, isSelected ? "preview" : "select");
-}
-
-const outItem = () => {
-  if(renderer.previewItem) {
-    renderer.setState(renderer.previewItem, "default");
-    renderer.previewItem = null;
-  }
-}
-
-const overItem = (event) => {
-  const isSelected = renderer.selectedItems.filter(s => s === event.meshUnderPointer.name).length;
-  if(isSelected || event.meshUnderPointer.name === renderer.previewItem) return;
-  if(renderer.previewItem) renderer.setState(renderer.previewItem, "default");
-  renderer.previewItem = event.meshUnderPointer.name;
-  renderer.setState(event.meshUnderPointer.name, "preview");
 }
 
 const buildBackground = (scene: Scene, engine: Engine) => {
@@ -417,7 +408,7 @@ const importMesh = async (scene: Scene, meshName: string, fileName: string, scal
   meshes[1].scaling = scaling
   meshes[1].material.dispose();
   meshes[1].material = renderer.greyMaterial;
-  meshes[1].isPickable = false;
+  meshes[1].isPickable = true;
   meshes[1].receiveShadows = true;
   meshes[1].actionManager = renderer.actionManager;
   return meshes[0];
@@ -471,7 +462,7 @@ const renderer = new GuiRenderer();
 renderer.initialize();
 
 ipcRenderer.on('notifyStatus', (event, arg1, arg2) => {
-  renderer.setState(arg1, arg2 ? 'online' : 'offline');
+  renderer.setStatus(arg1, arg2);
 });
 ipcRenderer.on('notifyLegRotation', (event, arg1, arg2) => {
   if(renderer.useTilt) return;

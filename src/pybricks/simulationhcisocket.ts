@@ -5,6 +5,9 @@ import { randomBytes } from 'crypto'
 export class SimulationHciSocket extends EventEmitter implements SocketAbstraction {
   bleHubs : SimulationPybricksHub[] = []
   bleRandom : RandomBleDevice[] = []
+  currentData: Buffer
+  sendInterval: setTimeout
+
   bindRaw() {
     console.log("binding to raw hci simulation socket");
   }
@@ -12,9 +15,10 @@ export class SimulationHciSocket extends EventEmitter implements SocketAbstracti
   start() {
     console.log("starting simulation socket");
     for (let i = 1; i<7; i++) {
-      this.bleHubs.push(new SimulationPybricksHub(this, i))
-      this.bleRandom.push(new RandomBleDevice(this))
+      setTimeout(() => this.bleHubs.push(new SimulationPybricksHub(this, i)), 2000*Math.random());
+      this.bleRandom.push(new RandomBleDevice(this));
     }
+    this.sendInterval = setRandomInterval(() => this.bleHubs.forEach(hub => hub.processBroadcast()), 50, 200);
   }
 
   stop() {
@@ -29,10 +33,7 @@ export class SimulationHciSocket extends EventEmitter implements SocketAbstracti
 
   write(data: Buffer) {
     console.log("simulation socket received", data);
-    if(data.length != 36) return;
-    if(data.readUInt32BE(6) != 0xff970300) return; // manufacturer data, lego, lego, channel 0
-    if(data.readUInt8(10) != 0xd9) return; // binary array and length
-    this.bleHubs.forEach(hub => hub.processBroadcast(data));
+    this.currentData = data;
   }
 }
 
@@ -191,7 +192,12 @@ class SimulationPybricksHub {
     }, 30 + 30*Math.random(), 200 + 200*Math.random());
   }
 
-  processBroadcast(data: Buffer) {
+  processBroadcast() {
+    const data = this.socket.currentData;
+    if(!data) return;
+    if(data.length != 36) return;
+    if(data.readUInt32BE(6) != 0xff970300) return; // manufacturer data, lego, lego, channel 0
+    if(data.readUInt8(10) != 0xd9) return; // binary array and length
     const command = data.readUInt8(11);
     if(command == 0) { //SUBCMD
       const subcmd = data.readUInt8(12);

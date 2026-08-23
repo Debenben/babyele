@@ -173,10 +173,10 @@ def executeCommand(data):
             elif subcmd == _SUBCMD_EXECUTE:
                 pass
         elif command == _CMD_DATA:
-            if currentCommand[0][1] == _CMD_SUBCMD and currentCommand[0][2] == _SUBCMD_STORE:
+            if currentCommand[0][0] == _CMD_SUBCMD and currentCommand[0][1] == _SUBCMD_STORE:
                 updateCurrentCommand(data)
                 pass
-            if currentCommand[0][1] == _CMD_SUBCMD and currentCommand[0][2] == _SUBCMD_RESET:
+            elif currentCommand[0][0] == _CMD_SUBCMD and currentCommand[0][1] == _SUBCMD_RESET:
                 updateCurrentCommand(data)
                 mount, top, bottom = unpack_from('<hhh', data[0], 1 + 6*(_HUBID - 1))
                 try:

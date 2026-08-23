@@ -1,4 +1,4 @@
-import { ICanvasRenderingContext } from "babylonjs";
+import { ICanvasRenderingContext, Color3 } from "babylonjs";
 import { Grid, TextBlock, Image, Rectangle } from "babylonjs-gui";
 import { ipcRenderer } from 'electron';
 import { Infobox, Gauge, buildText, ThreePrint, buildGauge, ToggleButton } from './infobox';
@@ -20,13 +20,13 @@ export class HubInfobox extends Infobox {
   rssisText: TextBlock;
   timestampsIntervalID: NodeJS.Timeout = null
 
-  constructor(name: string, preview: boolean, guiTexture: GuiTexture) {
-    super(name, preview, guiTexture);
+  constructor(name: string, colorString: string, guiTexture: GuiTexture) {
+    super(name, colorString, guiTexture);
     this.showAcceleration = guiTexture.renderer.scene.getMeshByName("dogAcceleration").isEnabled(false);
-    this.addControls(preview);
+    this.addControls(colorString);
   }
 
-  addControls(preview: boolean) {
+  addControls(colorString: string) {
     this.stateIcons.push(new StateIcon("battery"));
     this.stateIcons.push(new StateIcon("motorA"));
     this.stateGrid = new Grid("stateGrid");
@@ -44,13 +44,13 @@ export class HubInfobox extends Infobox {
     const filler = new Rectangle("filler");
     filler.background = "#00000030";
     filler.thickness = 0;
-    this.timestampsLine = new DensityLine(preview);
+    this.timestampsLine = new DensityLine(colorString);
     connectionGrid.addControl(this.timestampsLine, 0, 0);
     connectionGrid.addControl(filler, 0, 1);
     this.timestampsText = buildText("---");
     this.timestampsText.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_RIGHT;
     connectionGrid.addControl(this.timestampsText, 0, 1);
-    this.rssisLine = new DensityLine(preview);
+    this.rssisLine = new DensityLine(colorString);
     connectionGrid.addControl(filler.clone(), 2, 1);
     this.rssisText = buildText("---");
     this.rssisText.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_RIGHT;
@@ -113,10 +113,10 @@ export class HubInfobox extends Infobox {
     clearInterval(this.timestampsIntervalID);
     this.timestampsIntervalID = null;
   }
-  setPreview = (preview: boolean) => {
-      super.setPreview(preview);
-      this.timestampsLine.setPreview(preview);
-      this.rssisLine.setPreview(preview);
+  setColor = (colorString: string) => {
+      super.setColor(colorString);
+      this.timestampsLine.setColor(colorString);
+      this.rssisLine.setColor(colorString);
   }
   updateBendForward = (event, arg1, arg2) => {
     if(arg1 === this.name.replace("hub", "leg")) {
@@ -147,13 +147,13 @@ export class HubInfobox extends Infobox {
   }
   updateTimestamps = (event, arg1, arg2) => {
     if(arg1 === this.name) {
-      const timestamps = arg2.filter(ts => ts > 0);
+      const timestamps = arg2;
       const timediffs = timestamps.slice(1).map((e, i) => timestamps[i + 1] - timestamps[i]);
       const max = Math.max(...timediffs);
       this.timestampsText.text = max < 10000 ? max + " ms" : Math.round(max/1000) + " s";
       const spacing = this.timestampsLine.bins.length/max;
       this.timestampsLine.bins.fill(0);
-      timediffs.forEach(e => this.timestampsLine.bins[Math.round(e*spacing)] += 1);
+      timediffs.forEach(e => this.timestampsLine.bins[Math.ceil(e*spacing) - 1] += 1);
       this.timestampsLine.markAsDirty();
     }
   }
@@ -183,14 +183,16 @@ class DensityLine extends Rectangle {
   bins = new Array(180).fill(0)
   getColor = () => "rgba(0,0,0,1)"
 
-  constructor(preview: boolean) {
+  constructor(colorString : string) {
     super();
     this.heightInPixels = 25;
-    this.setPreview(preview);
+    this.setColor(colorString);
   }
-  setPreview(preview: boolean) {
-    if(preview) this.getColor = (e) => "rgba(" + Math.sqrt(1000*e) + ", 255, " + Math.sqrt(1000*e) + ", " + 0.2*e + ")";
-    else this.getColor = (e) => "rgba(255, " + Math.sqrt(1000*e) + ", " + Math.sqrt(1000*e) + ", " + 0.2*e + ")";
+  setColor(colorString : string) {
+    const c = Color3.FromHexString(colorString);
+    if(c.r > c.g && c.r > c.b) this.getColor = (e) => "rgba(255, " + Math.sqrt(1000*e) + ", " + Math.sqrt(1000*e) + ", " + 0.2*e + ")";
+    else if(c.g > c.r && c.g > c.b) this.getColor = (e) => "rgba(" + Math.sqrt(1000*e) + ", 255, " + Math.sqrt(1000*e) + ", " + 0.2*e + ")";
+    else this.getColor = (e) => "rgba(" + Math.sqrt(1000*e) + ", " + Math.sqrt(1000*e) + ", 255, " + 0.2*e + ")";
   }
   protected _localDraw(ctx: ICanvasRenderingContext) {
     ctx.fillStyle = "#000000c0";
