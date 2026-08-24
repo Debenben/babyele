@@ -269,7 +269,7 @@ export class Dog implements DogAbstraction {
       // one leg only
       this._startMoveMotorAngles = this.motorAngles;
       this._moveSpeedIntervalID = setInterval(() => {
-        const motorAnglesEvolved = motorAnglesTimeEvolution(this.motorAngles, this._motorAnglesTimestamps, this._moveSpeed);
+        const motorAnglesEvolved = motorAnglesTimeEvolution(this.motorAngles, this._motorAnglesTimestamps, this.motorSpeeds);
         const currentPositions = legPositionsFromMotorAngles(vec43Copy(motorAnglesEvolved));
         const startPositions = legPositionsFromMotorAngles(this.startMoveMotorAngles);
         const destPositions = vec43Copy(startPositions);
@@ -296,13 +296,13 @@ export class Dog implements DogAbstraction {
       // complete dog
       this._startMoveMotorAngles = this.motorAngles;
       this._moveSpeedIntervalID = setInterval(() => {
-        const motorAnglesEvolved = motorAnglesTimeEvolution(this.motorAngles, this._motorAnglesTimestamps, this._moveSpeed);
-	const speed = 0.01*Math.max(vec43AbsMax(vec43Copy(this.positionSpeed)), vec3AbsMax(vec3Copy(this.rotationSpeed)));
+        const motorAnglesEvolved = motorAnglesTimeEvolution(this.motorAngles, this._motorAnglesTimestamps, this.motorSpeeds);
+        const speed = 0.01*Math.max(vec43AbsMax(vec43Copy(this.positionSpeed)), vec3AbsMax(vec3Copy(this.rotationSpeed)));
         const averagePositionDiff = vec3Len(vec43Sum(legPositionsFromMotorAngles(vec43Copy(motorAnglesEvolved))).map((e,i) => e - vec43Sum(legPositionsFromMotorAngles(this.startMoveMotorAngles))[i]));
         const averageRotation = vec4Cross(dogRotationFromMotorAngles(vec43Copy(this.startMoveMotorAngles)), dogRotationFromMotorAngles(vec43Copy(motorAnglesEvolved)));
         const averageRotationAngle = quatToAngle(vec4Normalize(averageRotation));
         const destPositions = legPositionsFromMotorAngles(vec43Copy(this.startMoveMotorAngles));
-	let durations = null as Vec43;
+        let durations = null as Vec43;
         let maxDuration = 0;
         let moveLength = 0.1;
         // iteratively improve speeds for up to 10 iterations

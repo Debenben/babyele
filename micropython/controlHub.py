@@ -138,6 +138,8 @@ commandCounter = 0
 buttonMode = _BUTTON_INACTIVE
 selection = _SELECT_RETURN
 selectedSpeed = 0
+startMovePositions = None
+bendForward = [False, True, False, True]
 hubSensorData = [None, None, None, None, None, None, None]
 hubTimestamps = [-100000, -100000, -100000, -100000, -100000, -100000, -100000]
 hubChecksums = [0, 0, 0, 0, 0, 0, 0]
@@ -335,6 +337,20 @@ def getMotorAngles():
     return motorAngles
 
 
+def getMotorSpeeds():
+    motorSpeeds = [None for i in range(12)]
+    for i in range(1, 5):
+        if hubSensorData[1] is not None:
+            motorSpeeds[3*(i - 1) + 2] = unpack_from('<h', hubSensorData[i], 10)[0]
+    for i in range(5, 7):
+        if hubSensorData[i] is not None:
+            motorSpeeds[6*(i - 5)] = 10*unpack_from('<h', hubSensorData[i], 16)[0]
+            motorSpeeds[6*(i - 5) + 1] = 10*unpack_from('<h', hubSensorData[i], 18)[0]
+            motorSpeeds[6*(i - 5) + 3] = 10*unpack_from('<h', hubSensorData[i], 20)[0]
+            motorSpeeds[6*(i - 5) + 4] = 10*unpack_from('<h', hubSensorData[i], 22)[0]
+    return motorSpeeds
+
+
 def legAnglesFromMotorAngles(motorAngles):
     for i in range(4):
         if motorAngles[3*i] is not None:
@@ -383,6 +399,8 @@ def legPositionsFromMotorAngles(motorAngles):
 
 def motorAnglesFromLegPositions(positions, bendForward):
     for i in range(12):
+        if positions[i] is None:
+            return [None]*12
         positions[i] -= defaultLegPositions[i]
     positions[0] *= -1
     positions[5] *= -1
@@ -409,6 +427,9 @@ def motorAnglesFromLegPositions(positions, bendForward):
 
 
 def dogRotationFromLegPositions(legPositions):
+    for v in legPositions:
+        if v is None:
+            return [[1,0,0],[0,1,0],[0,0,1]]
     A = legPositions
     B = defaultLegPositions
     centroidA = [0,0,0]
@@ -463,6 +484,22 @@ def dogPositionFromMotorAngles(motorAngles):
             return [None, None, None]
     #return averagePosition
     return vec3_rotate(averagePosition, dogRotationFromLegPositions(legPositions));
+
+
+def motorAnglesTimeEvolution(motorAngles, timestamps, speed):
+    now = time.time()
+    for i in range(6):
+        timeDiff = now - timestamps[i]
+        if timeDiff > 0 and timeDiff < 2000:
+            if i < 3:
+                idx = 3*i + 2
+                if speed[idx] is not None:
+                    motorAngles[idx] += speed[idx]*timeDiff
+            else:
+                for idx in [6*(i - 4), 6*(i - 4) + 1, 6*(i - 4) + 3, 6*(i - 4) + 4]:
+                    if speed[idx] is not None:
+                        motorAngles[idx] += speed[idx]*timeDiff
+    return motorAngles
 
 
 def getBoundSpeed(speed):
@@ -547,7 +584,7 @@ def getSensorData():
 
 
 def getCommand():
-    global buttonMode, selection, loopCounter, selectedSpeed
+    global buttonMode, selection, loopCounter, selectedSpeed, startMovePositions, bendForward
     pressed = hub.buttons.pressed()
     #print("button mode is", buttonMode, selection)
     if buttonMode == _BUTTON_IDLE:
@@ -571,6 +608,8 @@ def getCommand():
         else:
             buttonMode = _BUTTON_IDLE
     elif buttonMode == _BUTTON_SELECT:
+        if not pressed:
+            startMovePositions = None
         if pressed == {Button.CENTER}:
             if selection == _SELECT_SHUTDOWN:
                 sendCommand(_CMD_SHUTDOWN_PACK)
@@ -591,53 +630,115 @@ def getCommand():
             pitch, roll = hub.imu.tilt()
             if(selection == 0):
                 if pressed == {Button.BLUETOOTH, Button.LEFT} or pressed == {Button.BLUETOOTH, Button.RIGHT} or pressed == {Button.BLUETOOTH}:
+                    motorAngles = getMotorAngles()
+                    motorSpeeds = getMotorSpeeds()
+                    motorAnglesEvolved = motorAnglesTimeEvolution(motorAngles.copy(), hubTimestamps, motorSpeeds)
+                    if startMovePositions is None:
+                        startMovePositions = legPositionsFromMotorAngles(motorAnglesEvolved)
                     selectedSpeed = 1000
-                    dogPosition = dogPositionFromMotorAngles(getMotorAngles())
-                    dogRotation = euler_from_quat(quat_from_mat3(dogRotationFromMotorAngles(getMotorAngles())))
-                    print("pos", [f"{num:.2f}" for num in dogPosition], "rot", [f"{num:.2f}" for num in dogRotation])
+                    dogPosition = dogPositionFromMotorAngles(motorAnglesEvolved)
+                    #dogRotation = euler_from_quat(quat_from_mat3(dogRotationFromMotorAngles(motorAnglesEvolved)))
+                    #print("pos", [f"{num:.2f}" for num in dogPosition], "rot", [f"{num:.2f}" for num in dogRotation]) #works if not None
+                    moveSpeed = [0,0,0]
                     if Button.RIGHT in pressed:
+                        moveSpeed[1] = 1
                         print("dog up")
                     elif Button.LEFT in pressed:
+                        moveSpeed[1] = -1
                         print("dog down")
                     if roll < -10:
+                        moveSpeed[2] = 1
                         print("dog left")
                     elif roll > 10:
+                        moveSpeed[2] = -1
                         print("dog right")
                     if pitch < -10:
                         print("dog backward")
+                        moveSpeed[0] = -1
                     elif pitch > 10:
                         print("dog forward")
+                        moveSpeed[0] = 1
+                    print("dog move speed is", moveSpeed*4)
                 else:
                     selectedSpeed = 0
                     sendCommand(getSpeedCmd(0, 0))
             elif(selection < 5):
                 if pressed == {Button.BLUETOOTH, Button.LEFT} or pressed == {Button.BLUETOOTH, Button.RIGHT} or pressed == {Button.BLUETOOTH}:
                     selectedSpeed = 1000
-                    legPositions = legPositionsFromMotorAngles(getMotorAngles())
-                    print("pos", [f"{num:.2f}" for num in legPositions])
+                    motorAngles = getMotorAngles()
+                    motorSpeeds = getMotorSpeeds()
+                    #motorAnglesEvolved = motorAnglesTimeEvolution(motorAngles.copy(), hubTimestamps, motorSpeeds)
+                    motorAnglesEvolved = motorAngles.copy()
+                    legPositions = legPositionsFromMotorAngles(motorAnglesEvolved.copy())
+                    if startMovePositions is None:
+                        startMovePositions = legPositions.copy()
+                    targetPositions = startMovePositions.copy()
+                    moveSpeed = [0,0,0, 0,0,0, 0,0,0, 0,0,0]
+                    moveSpeedLen = 0
                     if Button.RIGHT in pressed:
-                        print("leg", selection, "up")
+                        moveSpeed[3*selection - 2] = 1
+                        moveSpeedLen += 1
                     elif Button.LEFT in pressed:
-                        print("leg", selection, "down")
+                        moveSpeed[3*selection - 2] = -1
+                        moveSpeedLen += 1
                     if roll < -10:
-                        print("leg", selection, "left")
+                        moveSpeed[3*selection - 1] = 1
+                        moveSpeedLen += 1
                     elif roll > 10:
-                        print("leg", selection, "right")
+                        moveSpeed[3*selection - 1] = -1
+                        moveSpeedLen += 1
                     if pitch < -10:
-                        print("leg", selection, "backward")
+                        moveSpeed[3*selection - 3] = -1
+                        moveSpeedLen += 1
                     elif pitch > 10:
-                        print("leg", selection, "forward")
+                        moveSpeed[3*selection - 3] = 1
+                        moveSpeedLen += 1
+                    moveSpeedLen = sqrt(moveSpeedLen)
+                    currentDiff = 0
+                    for i in range(12):
+                        if moveSpeed[i] != 0:
+                            moveSpeed[i] /= moveSpeedLen
+                            if legPositions[i] is not None and startMovePositions[i] is not None:
+                                currentDiff += (legPositions[i] - startMovePositions[i])**2
+                    currentDiff = sqrt(currentDiff)
+                    for i in range(12):
+                        if moveSpeed[i] != 0 and targetPositions[i] is not None:
+                            targetPositions[i] += (currentDiff + 1)*moveSpeed[i]
+                    print("targetpositions", targetPositions)
+                    targetMotorAngles = motorAnglesFromLegPositions(targetPositions, bendForward)
+                    print("dog move speed is", moveSpeed, "currentDiff", currentDiff, "targetMotorAngles", targetMotorAngles, "startMovePositions", startMovePositions)
+                    motorSpeeds = [0,0,0, 0,0,0, 0,0,0, 0,0,0]
+                    for i in range(12):
+                        if targetMotorAngles[i] is not None and motorAnglesEvolved[i] is not None:
+                            motorSpeeds[i] = targetMotorAngles[i] - motorAnglesEvolved[i]
+                    maxSpeed = max(motorSpeeds, key=abs)
+                    if maxSpeed < 0.1:
+                        return sendCommand(getSpeedCmd(0, 0))
+                    for i in range(12):
+                        motorSpeeds[i] = floor(motorSpeeds[i]*1000/maxSpeed)
+                    print("requesting speed", motorSpeeds)
+                    return sendCommand([pack('<B12h',_CMD_SPEED, *motorSpeeds)])
+                elif pressed == {Button.BLUETOOTH, Button.CENTER}:
+                    if bendForward[selection - 1]:
+                        hub.speaker.beep(2000, 50)
+                        hub.speaker.beep(800, 50)
+                        bendForward[selection - 1] = False
+                    else:
+                        hub.speaker.beep(800, 50)
+                        hub.speaker.beep(2000, 50)
+                        bendForward[selection - 1] = True
+                    buttonMode = _BUTTON_ACTIVE
                 elif(roll < -10):
                     motor = 1 + selection % 2
                     selectedSpeed = getBoundSpeed(pitch*30)
-                    sendCommand(getSpeedCmd(selectedSpeed, motor + 3*(selection - 1)))
+                    return sendCommand(getSpeedCmd(selectedSpeed, motor + 3*(selection - 1)))
                 elif(roll > 10):
                     motor = 1 + (selection + 1) % 2
                     selectedSpeed = getBoundSpeed(pitch*30)
-                    sendCommand(getSpeedCmd(selectedSpeed, motor + 3*(selection - 1)))
+                    return sendCommand(getSpeedCmd(selectedSpeed, motor + 3*(selection - 1)))
                 else:
                     selectedSpeed = 0
-                    sendCommand(getSpeedCmd(0, 0))
+                    return sendCommand(getSpeedCmd(0, 0))
             elif(selection < 7):
                 motor = 0
                 if(roll < -10):
