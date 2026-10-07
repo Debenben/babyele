@@ -1,6 +1,6 @@
 {
   "name": "babyele",
-  "version": "0.8.9",
+  "version": "0.8.10",
   "description": "program to control lego walker",
   "main": ".webpack/main",
   "scripts": {
@@ -45,5 +45,13 @@
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
+  },
+  "allowScripts": {
+    "@stoprocent/bluetooth-hci-socket@2.3.0": true,
+    "babylonjs@9.29.0": true,
+    "electron-winstaller@5.4.4": true,
+    "usb@2.19.1": true,
+    "@stoprocent/noble@2.8.0": true,
+    "@serialport/bindings-cpp@12.0.1": true
   }
 }
