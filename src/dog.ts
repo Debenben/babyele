@@ -128,9 +128,11 @@ export class Dog implements DogAbstraction {
       ipcMain.on(hubNames[i], (event, arg1, arg2) => {
         if(arg1 === "getProperties") {
           this.send('notifyStatus', hubNames[i], this.hubStatus[i]);
-           this.send('notifyTimestamps', hubNames[i], this._hubTimestamps[i].slice(0));
-           this.send('notifyRssis', hubNames[i], this._hubRssis[i].slice(0));
+          this.send('notifyTimestamps', hubNames[i], this._hubTimestamps[i].slice(0));
+          this.send('notifyRssis', hubNames[i], this._hubRssis[i].slice(0));
         }
+        else if(arg1 === "resetTimestamps") this._hubTimestamps[i] = [];
+        else if(arg1 === "resetRssis")  this._hubRssis[i] = [];
       });
     }
     for(let i = 0; i < 4; i++)  {

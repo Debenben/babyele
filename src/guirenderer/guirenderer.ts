@@ -352,7 +352,7 @@ const buildAcceleration = async (scene: Scene, meshName: string) => {
   arrow.isPickable = false;
   const hub = await importMesh(scene, meshName + "AccelerationHub", "hub.glb", hubScaling);
   hub.parent = arrow;
-  hub.isPickable = false;
+  hub.getChildMeshes()[0].isPickable = false;
   hub.getChildMeshes()[0].material = arrow.material;
   arrow.setEnabled(false);
   return arrow;

@@ -49,11 +49,17 @@ export class HubInfobox extends Infobox {
     connectionGrid.addControl(filler, 0, 1);
     this.timestampsText = buildText("---");
     this.timestampsText.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_RIGHT;
+    this.timestampsText.onPointerClickObservable.add(() => ipcRenderer.send(this.name, "resetTimestamps"));
+    this.timestampsText.onPointerEnterObservable.add(() => this.timestampsText.color = "lightgrey");
+    this.timestampsText.onPointerOutObservable.add(() => this.timestampsText.color = "black");
     connectionGrid.addControl(this.timestampsText, 0, 1);
     this.rssisLine = new DensityLine(colorString);
     connectionGrid.addControl(filler.clone(), 2, 1);
     this.rssisText = buildText("---");
     this.rssisText.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_RIGHT;
+    this.rssisText.onPointerClickObservable.add(() => ipcRenderer.send(this.name, "resetRssis"));
+    this.rssisText.onPointerEnterObservable.add(() => this.rssisText.color = "lightgrey");
+    this.rssisText.onPointerOutObservable.add(() => this.rssisText.color = "black");
     connectionGrid.addControl(this.rssisLine, 2, 0);
     connectionGrid.addControl(this.rssisText, 2, 1);
     this.panel.addControl(connectionGrid);

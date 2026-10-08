@@ -1,6 +1,6 @@
 from pybricks.hubs import TechnicHub
 from pybricks.messaging import BLERadio
-from pybricks.pupdevices import Motor, ColorDistanceSensor
+from pybricks.pupdevices import Motor
 from pybricks.parameters import Color, Port, Button, Axis
 from pybricks.tools import StopWatch
 from pybricks.iodevices import PUPDevice
@@ -88,6 +88,17 @@ class TiltSensor(PUPDevice):
         return [self.__x_post[0], self.__y_post[0], self.__z_post[0]]
 
 
+class FusionDistanceSensor(PUPDevice):
+    def __init__(self, port):
+        self.io = PUPDevice(port)
+
+    param = [25.29, 29.0, 189.7, -0.6374]
+
+    def distance(self):
+        val = self.read(8)
+        return min(param[0]*val[1] + param[1], param[2]*max(vals[3], 0.001)**param[3])
+
+
 def getSpeedCmd(speed):
     buffer = bytearray(pack('<B12h',_CMD_SPEED, 0,0,0, 0,0,0, 0,0,0, 0,0,0))
     pack_into('<h', buffer, 5 + 6*(_HUBID - 1), speed)
@@ -120,8 +131,11 @@ def getTiltSensor(port):
 def getDistanceSensor(port):
     global distanceSensor
     try:
-        distanceSensor = ColorDistanceSensor(port)
-        #print("distance sensor found")
+        distanceSensor = FusionDistanceSensor(port)
+        if(distanceSensor.info()["id"] != 37):
+            distanceSensor = 0
+        #else:
+            #print("distance sensor found")
     except:
         distanceSensor = 0
 
@@ -171,6 +185,8 @@ def executeCommand(data):
             elif subcmd == _SUBCMD_STORE:
                 pass
             elif subcmd == _SUBCMD_EXECUTE:
+                pass
+            elif subcmd == _SUBCMD_RESET:
                 pass
         elif command == _CMD_DATA:
             if currentCommand[0][0] == _CMD_SUBCMD and currentCommand[0][1] == _SUBCMD_STORE:
@@ -229,13 +245,13 @@ def getSensorValues():
     try:
         if (status & 0b01000000 == 0b01000000): #selected
             if loopCounter == 0:
-                distanceSensor.light.on(Color.RED)
+                distanceSensor.write(5,[9]) #light.on(Color.RED)
             elif loopCounter == 250:
-                distanceSensor.light.on(Color.GREEN)
+                distanceSensor.write(5,[5]) #light.on(Color.GREEN)
             elif loopCounter == 500:
-                distanceSensor.light.on(Color.BLUE)
+                distanceSensor.write(5,[3]) #.light.on(Color.BLUE)
             elif loopCounter == 750:
-                distanceSensor.light.off()
+                distanceSensor.write(5,[0]) #light.off()
         else:
             distance = distanceSensor.distance()
             #print("distance is", distance)

@@ -101,8 +101,8 @@ class SimulationMotor {
     if(this.destRotation != null) {
       const targetDifference = this.destRotation - this.rotation;
       this.rotation += Math.sign(targetDifference)*Math.min(this.maxSpeed*timeDifference, Math.abs(targetDifference));
-      this.speed *= 0.7;
-      this.speed += Math.abs(targetDifference) > 10 ? 0.3*Math.sign(targetDifference)*this.maxSpeed : 0;
+      this.speed *= 0.8;
+      this.speed += Math.abs(targetDifference) > 10 ? 0.2*Math.sign(targetDifference)*this.maxSpeed : 0;
     }
     else {
       this.rotation += timeDifference*this.speed;
@@ -112,7 +112,7 @@ class SimulationMotor {
   }
 
   getSpeed() {
-    return (this.speed + 0.2*(Math.random() - 0.5)*this.maxSpeed)*10000; // 10deg/ms -> deg/s
+    return (this.speed + 0.1*(Math.random() - 0.5)*this.maxSpeed)*10000; // 10deg/ms -> deg/s
   }
 }
 
@@ -122,7 +122,7 @@ class SimulationTiltSensor {
     this.acceleration = acceleration;
   }
   getAcceleration() {
-    return this.acceleration;
+    return this.acceleration.map(e => e + 100*Math.random());
   }
 }
 

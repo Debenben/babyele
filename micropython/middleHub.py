@@ -108,6 +108,8 @@ def executeCommand(data):
                 pass
             elif subcmd == _SUBCMD_EXECUTE:
                 pass
+            elif subcmd == _SUBCMD_RESET:
+                pass
         elif command == _CMD_DATA:
             if currentCommand[0][0] == _CMD_SUBCMD and currentCommand[0][1] == _SUBCMD_STORE:
                 updateCurrentCommand(data)
