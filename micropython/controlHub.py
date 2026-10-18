@@ -12,15 +12,17 @@ _HUBID = const(0)
 _CMD_SUBCMD = const(0)
 _CMD_SPEED = const(1)
 _CMD_ANGLE = const(2)
-_CMD_DATA = const(3)
 
 _SUBCMD_WAIT = const(0)
 _SUBCMD_SHUTDOWN = const(1)
-_SUBCMD_STORE = const(2)
-_SUBCMD_EXECUTE = const(3)
-_SUBCMD_RESET = const(4)
+_SUBCMD_STORE_I = const(2)
+_SUBCMD_STORE_II = const(3)
+_SUBCMD_EXECUTE = const(4)
+_SUBCMD_RESET_I = const(5)
+_SUBCMD_RESET_II = const(6)
+_SUBCMD_DIST_CALIB = const(7)
 
-_CMD_SHUTDOWN_PACK = [pack('<3B11h',_CMD_SUBCMD, _SUBCMD_SHUTDOWN,0,0,0, 0,0,0, 0,0,0, 0,0,0)]
+_CMD_SHUTDOWN_PACK = [pack('<3B11h',_CMD_SUBCMD, _SUBCMD_SHUTDOWN, _HUBID, 0,0,0,0,0,0,0,0,0,0,0)]
 
 _BUTTON_IDLE = const(0)
 _BUTTON_ACTIVE = const(1)
@@ -143,7 +145,7 @@ bendForward = [False, True, False, True]
 hubSensorData = [None, None, None, None, None, None, None]
 hubTimestamps = [-100000, -100000, -100000, -100000, -100000, -100000, -100000]
 hubChecksums = [0, 0, 0, 0, 0, 0, 0]
-
+commandStorage = [pack('<5sB12h','empty', _CMD_SUBCMD ,0,0,0, 0,0,0, 0,0,0, 0,0,0)]*255
 
 hub = InventorHub()
 hub.system.set_stop_button(None)
@@ -153,7 +155,7 @@ time = StopWatch()
 
 
 def cosLaw(rSide, lSide, angle):
-    return sqrt(abs(rSide**2 + lSide**2 - 2*rSide*lSide*cos(angle)))
+    return sqrt(abs(rSide*rSide + lSide*lSide - 2*rSide*lSide*cos(angle)))
 
 
 def invCosLaw(rSide, lSide, oSide):
@@ -370,14 +372,18 @@ def legAnglesFromMotorAngles(motorAngles):
 
 
 def motorAnglesFromLegAngles(legAngles):
+    _mountAngleOffset = mountAngleOffset
     for i in range(4):
-        if legAngles[3*i] is not None:
-            pistonLength = cosLaw(_LEG_PISTON_HEIGHT, _LEG_PISTON_WIDTH, legAngles[3*i] + mountAngleOffset)
+        val = legAngles[3*i]
+        if val is not None:
+            pistonLength = cosLaw(_LEG_PISTON_HEIGHT, _LEG_PISTON_WIDTH, val + _mountAngleOffset)
             legAngles[3*i] = (pistonLength - _LEG_PISTON_LENGTH)*_MOUNT_MOTOR_RANGE
-        if legAngles[3*i + 1] is not None:
-            legAngles[3*i + 1] *= _TOP_MOTOR_RANGE/pi
-        if legAngles[3*i + 2] is not None:
-            legAngles[3*i + 2] *= _BOTTOM_MOTOR_RANGE/pi
+        val = legAngles[3*i + 1]
+        if val is not None:
+            legAngles[3*i + 1] = val*_TOP_MOTOR_RANGE/pi
+        val = legAngles[3*i + 2]
+        if val is not None:
+            legAngles[3*i + 2] = val*_BOTTOM_MOTOR_RANGE/pi
     return legAngles
 
 
@@ -410,25 +416,32 @@ def legPositionsFromMotorAngles(motorAngles):
 
 
 def motorAnglesFromLegPositions(positions, bendForward):
+    _piHalf = 0.5*pi
+    _legMountWidthSquared = _LEG_MOUNT_WIDTH*_LEG_MOUNT_WIDTH
+    _legLengthRatio = _LEG_LENGTH_TOP/_LEG_LENGTH_BOTTOM
+    _defPos = defaultLegPositions
     for i in range(12):
         if positions[i] is None:
             return [None]*12
-        positions[i] -= defaultLegPositions[i]
+        positions[i] -= _defPos[i]
     positions[0] *= -1
     positions[5] *= -1
     positions[6] *= -1
     positions[11] *= -1
     for i in range(4):
-        mAngle = atan2(positions[3*i + 2], -positions[3*i + 1])
-        mLength = -positions[3*i + 1]/cos(mAngle);
-        mHeight = sqrt(abs(mLength**2 - _LEG_MOUNT_WIDTH**2))
+        _xpos = positions[3*i]
+        _ypos = positions[3*i + 1]
+        _zpos = positions[3*i + 2]
+        mAngle = atan2(_zpos, -_ypos)
+        mLength = -_ypos/cos(mAngle);
+        mHeight = sqrt(abs(mLength*mLength - _legMountWidthSquared))
         mountAngle = mAngle - atan2(_LEG_MOUNT_WIDTH, mHeight)
         tbHeight = mHeight + _LEG_MOUNT_HEIGHT
-        tbLength = sqrt(tbHeight**2 + positions[3*i]**2)
-        phi = atan2(positions[3*i], tbHeight)
+        tbLength = sqrt(tbHeight*tbHeight + _xpos*_xpos)
+        phi = atan2(_xpos, tbHeight)
         alpha = invCosLaw(tbLength, _LEG_LENGTH_TOP, _LEG_LENGTH_BOTTOM)
         topAngle = phi + alpha
-        bottomAngle = acos((_LEG_LENGTH_TOP/_LEG_LENGTH_BOTTOM)*cos(pi/2 - alpha)) - alpha - pi/2;
+        bottomAngle = acos(_legLengthRatio*cos(_piHalf - alpha)) - alpha - _piHalf;
         if bendForward[i]:
             topAngle = phi - alpha
             bottomAngle *= -1
@@ -498,24 +511,6 @@ def dogPositionFromMotorAngles(motorAngles):
     return vec3_rotate(averagePosition, dogRotationFromLegPositions(legPositions));
 
 
-def motorAnglesTimeEvolution(motorAngles, timestamps, speed):
-    #print("ma1", motorAngles, "\nsp1", speed)
-    now = time.time()
-    for i in range(6):
-        timeDiff = 0.001*(now - timestamps[i + 1])
-        if timeDiff > 0 and timeDiff < 2:
-            if i < 4:
-                idx = 3*i + 2
-                if speed[idx] is not None:
-                    motorAngles[idx] += round(speed[idx]*timeDiff)
-            else:
-                for idx in [6*(i - 4), 6*(i - 4) + 1, 6*(i - 4) + 3, 6*(i - 4) + 4]:
-                    if speed[idx] is not None:
-                        motorAngles[idx] += round(speed[idx]*timeDiff)
-    #print("ma2", motorAngles, "\n")
-    return motorAngles
-
-
 def getBoundSpeed(speed):
     if speed > 1000:
         return 1000
@@ -539,19 +534,25 @@ def flipBendDirection(legIds):
 
 def moveLegPositions(moveSpeed):
     global startMovePositions
-    norm = sqrt(sum(x**2 for x in moveSpeed))
+    norm = 0
+    for i in range(12):
+        val = moveSpeed[i]
+        norm += val*val
     if norm > 0:
-        moveSpeed = [x / norm for x in moveSpeed]
+        norm = 1.0/sqrt(norm)
+        for i in range(12):
+            moveSpeed[i] *= norm
     motorAnglesEvolved = getEvolvedMotorAngles()
     legPositions = legPositionsFromMotorAngles(motorAnglesEvolved.copy())
     if startMovePositions is None:
         startMovePositions = legPositions.copy()
     targetPositions = startMovePositions.copy()
     currentDiff = 0
-    for i in range(12):
+    for i in range(12): 
         if moveSpeed[i] != 0 and legPositions[i] is not None and startMovePositions[i] is not None:
-            currentDiff += (legPositions[i] - startMovePositions[i])**2
-    currentDiff = sqrt(currentDiff) + 10
+            diff = legPositions[i] - startMovePositions[i]
+            currentDiff += diff*diff
+    currentDiff = sqrt(currentDiff) + 10 
     for i in range(12):
         if moveSpeed[i] != 0 and targetPositions[i] is not None:
             targetPositions[i] += currentDiff*moveSpeed[i]
@@ -563,8 +564,9 @@ def moveLegPositions(moveSpeed):
     maxSpeed = abs(max(motorSpeeds, key=abs))
     if maxSpeed < 0.1:
         return sendCommand(getSpeedCmd(0, 0))
+    maxSpeed = 1000/maxSpeed
     for i in range(12):
-        motorSpeeds[i] = floor(motorSpeeds[i]*1000/maxSpeed)
+        motorSpeeds[i] = floor(motorSpeeds[i]*maxSpeed)
     return sendCommand([pack('<B12h',_CMD_SPEED, *motorSpeeds)])
 
 
@@ -603,16 +605,24 @@ def executeCommand(data):
     hubTimestamps[0] = time.time()
     hubSensorData[0] = data
     hubChecksums[0] = checksum
-    if cmd == _CMD_SUBCMD and subcmd == _SUBCMD_SHUTDOWN:
-        hub.speaker.beep(1000, 20)
-        wait(100)
-        hub.speaker.beep(1000, 20)
-        wait(100)
-        hub.speaker.beep(1000, 20)
-        wait(100)
-        hub.speaker.beep(1000, 20)
-        wait(100)
-        hub.system.shutdown()
+    if cmd == _CMD_SUBCMD:
+        if subcmd == _SUBCMD_SHUTDOWN:
+            if data[0][2] == _HUBID:
+                hub.speaker.beep(1000, 20)
+                wait(100)
+                hub.speaker.beep(1000, 20)
+                wait(100)
+                hub.speaker.beep(1000, 20)
+                wait(100)
+                hub.speaker.beep(1000, 20)
+                wait(100)
+                hub.system.shutdown()
+        elif subcmd == _SUBCMD_STORE_I or subcmd == _SUBCMD_STORE_II:
+            slot, cmdName, cmd, vals = unpack_from('<B5sB12s', data[0], 2)
+            if subcmd == _SUBCMD_STORE_I:
+                commandStorage[slot] = pack('<5sB12s', cmdName, cmd, vals)
+            else:
+                commandStorage[slot] = pack_into('<12s', vals, 13)
 
 
 def getSensorData():
@@ -622,9 +632,9 @@ def getSensorData():
         if receive:
             data = receive[0]
             if data == hubSensorData[i]:
-                return
+                continue
             else:
-                hubSensorData[i] = receive[0]
+                hubSensorData[i] = data
                 hubTimestamps[i] = time.time()
             try:
                 status = receive[0][0]
@@ -761,13 +771,15 @@ def getCommand():
                     elif pitch > 10:
                         rotationSpeed[2] = 1
                     rotMatrix = mat3_from_euler(*rotationSpeed)
-                    pos = legPositionsFromMotorAngles(getEvolvedMotorAngles())
+                    motorAngles = getEvolvedMotorAngles()
+                    pos = legPositionsFromMotorAngles(motorAngles)
+                    dogPos = dogPositionFromMotorAngles(motorAngles)
                     dest = pos.copy()
                     for i in range(4):
-                        [dest[3*i], dest[3*i + 1], dest[3*i + 2]] = vec3_rotate([pos[3*i], pos[3*i + 1], pos[3*i + 2]], rotMatrix)
+                        [dest[3*i], dest[3*i + 1], dest[3*i + 2]] = vec3_rotate([pos[3*i] - dogPos[0], pos[3*i + 1] - dogPos[1], pos[3*i + 2] - dogPos[2]], rotMatrix)
                     moveSpeed = [0,0,0, 0,0,0, 0,0,0, 0,0,0]
                     for i in range(12):
-                        moveSpeed[i] = dest[i] - pos[i]
+                        moveSpeed[i] = dest[i] + dogPos[i % 3] - pos[i]
                     return moveLegPositions(moveSpeed)
                 elif pressed == {Button.BLUETOOTH, Button.CENTER}:
                     buttonMode = _BUTTON_ACTIVE
@@ -784,11 +796,14 @@ def getCommand():
             elif(selection == _SELECT_RETURN):
                 if(pressed == {Button.BLUETOOTH}):
                     selectedSpeed = 1000
-                    sendCommand([pack('<3B11h',_CMD_SUBCMD, _SUBCMD_RESET,0,0,0, 0,0,0, 0,0,0, 0,0,0)])
+                    #sendCommand([pack('<3B5sB8h',_CMD_SUBCMD, _SUBCMD_STORE_I, 120, 'hello', _CMD_ANGLE, 1,2,3,4,5,6, 0,0)])
+                    sendCommand([pack('<2B6hB5h',_CMD_SUBCMD, _SUBCMD_RESET_I, 0,0,0, 0,0,0, 0,0,0,0,0,0)])
                     hub.speaker.beep(500, 100)
                     wait(300)
+                    #sendCommand([pack('<3B5sB8h',_CMD_SUBCMD, _SUBCMD_STORE_II, 120, 'hello', _CMD_ANGLE, 7,8,9, 10,11,12, 0,0)])
+                    sendCommand([pack('<2B6hB5h',_CMD_SUBCMD, _SUBCMD_RESET_II, 0,0,0, 0,0,0, 0,0,0,0,0,0)])
                     hub.speaker.beep(500, 100)
-                    sendCommand([pack('<B12h',_CMD_DATA, 0,0,0, 0,0,0, 0,0,0, 0,0,0)])
+                    buttonMode = _BUTTON_ACTIVE
                 else:
                     selectedSpeed = 0
 

@@ -14,15 +14,17 @@ _MOTORPORTS = [Port.B, Port.D, Port.A, Port.C]
 _CMD_SUBCMD = const(0)
 _CMD_SPEED = const(1)
 _CMD_ANGLE = const(2)
-_CMD_DATA = const(3)
 
 _SUBCMD_WAIT = const(0)
 _SUBCMD_SHUTDOWN = const(1)
-_SUBCMD_STORE = const(2)
-_SUBCMD_EXECUTE = const(3)
-_SUBCMD_RESET = const(4)
+_SUBCMD_STORE_I = const(2)
+_SUBCMD_STORE_II = const(3)
+_SUBCMD_EXECUTE = const(4)
+_SUBCMD_RESET_I = const(5)
+_SUBCMD_RESET_II = const(6)
+_SUBCMD_DIST_CALIB = const(7)
 
-_CMD_SHUTDOWN_PACK = [pack('<3B11h',_CMD_SUBCMD, _SUBCMD_SHUTDOWN,0,0,0, 0,0,0, 0,0,0, 0,0,0)]
+_CMD_SHUTDOWN_PACK = [pack('<3B11h',_CMD_SUBCMD, _SUBCMD_SHUTDOWN, _HUBID, 0,0,0,0,0,0,0,0,0,0,0)]
 
 _BUTTON_IDLE = const(0)
 _BUTTON_ACTIVE = const(1)
@@ -35,11 +37,12 @@ buttonMode = _BUTTON_INACTIVE
 currentCommand = 0
 currentChecksum = 0
 commandTimestamp = -100000
-motors = [0, 0, 0, 0]
+motors = [None, None, None, None]
 imuA = [0.0, 0.0, 0.0]
 angles = [0, 0, 0, 0]
 speeds = [0, 0, 0, 0]
 status = 0
+commandStorage = [pack('<5sB12h','empty', _CMD_SUBCMD, 0,0,0, 0,0,0, 0,0,0, 0,0,0)]*255
 
 hub = TechnicHub()
 hub.system.set_stop_button(None)
@@ -94,29 +97,32 @@ def updateCurrentCommand(data):
 
 
 def executeCommand(data):
-    global motors
+    global motors, commandStorage
     try:
         command = data[0][0]
         if command == _CMD_SUBCMD:
-            updateCurrentCommand(data)
             subcmd = data[0][1]
             if subcmd == _SUBCMD_WAIT:
                 pass
             elif subcmd == _SUBCMD_SHUTDOWN:
-                hub.system.shutdown()
-            elif subcmd == _SUBCMD_STORE:
-                pass
+                if data[0][2] == _HUBID or data[0][2] == 0:
+                    updateCurrentCommand(data)
+                    hub.system.shutdown()
+            elif subcmd == _SUBCMD_STORE_I or subcmd == _SUBCMD_STORE_II:
+                slot, cmdName, cmd, vals = unpack_from('<B5sB12s', data[0], 2)
+                if subcmd == _SUBCMD_STORE_I:
+                    commandStorage[slot] = pack('<5sB12s', cmdName, cmd, vals)
+                else:
+                    commandStorage[slot] = pack_into('<12s', vals, 13)
             elif subcmd == _SUBCMD_EXECUTE:
                 pass
-            elif subcmd == _SUBCMD_RESET:
+            elif subcmd == _SUBCMD_RESET_I:
                 pass
-        elif command == _CMD_DATA:
-            if currentCommand[0][0] == _CMD_SUBCMD and currentCommand[0][1] == _SUBCMD_STORE:
-                updateCurrentCommand(data)
-                pass
-            elif currentCommand[0][0] == _CMD_SUBCMD and currentCommand[0][1] == _SUBCMD_RESET:
-                updateCurrentCommand(data)
-                mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', data[0], 1 + 12*(_HUBID - 5))
+            elif subcmd == _SUBCMD_RESET_II:
+                if currentCommand[0][0] != _CMD_SUBCMD or currentCommand[0][1] != _SUBCMD_RESET_I:
+                    #print("incorrect reset command sequence")
+                    return
+                mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', currentCommand[0] if _HUBID == 5 else data[0], 2)
                 target = [10*mount1, 10*top1, 10*mount2, 10*top2]
                 for i in range(0, 4):
                     try:
@@ -124,9 +130,10 @@ def executeCommand(data):
                     except:
                         getMotor(_MOTORPORTS[i])
             else:
-                updateCurrentCommand(data)
+                pass
                 #print("recieved data after cmd", currentCommand[0])
-                return
+            updateCurrentCommand(data)
+            return
         else:
             mount1, top1, bottom1, mount2, top2, bottom2 = unpack_from('<hhhhhh', data[0], 1 + 12*(_HUBID - 5))
             updateCurrentCommand(data)

@@ -32,7 +32,7 @@ export class SimulationHciSocket extends EventEmitter implements SocketAbstracti
   }
 
   write(data: Buffer) {
-    console.log("simulation socket received", data);
+    //console.log("simulation socket received", data);
     this.currentData = data;
   }
 }
@@ -188,7 +188,7 @@ class SimulationPybricksHub {
         data.writeInt8(-Math.round(80*Math.random()), 44);
       }
       this.socket.emit('data', data);
-      console.log("simulation socket sending", data);
+      //console.log("simulation socket sending", data);
     }, 30 + 30*Math.random(), 200 + 200*Math.random());
   }
 
@@ -205,6 +205,43 @@ class SimulationPybricksHub {
         console.log("shutting down simulation hub id", this.hubId);
         this.broadcastInterval.clear();
         this.processBroadcast = (data) => {return;};
+      }
+      else if(subcmd == 2) {
+        console.log("simulation hub", this.hubId, "received STORE_I");
+      }
+      else if(subcmd == 3) {
+        console.log("simulation hub", this.hubId, "received STORE_II");
+      }
+      else if(subcmd == 4) {
+        console.log("simulation hub", this.hubId, "received EXECUTE");
+      }
+      else if(subcmd == 5) {
+        console.log("simulation hub", this.hubId, "received RESET_I");
+      }
+      else if(subcmd == 6) {
+        if(this.currentCommand.readUInt8(11) != 0 || this.currentCommand.readUInt8(12) != 5) {
+          console.log("simulation hub", this.hubId, "received incorrect reset command sequence");
+	  return;
+	}
+        console.log("reset simulation hub id", this.hubId);
+        if(this.hubId < 3) {
+          this.motors[0].reset(this.currentCommand.readInt16LE(11 + 6*this.hubId));
+        }
+	else if(this.hubId < 5) {
+          this.motors[0].reset(data.readInt16LE(6*this.hubId - 1));
+	}
+        else if(this.hubId == 5) {
+          this.motors[0].reset(this.currentCommand.readInt16LE(12*this.hubId - 47));
+          this.motors[1].reset(this.currentCommand.readInt16LE(12*this.hubId - 45));
+          this.motors[2].reset(this.currentCommand.readInt16LE(12*this.hubId - 41));
+          this.motors[3].reset(this.currentCommand.readInt16LE(12*this.hubId - 39));
+        }
+        else {
+          this.motors[0].reset(data.readInt16LE(12*this.hubId - 59));
+          this.motors[1].reset(data.readInt16LE(12*this.hubId - 57));
+          this.motors[2].reset(data.readInt16LE(12*this.hubId - 53));
+          this.motors[3].reset(data.readInt16LE(12*this.hubId - 51));
+        }
       }
     }
     else if(command == 1) { //SPEED
@@ -227,20 +264,6 @@ class SimulationPybricksHub {
         this.motors[1].setDestRotation(data.readInt16LE(12*this.hubId - 46));
         this.motors[2].setDestRotation(data.readInt16LE(12*this.hubId - 42));
         this.motors[3].setDestRotation(data.readInt16LE(12*this.hubId - 40));
-      }
-    }
-    else if(command == 3) { //DATA
-      if(this.currentCommand.readUInt8(11) == 0 && this.currentCommand.readUInt8(12) == 4) {
-        console.log("reset simulation hub id", this.hubId);
-        if(this.hubId < 5) {
-          this.motors[0].reset(data.readInt16LE(10 + 6*this.hubId));
-        }
-        else {
-          this.motors[0].reset(data.readInt16LE(12*this.hubId - 48));
-          this.motors[1].reset(data.readInt16LE(12*this.hubId - 46));
-          this.motors[2].reset(data.readInt16LE(12*this.hubId - 42));
-          this.motors[3].reset(data.readInt16LE(12*this.hubId - 40));
-        }
       }
     }
     let checksum = 0;

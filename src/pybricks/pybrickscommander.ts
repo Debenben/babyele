@@ -15,6 +15,19 @@ const LE_SET_ADVERTISING_DATA_CMD = 0x2008;
 const LE_SET_SCAN_RESPONSE_DATA_CMD = 0x2009;
 const LE_SET_ADVERTISE_ENABLE_CMD = 0x200a;
 
+const CMD_SUBCMD = 0;
+const CMD_SPEED = 1;
+const CMD_ANGLE = 2;
+
+const SUBCMD_WAIT = 0;
+const SUBCMD_SHUTDOWN = 1;
+const SUBCMD_STORE_I = 2;
+const SUBCMD_STORE_II = 3;
+const SUBCMD_EXECUTE = 4;
+const SUBCMD_RESET_I = 5;
+const SUBCMD_RESET_II = 6;
+const SUBCMD_DIST_CALIB = 7;
+
 class Command {
   data: Buffer
   promise: Promise
@@ -220,14 +233,19 @@ export class PybricksCommander implements CommanderAbstraction {
     return this.setAdvertiseData(Buffer.concat([header, data]));
   }
 
-  sendCommand(command: number, data: Vec43) {
+  sendCommand(command: number, data: Vec43 | Buffer) {
     if(this.currentCommand) this.currentCommand.callback(0x24);
     const msg = Buffer.alloc(26, 0);
     msg.writeUInt8((6 << 5) | (25 & 0x1F), 0); // type: byte=6, length: 25
     msg.writeUInt8(command, 1);
-    for(let i = 0; i < 4; i++) {
-      for(let j = 0; j < 3; j++) {
-        msg.writeInt16LE(data[i][j], 2 + 6*i + 2*j);
+    if(Buffer.isBuffer(data)) {
+      data.copy(msg, 2, 0, 24);
+    }
+    else {
+      for(let i = 0; i < 4; i++) {
+        for(let j = 0; j < 3; j++) {
+          msg.writeInt16LE(data[i][j], 2 + 6*i + 2*j);
+        }
       }
     }
     // console.log("sending command", msg);
@@ -241,26 +259,36 @@ export class PybricksCommander implements CommanderAbstraction {
     if(this.currentCommand) return;
     this.commandCounter += 1;
     if(this.commandCounter >= 2**16) this.commandCounter = 0;
-    return this.sendCommand(0, [[0,0,this.commandCounter], [0,0,0], [0,0,0], [0,0,0]]);
+    return this.sendCommand(CMD_SUBCMD, [[SUBCMD_WAIT,0,this.commandCounter], [0,0,0], [0,0,0], [0,0,0]]);
   }
 
   async requestShutdown() {
-    return this.sendCommand(0, [[1,0,0], [0,0,0], [0,0,0], [0,0,0]]);
+    return this.sendCommand(CMD_SUBCMD, [[SUBCMD_SHUTDOWN,0,0], [0,0,0], [0,0,0], [0,0,0]]);
   }
 
   async requestMotorSpeeds (motorSpeeds: Vec43) {
     // console.log("requesting speed with", motorSpeeds);
-    return this.sendCommand(1, motorSpeeds);
+    return this.sendCommand(CMD_SPEED, motorSpeeds);
   }
 
   async requestMotorAngles (motorAngles: Vec43) {
     // console.log("requesting angles with", motorAngles)
-    return this.sendCommand(2, motorAngles.map(e => e.map(v => v/10)) as Vec43);
+    return this.sendCommand(CMD_ANGLE, motorAngles.map(e => e.map(v => v/10)) as Vec43);
   }
 
   async requestSync (motorAngles: Vec43) {
     // console.log("requesting sync with", motorAngles);
-    await Promise.race([this.sendCommand(0, [[4,0,0], [0,0,0], [0,0,0], [0,0,0]]), new Promise(resolve => setTimeout(resolve, 500))]);
-    return this.sendCommand(3, motorAngles.map(e => e.map(v => v/10)) as Vec43);
+    const data_I  = Buffer.alloc(24, 0);
+    const data_II = Buffer.alloc(24, 0);
+    data_I.writeUInt8( SUBCMD_RESET_I,  0);
+    data_II.writeUInt8(SUBCMD_RESET_II, 0);
+    for(let i = 0; i < 2; i++) {
+      for(let j = 0; j < 3; j++) {
+        data_I.writeInt16LE( 0.1*motorAngles[i][j],     1 + 6*i + 2*j);
+        data_II.writeInt16LE(0.1*motorAngles[i + 2][j], 1 + 6*i + 2*j);
+      }
+    }
+    await Promise.race([this.sendCommand(CMD_SUBCMD, data_I), new Promise(resolve => setTimeout(resolve, 500))]);
+    return this.sendCommand(CMD_SUBCMD, data_II);
   }
 }
