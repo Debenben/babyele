@@ -204,53 +204,6 @@ def vec3_rotate(v, R):
     ]
 
 
-def quat_from_mat3(m):
-    trace = m[0][0] + m[1][1] + m[2][2]
-    if trace > 0:
-        s = sqrt(trace + 1.0) * 2
-        w = 0.25 * s
-        x = (m[2][1] - m[1][2]) / s
-        y = (m[0][2] - m[2][0]) / s
-        z = (m[1][0] - m[0][1]) / s
-        return [x, y, z, w]
-    if m[0][0] > m[1][1] and m[0][0] > m[2][2]:
-        s = sqrt(1.0 + m[0][0] - m[1][1] - m[2][2]) * 2
-        x = 0.25 * s
-        y = (m[0][1] + m[1][0]) / s
-        z = (m[0][2] + m[2][0]) / s
-        w = (m[2][1] - m[1][2]) / s
-        return [x, y, z, w]
-    if m[1][1] > m[2][2]:
-        s = sqrt(1.0 + m[1][1] - m[0][0] - m[2][2]) * 2
-        x = (m[0][1] + m[1][0]) / s
-        y = 0.25 * s
-        z = (m[1][2] + m[2][1]) / s
-        w = (m[0][2] - m[2][0]) / s
-        return [x, y, z, w]
-    s = sqrt(1.0 + m[2][2] - m[0][0] - m[1][1]) * 2
-    x = (m[0][2] + m[2][0]) / s
-    y = (m[1][2] + m[2][1]) / s
-    z = 0.25 * s
-    w = (m[1][0] - m[0][1]) / s
-    return [x, y, z, w]
-
-
-def euler_from_quat(q):
-    x, y, z, w = q
-    siny = 2 * (w*y + x*z)
-    cosy = 1 - 2 * (y*y + z*z)
-    yaw = atan2(siny, cosy)
-    sinp = 2 * (w*x - y*z)
-    if abs(sinp) >= 1:
-        pitch = copysign(pi/2, sinp)
-    else:
-        pitch = asin(sinp)
-    sinr = 2 * (w*z + x*y)
-    cosr = 1 - 2 * (z*z + x*x)
-    roll = atan2(sinr, cosr)
-    return [pitch*180/pi, yaw*180/pi, roll*180/pi]
-
-
 def mat3_from_euler(pitch, yaw, roll):
     p = pitch*pi/180.0
     y = yaw*pi/180.0
@@ -352,66 +305,6 @@ defaultLegPositions = [0.5*_LEG_SEPARATION_LENGTH, -_LEG_MOUNT_HEIGHT,  (0.5*_LE
 
 
 mountAngleOffset = invCosLaw(_LEG_PISTON_HEIGHT, _LEG_PISTON_WIDTH, _LEG_PISTON_LENGTH)
-
-
-def getMotorAngles():
-    _unpack = unpack_from
-    _angles = [None]*12
-    data = hubSensorData[1]
-    if data is not None:
-        _angles[2] = _unpack('<h', data, 8)[0]*10
-    data = hubSensorData[2]
-    if data is not None:
-        _angles[5] = _unpack('<h', data, 8)[0]*10
-    data = hubSensorData[3]
-    if data is not None:
-        _angles[8] = _unpack('<h', data, 8)[0]*10
-    data = hubSensorData[4]
-    if data is not None:
-        _angles[11] = _unpack('<h', data, 8)[0]*10
-    data = hubSensorData[5]
-    if data is not None:
-        _angles[0] = _unpack('<h', data, 8)[0]*10
-        _angles[1] = _unpack('<h', data, 10)[0]*10
-        _angles[3] = _unpack('<h', data, 12)[0]*10
-        _angles[4] = _unpack('<h', data, 14)[0]*10
-    data = hubSensorData[6]
-    if data is not None:
-        _angles[6] = _unpack('<h', data, 8)[0]*10
-        _angles[7] = _unpack('<h', data, 10)[0]*10
-        _angles[9] = _unpack('<h', data, 12)[0]*10
-        _angles[10] = _unpack('<h', data, 14)[0]*10
-    return _angles
-
-
-def getMotorSpeeds():
-    _unpack = unpack_from
-    _speeds = [None]*12
-    data = hubSensorData[1]
-    if data is not None:
-        _speeds[2] = _unpack('<h', data, 10)[0]
-    data = hubSensorData[2]
-    if data is not None:
-        _speeds[5] = _unpack('<h', data, 10)[0]
-    data = hubSensorData[3]
-    if data is not None:
-        _speeds[8] = _unpack('<h', data, 10)[0]
-    data = hubSensorData[4]
-    if data is not None:
-        _speeds[11] = _unpack('<h', data, 10)[0]
-    data = hubSensorData[5]
-    if data is not None:
-        _speeds[0] = _unpack('<h', data, 16)[0]
-        _speeds[1] = _unpack('<h', data, 18)[0]
-        _speeds[3] = _unpack('<h', data, 20)[0]
-        _speeds[4] = _unpack('<h', data, 22)[0]
-    data = hubSensorData[6]
-    if data is not None:
-        _speeds[6] = _unpack('<h', data, 16)[0]
-        _speeds[7] = _unpack('<h', data, 18)[0]
-        _speeds[9] = _unpack('<h', data, 20)[0]
-        _speeds[10] = _unpack('<h', data, 22)[0]
-    return _speeds
 
 
 def getEvolvedMotorAngles():
